@@ -153,24 +153,23 @@ func (d *devSession) buildShell() error {
 		if err != nil {
 			return err
 		}
-		adb := filepath.Join(e.AndroidSDK, "platform-tools/adb")
-		if err := e.ensureDevice(adb); err != nil {
+		if err := e.ensureDevice(); err != nil {
 			return err
 		}
 		port := d.addr[strings.LastIndex(d.addr, ":")+1:]
 		// The device reaches this machine's relay at its own 127.0.0.1.
-		if err := e.run(nil, adb, "reverse", "tcp:"+port, "tcp:"+port); err != nil {
+		if err := e.run(nil, e.adbPath(), e.adbArgs("reverse", "tcp:"+port, "tcp:"+port)...); err != nil {
 			return err
 		}
-		if err := e.run(nil, adb, "install", "-r", "-t", "--no-incremental", apk); err != nil {
+		if err := e.run(nil, e.adbPath(), e.adbArgs("install", "-r", "-t", "--no-incremental", apk)...); err != nil {
 			return err
 		}
-		_ = exec.Command(adb, "logcat", "-c").Run()
-		e.step("launch %s on the emulator", d.a.ID)
-		if err := e.run(nil, adb, "shell", "am", "start", "-S", "-n", d.a.ID+"/.MainActivity"); err != nil {
+		_ = e.adb("logcat", "-c").Run()
+		e.step("launch %s", d.a.ID)
+		if err := e.run(nil, e.adbPath(), e.adbArgs("shell", "am", "start", "-S", "-n", d.a.ID+"/.MainActivity")...); err != nil {
 			return err
 		}
-		d.logs = exec.Command(adb, "logcat", "-v", "brief", "-s", "NimbusNative:*", "NimbusNativeApp:*", "AndroidRuntime:E")
+		d.logs = e.adb("logcat", "-v", "brief", "-s", "NimbusNative:*", "NimbusNativeApp:*", "AndroidRuntime:E")
 	default:
 		return fmt.Errorf("unknown platform %q (ios or android)", d.platform)
 	}

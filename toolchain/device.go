@@ -132,11 +132,36 @@ func IOSTeam(root, want string) (string, error) {
 		strings.Join(list, "\n  "))
 }
 
-// xcodeTeams are the teams of the accounts signed in to Xcode, by id.
-func xcodeTeams() map[string]string {
-	out, err := exec.Command("defaults", "read", "com.apple.dt.Xcode", "IDEProvisioningTeams").Output()
+// XcodeTeams are the teams of the accounts signed in to Xcode, by id.
+func XcodeTeams() map[string]string { return xcodeTeams() }
+
+// SaveIOSTeam writes team into the project's Xcode app target, so Xcode
+// and later device builds sign with it without asking.
+func SaveIOSTeam(root, team string) error {
+	p := filepath.Join(root, "native/ios/Runner.xcodeproj/project.pbxproj")
+	b, err := os.ReadFile(p)
 	if err != nil {
-		return nil
+		return err
+	}
+	s := string(b)
+	if teamSetting.MatchString(s) {
+		s = teamSetting.ReplaceAllString(s, "DEVELOPMENT_TEAM = "+team+";")
+	} else {
+		// The app target's settings both carry CODE_SIGN_STYLE.
+		s = strings.ReplaceAll(s, "\t\t\t\tCODE_SIGN_STYLE = Automatic;\n",
+			"\t\t\t\tCODE_SIGN_STYLE = Automatic;\n\t\t\t\tDEVELOPMENT_TEAM = "+team+";\n")
+	}
+	return os.WriteFile(p, []byte(s), 0o644)
+}
+
+func xcodeTeams() map[string]string {
+	// Xcode 16 keeps them by account; older versions in a flat list.
+	var out []byte
+	for _, key := range []string{"IDEProvisioningTeamByIdentifier", "IDEProvisioningTeams"} {
+		if b, err := exec.Command("defaults", "read", "com.apple.dt.Xcode", key).Output(); err == nil {
+			out = b
+			break
+		}
 	}
 	teams := map[string]string{}
 	ids := regexp.MustCompile(`teamID = "?([A-Z0-9]{10})"?;`).FindAllSubmatch(out, -1)

@@ -39,15 +39,17 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 ## Requirements
 
 - Go 1.23+, and the `nimbus` CLI from [Nimbus](https://github.com/CodeSyncr/nimbus)
-- iOS: macOS with Xcode 16+. Simulator builds work as they are. On an
-  iPhone, over USB or Wi-Fi (paired in Xcode's Devices window), with
-  Developer Mode on: `nimbus native run ios -device -team <TEAM ID>`
-  (`-udid` picks a phone when several are reachable; the team can also come
-  from `NIMBUS_IOS_TEAM` or the Xcode project).
+- iOS: macOS with Xcode 16+. `nimbus native run ios` runs on a connected
+  iPhone or iPad (USB, or Wi-Fi once paired in Xcode's Devices window, with
+  Developer Mode on) and on the simulator when none is. With several, it
+  asks which; the first phone run asks which Apple team signs it and saves
+  that in the Xcode project. `-sim` forces the simulator, `-udid` picks a
+  device, `-team` a team.
 - Android: the Android SDK with an NDK and build-tools, JDK 17+. The Kotlin
   compiler is downloaded on the first build.
 
-`nimbus native doctor` checks all of it. Release Android builds are signed
+`nimbus native run android` likewise prefers a connected phone, then a
+running emulator, then boots the first one. `nimbus native doctor` checks all of it. Release Android builds are signed
 with the debug key until you add yours to `native/android/app/build.gradle.kts`.
 
 ## Roadmap

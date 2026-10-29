@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -90,6 +89,6 @@ func builtAPK(build string) (string, error) {
 
 // reverseServerPort lets an emulator or device reach the project's server
 // (`go run .`, port 3333) at 127.0.0.1, as the app's constants expect.
-func (e *Env) reverseServerPort(adb string) {
-	_ = exec.Command(adb, "reverse", "tcp:3333", "tcp:3333").Run()
+func (e *Env) reverseServerPort() {
+	_ = e.adb("reverse", "tcp:3333", "tcp:3333").Run()
 }

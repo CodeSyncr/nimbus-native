@@ -162,33 +162,79 @@ func (e *Env) goAndroid(a *App, abi AndroidABI, out string) error {
 // RunAndroid installs the APK on a connected device or emulator (booting
 // the first AVD if none is connected), launches it and streams its logs.
 func (e *Env) RunAndroid(a *App, apk string) error {
-	adb := filepath.Join(e.AndroidSDK, "platform-tools/adb")
-	if err := e.ensureDevice(adb); err != nil {
+	if err := e.ensureDevice(); err != nil {
 		return err
 	}
 	e.step("install %s", filepath.Base(apk))
-	if err := e.run(nil, adb, "install", "-r", "-t", "--no-incremental", apk); err != nil {
+	if err := e.run(nil, e.adbPath(), e.adbArgs("install", "-r", "-t", "--no-incremental", apk)...); err != nil {
 		return err
 	}
 	if a.Root != "" {
-		e.reverseServerPort(adb)
+		e.reverseServerPort()
 	}
-	_ = exec.Command(adb, "logcat", "-c").Run()
+	_ = e.adb("logcat", "-c").Run()
 	e.step("launch %s", a.ID)
-	if err := e.run(nil, adb, "shell", "am", "start", "-S", "-n", a.ID+"/.MainActivity"); err != nil {
+	if err := e.run(nil, e.adbPath(), e.adbArgs("shell", "am", "start", "-S", "-n", a.ID+"/.MainActivity")...); err != nil {
 		return err
 	}
-	cmd := exec.Command(adb, "logcat", "-v", "brief", "-s", "NimbusNative:*", "NimbusNativeApp:*", "AndroidRuntime:E", "DEBUG:*")
+	cmd := e.adb("logcat", "-v", "brief", "-s", "NimbusNative:*", "NimbusNativeApp:*", "AndroidRuntime:E", "DEBUG:*")
 	cmd.Stdout, cmd.Stderr = e.Out, e.Out
 	return cmd.Run()
 }
 
-func (e *Env) ensureDevice(adb string) error {
-	out, err := exec.Command(adb, "devices").Output()
+// AndroidDevice is a phone, tablet or emulator adb can reach.
+type AndroidDevice struct {
+	Serial   string
+	Model    string
+	Emulator bool
+}
+
+// AndroidDevices lists what `adb devices` reaches, ready to use.
+func (e *Env) AndroidDevices() ([]AndroidDevice, error) {
+	out, err := exec.Command(e.adbPath(), "devices", "-l").Output()
 	if err != nil {
-		return fmt.Errorf("adb: %w", err)
+		return nil, fmt.Errorf("adb: %w", err)
 	}
-	if strings.Contains(string(out), "\tdevice") {
+	var devs []AndroidDevice
+	for _, l := range strings.Split(string(out), "\n")[1:] {
+		f := strings.Fields(l)
+		if len(f) < 2 || f[1] != "device" {
+			continue // offline, unauthorized
+		}
+		d := AndroidDevice{Serial: f[0], Emulator: strings.HasPrefix(f[0], "emulator-")}
+		for _, kv := range f[2:] {
+			if m, ok := strings.CutPrefix(kv, "model:"); ok {
+				d.Model = strings.ReplaceAll(m, "_", " ")
+			}
+		}
+		devs = append(devs, d)
+	}
+	return devs, nil
+}
+
+func (e *Env) adbPath() string { return filepath.Join(e.AndroidSDK, "platform-tools/adb") }
+
+// adbArgs aims adb at the chosen device, when there is one.
+func (e *Env) adbArgs(args ...string) []string {
+	if e.Serial != "" {
+		return append([]string{"-s", e.Serial}, args...)
+	}
+	return args
+}
+
+func (e *Env) adb(args ...string) *exec.Cmd { return exec.Command(e.adbPath(), e.adbArgs(args...)...) }
+
+// ensureDevice makes sure something can take the app: the chosen device,
+// any connected one, or else the first emulator (AVD), booted here.
+func (e *Env) ensureDevice() error {
+	if e.Serial != "" {
+		return nil
+	}
+	devs, err := e.AndroidDevices()
+	if err != nil {
+		return err
+	}
+	if len(devs) > 0 {
 		return nil
 	}
 	avds, _ := exec.Command(filepath.Join(e.AndroidSDK, "emulator/emulator"), "-list-avds").Output()
@@ -201,16 +247,16 @@ func (e *Env) ensureDevice(adb string) error {
 		}
 	}
 	if avd == "" {
-		return fmt.Errorf("no device connected and no emulator (AVD) configured")
+		return fmt.Errorf("no Android device connected and no emulator (AVD) configured")
 	}
 	e.step("boot emulator %s", avd)
 	emu := exec.Command(filepath.Join(e.AndroidSDK, "emulator/emulator"), "-avd", avd, "-gpu", "host", "-no-snapshot-load", "-no-audio", "-no-boot-anim")
 	if err := emu.Start(); err != nil {
 		return fmt.Errorf("start emulator: %w", err)
 	}
-	_ = exec.Command(adb, "wait-for-device").Run()
+	_ = exec.Command(e.adbPath(), "wait-for-device").Run()
 	for i := 0; i < 120; i++ {
-		b, _ := exec.Command(adb, "shell", "getprop", "sys.boot_completed").Output()
+		b, _ := exec.Command(e.adbPath(), "shell", "getprop", "sys.boot_completed").Output()
 		if strings.TrimSpace(string(b)) == "1" {
 			return nil
 		}

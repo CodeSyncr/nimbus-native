@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.6 (2026-10-30)
+
+- `nimbus native run ios|android` runs on a connected phone by default,
+  and on the simulator or emulator when there is none. With several
+  devices it asks which one; `-sim` forces the simulator or emulator, and
+  `-udid` picks a device.
+- The first iPhone run asks which Apple team signs the app (when Xcode has
+  several) and saves it in the Xcode project.
+- Android runs, dev mode included, address the chosen device, so a phone
+  and an emulator can both be connected.
+- Reads the teams of Xcode 16, which keeps them under a new key.
+
 ## 0.0.5 (2026-10-30)
 
 - `nimbus native run ios -device` opens the app after installing it even

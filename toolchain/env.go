@@ -33,6 +33,9 @@ type Env struct {
 	AndroidJar string // newest platforms/android-*/android.jar
 	Javac      string
 	Keystore   string // debug keystore used to sign dev builds
+
+	// Serial is the Android device to use (adb -s); empty for adb's default.
+	Serial string
 }
 
 // MinAndroidAPI is the lowest Android version (API 26, Android 8.0) apps run on.

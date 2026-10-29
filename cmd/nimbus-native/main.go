@@ -12,11 +12,14 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CodeSyncr/nimbus-native/toolchain"
@@ -93,8 +96,9 @@ func buildOrRun(cmd, platform string, args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	name := fs.String("name", "", "app name (default: directory name)")
 	id := fs.String("id", "", "bundle / application id (default: space.nimbusgo.<dir>)")
-	device := fs.Bool("device", false, "iOS: build for (and run on) a phone instead of the simulator")
-	udid := fs.String("udid", "", "iOS: which phone, by name or id, when several are reachable")
+	device := fs.Bool("device", false, "build for (and run on) a phone; run picks one by default when connected")
+	sim := fs.Bool("sim", false, "run on the simulator / emulator even when a phone is connected")
+	udid := fs.String("udid", "", "which phone (or emulator), by name, id or serial")
 	team := fs.String("team", "", "iOS: the Apple team that signs device builds (or NIMBUS_IOS_TEAM)")
 	abis := fs.String("abi", "arm64-v8a", "Android: comma-separated ABIs (arm64-v8a,armeabi-v7a,x86_64,x86)")
 	verbose := fs.Bool("v", false, "print every tool invocation")
@@ -108,7 +112,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 		return err
 	}
 	if toolchain.IsProject(dir) {
-		return buildOrRunProject(cmd, platform, dir, *device, *udid, *team, strings.Split(*abis, ","), *verbose)
+		return buildOrRunProject(cmd, platform, dir, *device, *sim, *udid, *team, strings.Split(*abis, ","), *verbose)
 	}
 	app, err := toolchain.LoadApp(dir, *name, *id)
 	if err != nil {
@@ -151,7 +155,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 
 // buildOrRunProject builds a project's native/ios or native/android with
 // xcodebuild or Gradle, as the IDEs do.
-func buildOrRunProject(cmd, platform, dir string, device bool, udid, team string, abis []string, verbose bool) error {
+func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team string, abis []string, verbose bool) error {
 	app, err := toolchain.LoadProject(dir, "app/mobile", "")
 	if err != nil {
 		return err
@@ -163,7 +167,11 @@ func buildOrRunProject(cmd, platform, dir string, device bool, udid, team string
 		if app.ID, err = toolchain.IOSProjectID(app.Root); err != nil {
 			return err
 		}
-		if !device {
+		phone, onPhone, err := pickPhone(cmd, device, sim, udid)
+		if err != nil {
+			return err
+		}
+		if !onPhone {
 			out, err := env.BuildIOSProject(app, toolchain.IOSSimulator)
 			if err != nil {
 				return err
@@ -174,11 +182,7 @@ func buildOrRunProject(cmd, platform, dir string, device bool, udid, team string
 			}
 			return nil
 		}
-		phone, err := toolchain.PickIOSPhone(udid)
-		if err != nil {
-			return err
-		}
-		if team, err = toolchain.IOSTeam(app.Root, team); err != nil {
+		if team, err = pickTeam(app.Root, team); err != nil {
 			return err
 		}
 		via := "USB"
@@ -197,6 +201,11 @@ func buildOrRunProject(cmd, platform, dir string, device bool, udid, team string
 	case "android":
 		if app.ID, err = toolchain.AndroidProjectID(app.Root); err != nil {
 			return err
+		}
+		if cmd == "run" {
+			if env.Serial, err = pickAndroid(env, device, sim, udid); err != nil {
+				return err
+			}
 		}
 		out, err := env.BuildAndroidProject(app, abis)
 		if err != nil {
@@ -386,4 +395,164 @@ func inModule(dir string) error {
 	abs, _ := filepath.Abs(dir)
 	return fmt.Errorf("%s is not a Nimbus Native project (no go.mod here or above).\n"+
 		"  cd into a project made by `nimbus native new`, or make one:  nimbus native new myapp && cd myapp", abs)
+}
+
+// pickPhone decides where an iOS run goes: a phone when one is reachable
+// (asking which when several are), else the simulator. build stays on the
+// simulator unless -device.
+func pickPhone(cmd string, device, sim bool, udid string) (toolchain.IOSPhone, bool, error) {
+	if sim {
+		return toolchain.IOSPhone{}, false, nil
+	}
+	if udid != "" {
+		p, err := toolchain.PickIOSPhone(udid)
+		return p, err == nil, err
+	}
+	if cmd != "run" && !device {
+		return toolchain.IOSPhone{}, false, nil
+	}
+	phones, err := toolchain.IOSPhones()
+	switch {
+	case err != nil && device:
+		return toolchain.IOSPhone{}, false, err
+	case len(phones) == 0 && device:
+		_, err := toolchain.PickIOSPhone("") // says how to connect one
+		return toolchain.IOSPhone{}, false, err
+	case len(phones) == 0:
+		fmt.Println("› no iPhone or iPad connected: using the simulator")
+		return toolchain.IOSPhone{}, false, nil
+	case len(phones) == 1:
+		return phones[0], true, nil
+	}
+	names := make([]string, len(phones))
+	for i, p := range phones {
+		via := "USB"
+		if p.Wifi {
+			via = "Wi-Fi"
+		}
+		names[i] = fmt.Sprintf("%s (%s)", p.Name, via)
+	}
+	if !device {
+		names = append(names, "iOS Simulator")
+	}
+	i, err := choose("Run on which device?", names, "-udid <name>")
+	if err != nil || i == len(phones) {
+		return toolchain.IOSPhone{}, false, err
+	}
+	return phones[i], true, nil
+}
+
+// pickTeam is the team that signs a phone build; asked for (and saved in
+// the Xcode project) when Xcode has several and none is chosen.
+func pickTeam(root, team string) (string, error) {
+	t, err := toolchain.IOSTeam(root, team)
+	if err == nil {
+		return t, nil
+	}
+	teams := toolchain.XcodeTeams()
+	if len(teams) < 2 || !interactive() {
+		return "", err
+	}
+	var ids, names []string
+	for id := range teams {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		names = append(names, fmt.Sprintf("%s (%s)", teams[id], id))
+	}
+	i, err := choose("Sign with which Apple team?", names, "-team <ID>")
+	if err != nil {
+		return "", err
+	}
+	if err := toolchain.SaveIOSTeam(root, ids[i]); err == nil {
+		fmt.Printf("› saved team %s in native/ios/Runner.xcodeproj\n", ids[i])
+	}
+	return ids[i], nil
+}
+
+// pickAndroid decides where an Android run goes: a connected phone first,
+// else a running emulator (asking which when several), else "" so the
+// first emulator boots.
+func pickAndroid(env *toolchain.Env, device, sim bool, udid string) (string, error) {
+	devs, err := env.AndroidDevices()
+	if err != nil {
+		return "", err
+	}
+	if udid != "" {
+		for _, d := range devs {
+			if d.Serial == udid || strings.EqualFold(d.Model, udid) {
+				return d.Serial, nil
+			}
+		}
+		return "", fmt.Errorf("no connected Android device %q", udid)
+	}
+	var phones, emulators []toolchain.AndroidDevice
+	for _, d := range devs {
+		if d.Emulator {
+			emulators = append(emulators, d)
+		} else {
+			phones = append(phones, d)
+		}
+	}
+	options := phones
+	if sim || len(phones) == 0 {
+		if device {
+			return "", fmt.Errorf("no Android phone connected: plug one in with USB debugging on, or pair it for wireless debugging")
+		}
+		options = emulators
+	}
+	switch len(options) {
+	case 0:
+		return "", nil // the first emulator boots
+	case 1:
+		return options[0].Serial, nil
+	}
+	names := make([]string, len(options))
+	for i, d := range options {
+		kind := "phone"
+		if d.Emulator {
+			kind = "emulator"
+		}
+		names[i] = fmt.Sprintf("%s (%s, %s)", d.Model, kind, d.Serial)
+	}
+	i, err := choose("Run on which device?", names, "-udid <serial>")
+	if err != nil {
+		return "", err
+	}
+	return options[i].Serial, nil
+}
+
+// choose asks which of options to use, in a terminal; elsewhere it says to
+// pick with a flag instead.
+func choose(question string, options []string, flag string) (int, error) {
+	if !interactive() {
+		return 0, fmt.Errorf("%s pick one with %s:\n  %s", question, flag, strings.Join(options, "\n  "))
+	}
+	fmt.Printf("\n%s\n", question)
+	for i, o := range options {
+		fmt.Printf("  %d) %s\n", i+1, o)
+	}
+	in := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("Choose 1-%d: ", len(options))
+		line, err := in.ReadString('\n')
+		if n, convErr := strconv.Atoi(strings.TrimSpace(line)); convErr == nil && n >= 1 && n <= len(options) {
+			fmt.Println()
+			return n - 1, nil
+		}
+		if err != nil {
+			return 0, fmt.Errorf("no choice made")
+		}
+	}
+}
+
+// interactive reports whether someone at a terminal can answer.
+func interactive() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil || fi.Mode()&os.ModeCharDevice == 0 {
+		return false
+	}
+	null, err := os.Stat(os.DevNull) // a character device too, but nobody to ask
+	return err != nil || !os.SameFile(fi, null)
 }
