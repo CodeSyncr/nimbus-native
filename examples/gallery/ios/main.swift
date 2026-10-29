@@ -183,16 +183,35 @@ final class Bench {
                 r.press(tag: open)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
                     guard let place = r.tag(forTestID: "place-order") else { return log("FAIL: reopen") }
-                    r.press(tag: place)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
-                        let closed = host.presentedViewController == nil
-                        log("modal: Go dismissed it, sheet gone: \(closed)")
-                        log(okSoFar && form && swiped && closed ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
+                    r.press(tag: place) // empty form: errors, sheet stays
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [self] in
+                        let errors = ["customer", "phone"].filter { r.tag(forTestID: "error-" + $0) != nil }
+                        let stayed = host.presentedViewController != nil
+                        log("form: empty submit shows errors for \(errors), sheet still open: \(stayed)")
+                        type("field-customer", "Asha Rao")
+                        type("field-phone", "98765 43210")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [self] in
+                            let cleared = r.tag(forTestID: "error-customer") == nil && r.tag(forTestID: "error-phone") == nil
+                            r.press(tag: place)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                                let closed = host.presentedViewController == nil
+                                log("form: valid submit cleared errors: \(cleared), placed and dismissed: \(closed)")
+                                let ok = okSoFar && form && swiped && errors.count == 2 && stayed && cleared && closed
+                                log(ok ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
+                            }
+                        }
                     }
                 }
             }
             }
         }
+    }
+
+    /// Types into a text field the way the keyboard does.
+    private func type(_ testID: String, _ text: String) {
+        guard let f = r.view(forTag: r.tag(forTestID: testID) ?? 0) as? UITextField else { return log("FAIL: no \(testID)") }
+        f.text = text
+        f.sendActions(for: .editingChanged)
     }
 
     private func log(_ s: String) { print("[gallery] " + s) }

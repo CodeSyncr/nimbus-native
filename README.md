@@ -41,7 +41,7 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
 format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
-navigation, tabs, modals, safe areas. Next: forms, theming, a typed client for
+navigation, tabs, modals, safe areas, forms. Next: theming, a typed client for
 Nimbus servers, device builds and signing, then the web.
 
 ## Layout
@@ -217,6 +217,22 @@ back.
 |---|---|---|
 | Push, tap → committed | Go 2 ms; UIKit push 57–123 ms | 19 ms total |
 | Native back → Go follows | ✓ | ✓ |
+
+## Forms
+
+```go
+form := ui.UseForm(c, Signup{}, validation.ValidateStruct) // a Nimbus server's own rules
+ui.TextField(form.Field("email", func(s *Signup) *string { return &s.Email }),
+	ui.FieldOptions{Label: "Email", Keyboard: render.KeyboardEmail})
+ui.Pressable(form.Submit(save), style, ui.Text("Sign up", style))
+```
+
+`UseForm` takes any `func(T) error`; field errors come from `ui.FieldErrors`,
+Nimbus's `validation.ValidationErrors` or anything with
+`ToMap() map[string][]string` — so one rule set validates both the server
+and the app, without Nimbus Native importing Nimbus. Errors show once a
+field is touched, and for every field on submit; submit runs only when the
+value is valid. `ui.FieldErrorsOf(err)` reads a server's 422 the same way.
 
 ## Lists
 

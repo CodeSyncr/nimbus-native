@@ -4,8 +4,10 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/CodeSyncr/nimbus-native/ui"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
 func init() { ui.Mount(App{}) }
@@ -149,17 +151,43 @@ func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
 	).TestID(fmt.Sprintf("row-%d", o.id))
 }
 
-// NewOrder is the modal the "+ New order" button presents.
+// NewOrder is the modal the "+ New order" button presents: a small form.
 type NewOrder struct{}
 
+type newOrderForm struct{ Customer, Phone string }
+
+// validateNewOrder is the form's rules. An app talking to a Nimbus server
+// can pass the server's own validation.ValidateStruct here instead.
+func validateNewOrder(v newOrderForm) error {
+	errs := ui.FieldErrors{}
+	if len(strings.TrimSpace(v.Customer)) < 2 {
+		errs["customer"] = []string{"Enter the customer's name"}
+	}
+	digits := 0
+	for _, r := range v.Phone {
+		if r >= '0' && r <= '9' {
+			digits++
+		}
+	}
+	if digits != 10 {
+		errs["phone"] = []string{"Phone numbers have 10 digits"}
+	}
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs
+}
+
 func (NewOrder) Render(c *ui.Ctx) *ui.Element {
-	customer, setCustomer := ui.State(c, "")
+	form := ui.UseForm(c, newOrderForm{}, validateNewOrder)
 	modals := ui.Modals(c)
-	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(20), Gap: 12, Background: surface},
+	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(20), Gap: 16, Background: surface},
 		ui.Text("Who is this order for?", ui.Style{FontSize: 17, FontWeight: 600, Color: ink}).TestID("new-order-form"),
-		ui.TextInput(customer, setCustomer, ui.Style{BorderWidth: 1, BorderColor: line, Radius: 10, FontSize: 15}).
-			Placeholder("Customer name"),
-		ui.Pressable(func() { modals.Dismiss() },
+		ui.TextField(form.Field("customer", func(v *newOrderForm) *string { return &v.Customer }),
+			ui.FieldOptions{Label: "Customer", Placeholder: "Customer name"}),
+		ui.TextField(form.Field("phone", func(v *newOrderForm) *string { return &v.Phone }),
+			ui.FieldOptions{Label: "Phone", Placeholder: "10-digit mobile", Keyboard: render.KeyboardNumber}),
+		ui.Pressable(form.Submit(func(newOrderForm) { modals.Dismiss() }),
 			ui.Style{Background: accent, Radius: 12, Padding: ui.XY(16, 14), AlignItems: ui.AlignCenter},
 			ui.Text("Place order", ui.Style{Color: ui.RGB(255, 255, 255), FontWeight: 600}),
 		).TestID("place-order"),

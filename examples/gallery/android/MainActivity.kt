@@ -203,12 +203,25 @@ class MainActivity : Activity() {
                 log("modal: closed with back, Go dropped it: $backed")
                 r.press(open)
                 main.postDelayed({
-                    r.press(r.tagForTestID("place-order"))
+                    val place = r.tagForTestID("place-order")
+                    r.press(place) // empty form: errors, modal stays
                     main.postDelayed({
-                        val closed = r.tagForTestID("new-order-form") == 0
-                        log("modal: Go dismissed it: $closed")
-                        log(if (okSoFar && form && backed && closed) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
-                    }, 1000)
+                        val errors = listOf("customer", "phone").filter { r.tagForTestID("error-$it") != 0 }
+                        val stayed = r.tagForTestID("new-order-form") != 0
+                        log("form: empty submit shows errors for $errors, modal still open: $stayed")
+                        (r.viewForTag(r.tagForTestID("field-customer")) as? EditText)?.setText("Asha Rao")
+                        (r.viewForTag(r.tagForTestID("field-phone")) as? EditText)?.setText("98765 43210")
+                        main.postDelayed({
+                            val cleared = r.tagForTestID("error-customer") == 0 && r.tagForTestID("error-phone") == 0
+                            r.press(place)
+                            main.postDelayed({
+                                val closed = r.tagForTestID("new-order-form") == 0
+                                log("form: valid submit cleared errors: $cleared, placed and dismissed: $closed")
+                                val ok = okSoFar && form && backed && errors.size == 2 && stayed && cleared && closed
+                                log(if (ok) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
+                            }, 1000)
+                        }, 800)
+                    }, 800)
                 }, 1000)
             }, 1000)
             }, 1500)
