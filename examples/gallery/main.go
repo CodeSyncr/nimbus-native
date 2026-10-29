@@ -52,7 +52,6 @@ func (App) Render(c *ui.Ctx) *ui.Element {
 type OrdersScreen struct{}
 
 func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
-	vp := ui.Viewport(c)
 	taps, setTaps := ui.State(c, 0)
 	name, setName := ui.State(c, "")
 	list := ui.Memo(c, orders, ui.Once)
@@ -62,7 +61,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 		greeting = "Hello, " + name + " 👋"
 	}
 
-	return ui.View(ui.Style{Grow: 1, Background: surface, Padding: ui.Edges{Bottom: vp.SafeBottom}},
+	return ui.SafeArea(ui.Style{Grow: 1, Background: surface},
 		ui.View(ui.Style{Padding: ui.XY(16, 12), Gap: 12, Background: ui.RGB(255, 255, 255), BorderWidth: 0},
 			ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: 12},
 				ui.Image("https://picsum.photos/id/1062/96", ui.Style{Width: ui.Pt(40), Height: ui.Pt(40), Radius: 20, Clip: true}),

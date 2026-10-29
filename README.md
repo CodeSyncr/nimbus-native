@@ -15,8 +15,10 @@ type Counter struct{}
 
 func (Counter) Render(c *ui.Ctx) *ui.Element {
 	n, setN := ui.State(c, 0)
-	return ui.Pressable(func() { setN(n + 1) }, ui.Style{Padding: ui.All(12)},
-		ui.Text(fmt.Sprintf("Tapped %d times", n), ui.Style{FontWeight: 600}),
+	return ui.SafeArea(ui.Style{Padding: ui.All(16)},
+		ui.Pressable(func() { setN(n + 1) }, ui.Style{Padding: ui.All(12)},
+			ui.Text(fmt.Sprintf("Tapped %d times", n), ui.Style{FontWeight: 600}),
+		),
 	)
 }
 
