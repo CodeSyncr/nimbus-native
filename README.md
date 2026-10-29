@@ -1,12 +1,14 @@
 # Nimbus Native
 
-Native iOS and Android apps written in Go — the app's code is compiled into
-the app and drives real native views (UIKit, Android Views). Nimbus is the
-server; Nimbus Native is the device.
+Native iOS and Android apps written in Go. Your app's Go code is compiled
+into the app and drives real native views — UIKit on iOS, Android Views on
+Android — laid out by a flexbox engine written in Go. [Nimbus](https://github.com/CodeSyncr/nimbus)
+is the server; Nimbus Native is the device. One language, one codebase,
+backend included.
 
-**Status: Phase 0e** — apps are Go components rendered as real UIKit and
-Android views, laid out by a pure-Go flexbox engine, over our own
-toolchain, bridge and typed wire format — with hot reload while you work.
+> **Early preview.** The engine, lists, navigation and hot reload work on
+> the iOS simulator and the Android emulator; APIs will change and it has
+> not shipped to a store yet. See [Roadmap](#roadmap).
 
 ```go
 type Counter struct{}
@@ -22,6 +24,23 @@ func init() { ui.Mount(Counter{}) }
 
 func main() { ui.Main() } // runs only in dev mode; on a device the host owns the process
 ```
+
+## Requirements
+
+- Go 1.23+, and the `nimbus` CLI from [Nimbus](https://github.com/CodeSyncr/nimbus)
+- iOS: macOS with Xcode (simulator builds today)
+- Android: the Android SDK with an NDK and build-tools, JDK 17+. The Kotlin
+  compiler is downloaded on the first build.
+
+`nimbus native doctor` checks all of it.
+
+## Roadmap
+
+Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
+format with Go/Swift/Kotlin generation, flexbox layout, components and
+hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
+navigation. Next: tabs and modals, forms, theming, a typed client for
+Nimbus servers, device builds and signing, then the web.
 
 ## Layout
 
