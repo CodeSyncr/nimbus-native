@@ -20,6 +20,7 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
     private val bar = LinearLayout(c)
     private val tabs = mutableListOf<View>()
     private val items = HashMap<View, TextView>()
+    private val icons = HashMap<View, android.graphics.drawable.Drawable>()
     private var selected = 0
     private var accent = ACCENT
     private var muted = 0xff6b7280.toInt()
@@ -37,6 +38,7 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
         tabs.filter { it !in wanted }.forEach { gone ->
             removeView(gone)
             items.remove(gone)?.let(bar::removeView)
+            icons.remove(gone)
         }
         tabs.clear()
         tabs.addAll(wanted)
@@ -60,8 +62,23 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
         show()
     }
 
-    fun setItem(tab: View, title: String) {
+    /** A tab's label, and its icon: the drawable resource named like the
+     *  iOS symbol with dots as underscores ("list.bullet" → R.drawable.list_bullet).
+     *  Without one the tab shows its label alone. */
+    fun setItem(tab: View, title: String, icon: String) {
         items.getOrPut(tab) { newItem() }.text = title
+        val drawable = drawableNamed(icon)
+        if (drawable == null) icons.remove(tab) else icons[tab] = drawable
+        show()
+    }
+
+    @android.annotation.SuppressLint("DiscouragedApi") // names come from the app's Go code
+    private fun drawableNamed(icon: String): android.graphics.drawable.Drawable? {
+        if (icon.isEmpty()) return null
+        val name = icon.lowercase().replace('.', '_').replace('-', '_')
+        val id = context.resources.getIdentifier(name, "drawable", context.packageName)
+        if (id == 0) return null
+        return context.getDrawable(id)?.mutate()
     }
 
     fun select(i: Int) {
@@ -80,9 +97,26 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
             v.visibility = if (i == selected) VISIBLE else INVISIBLE
             items[v]?.let { item ->
                 val on = i == selected
-                item.setTextColor(if (on) accent else muted)
+                val color = if (on) accent else muted
+                item.setTextColor(color)
                 item.typeface = Typeface.create(Typeface.DEFAULT, if (on) Typeface.BOLD else Typeface.NORMAL)
-                item.background = if (on) indicator() else null
+                val icon = icons[v]
+                if (icon != null) {
+                    val size = (24 * d).roundToInt()
+                    icon.setBounds(0, 0, size, size)
+                    icon.setTint(color)
+                    item.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                    item.setPadding(0, (8 * d).roundToInt(), 0, 0)
+                    item.compoundDrawablePadding = (2 * d).roundToInt()
+                    item.setCompoundDrawables(null, icon, null, null)
+                    item.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12f)
+                } else {
+                    item.gravity = Gravity.CENTER
+                    item.setPadding(0, 0, 0, 0)
+                    item.setCompoundDrawables(null, null, null, null)
+                    item.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 13f)
+                }
+                item.background = if (on) indicator(icon != null) else null
             }
         }
     }
@@ -93,12 +127,20 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
         isSingleLine = true
     }
 
-    /** A short accent line under the selected tab's label. */
-    private fun indicator() = object : android.graphics.drawable.Drawable() {
-        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = accent }
+    /** The selected tab's mark: a soft pill behind its icon, or a short
+     *  accent line under a label-only tab. */
+    private fun indicator(behindIcon: Boolean) = object : android.graphics.drawable.Drawable() {
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (behindIcon) (accent and 0x00ffffff) or 0x26000000 else accent
+        }
 
         override fun draw(canvas: android.graphics.Canvas) {
             val b = bounds
+            if (behindIcon) {
+                val w = 56 * d
+                canvas.drawRoundRect(b.exactCenterX() - w / 2, 4 * d, b.exactCenterX() + w / 2, 36 * d, 16 * d, 16 * d, paint)
+                return
+            }
             val w = 32 * d
             val h = 3 * d
             val bottom = b.bottom - 6 * d

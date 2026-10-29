@@ -24,6 +24,9 @@ func (e *Env) BuildIOSProject(a *App, t IOSTarget) (string, error) {
 	} else {
 		args = append(args, "-destination", "generic/platform=iOS Simulator", "ONLY_ACTIVE_ARCH=YES", "ARCHS=arm64")
 	}
+	if a.GoDir != "" {
+		args = append(args, "NIMBUS_GO="+filepath.ToSlash(rel(a.Root, a.GoDir)))
+	}
 	if err := e.run(nil, "xcodebuild", append(args, "build")...); err != nil {
 		return "", err
 	}
@@ -39,6 +42,9 @@ func (e *Env) BuildAndroidProject(a *App, abis []string) (string, error) {
 	if len(abis) == 1 {
 		// What Android Studio passes when it deploys to one device.
 		args = append(args, "-Pandroid.injected.build.abi="+abis[0])
+	}
+	if a.GoDir != "" {
+		args = append(args, "-Pnimbus.go="+filepath.ToSlash(rel(a.Root, a.GoDir)))
 	}
 	if err := e.runIn(dir, nil, filepath.Join(dir, "gradlew"), args...); err != nil {
 		return "", err

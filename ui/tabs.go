@@ -8,8 +8,12 @@ import (
 
 // Tab is one tab of a Tabs bar.
 type Tab struct {
-	Title  string
-	Icon   string // an SF Symbol name on iOS (e.g. "list.bullet"); Android shows the title
+	Title string
+	// Icon is an SF Symbol name on iOS ("list.bullet"); on Android, the
+	// drawable resource of the same name with dots as underscores
+	// (res/drawable/list_bullet.xml). Without that resource Android shows
+	// the title alone.
+	Icon   string
 	Screen Component
 }
 
@@ -77,7 +81,7 @@ func (t *TabsNav) Selected() int {
 // titles, icons and the selection when they change.
 func (rt *runtime) reconcileTabs(in *instance) {
 	if in.tabs == nil {
-		in.tabs = &tabsState{sent: -1}
+		in.tabs = &tabsState{sent: -1, selected: rt.savedTab()}
 	}
 	st, tabs := in.tabs, in.el.tabs.tabs
 	if st.selected >= len(tabs) {
@@ -122,6 +126,7 @@ func (rt *runtime) selected(in *instance, i int) {
 		return
 	}
 	st.selected, st.sent = i, i
+	rt.saveNav() // no render follows: the host already switched
 }
 
 // tabsAround is the Tabs instance a component is in, or nil.

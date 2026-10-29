@@ -180,7 +180,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 }
                 is Render.TabItem -> {
                     val v = views[op.tag.toInt()]
-                    (v?.parent as? NNTabs)?.setItem(v, op.title)
+                    (v?.parent as? NNTabs)?.setItem(v, op.title, op.icon)
                 }
                 is Render.TabSelect -> (views[op.tag.toInt()] as? NNTabs)?.select(op.index.toInt())
                 is Render.Present -> (views[op.tag.toInt()] as? NNModal)?.let(root::present)

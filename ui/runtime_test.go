@@ -18,7 +18,16 @@ type host struct {
 
 func start(t *testing.T, root Component) *host {
 	t.Helper()
+	return startWith(t, root, nil)
+}
+
+// startWith is start with a chance to set up the runtime before it renders.
+func startWith(t *testing.T, root Component, setup func(*runtime)) *host {
+	t.Helper()
 	h := &host{rt: newRuntime(root)}
+	if setup != nil {
+		setup(h.rt)
+	}
 	h.rt.send = func(b []byte) {
 		m, err := render.Decode(b)
 		if err != nil {

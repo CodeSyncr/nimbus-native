@@ -144,7 +144,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Builds the app's Go code (app/mobile) into libapp.a and writes the Swift\n# it needs, with the nimbus-native version in the module's go.mod.\nexport PATH=\"$HOME/go/bin:$HOME/sdk/go/bin:/usr/local/go/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\nset -e\ncd \"$PROJECT_DIR/../..\"\nmkdir -p \"$DERIVED_FILE_DIR/nimbus\"\nCGO_ENABLED=0 GOOS= GOARCH= go build -o \"$DERIVED_FILE_DIR/nimbus/nimbus-native\" github.com/CodeSyncr/nimbus-native/cmd/nimbus-native\nexec \"$DERIVED_FILE_DIR/nimbus/nimbus-native\" lib ios -kit \"$PROJECT_DIR/NimbusNativeKit\" -out \"$DERIVED_FILE_DIR/nimbus\" -swift \"$PROJECT_DIR/Runner/Generated/NimbusGenerated.swift\"\n";
+			shellScript = "# Builds the app's Go code (app/mobile) into libapp.a and writes the Swift\n# it needs, with the nimbus-native version in the module's go.mod.\nexport PATH=\"$HOME/go/bin:$HOME/sdk/go/bin:/usr/local/go/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\nset -e\ncd \"$PROJECT_DIR/../..\"\nmkdir -p \"$DERIVED_FILE_DIR/nimbus\"\nCGO_ENABLED=0 GOOS= GOARCH= go build -o \"$DERIVED_FILE_DIR/nimbus/nimbus-native\" github.com/CodeSyncr/nimbus-native/cmd/nimbus-native\nexec \"$DERIVED_FILE_DIR/nimbus/nimbus-native\" lib ios -go \"$NIMBUS_GO\" -kit \"$PROJECT_DIR/NimbusNativeKit\" -out \"$DERIVED_FILE_DIR/nimbus\" -swift \"$PROJECT_DIR/Runner/Generated/NimbusGenerated.swift\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

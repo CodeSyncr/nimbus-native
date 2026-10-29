@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/CodeSyncr/nimbus-native/toolchain"
@@ -238,6 +239,7 @@ func lib(platform string, args []string) error {
 	jni := fs.String("jni", "", "Android: jniLibs directory to write")
 	kotlin := fs.String("kotlin", "", "Android: source directory for the generated Kotlin")
 	kit := fs.String("kit", "", "the project's copy of the host kit, kept in sync with go.mod")
+	goPkg := fs.String("go", "", "build this package (relative to the project) into the library instead of -entry; dev mode's proxy")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(args)
 	dir := "."
@@ -247,6 +249,9 @@ func lib(platform string, args []string) error {
 	app, err := toolchain.LoadProject(dir, *entry, *id)
 	if err != nil {
 		return err
+	}
+	if *goPkg != "" {
+		app.GoDir = filepath.Join(app.Root, filepath.FromSlash(*goPkg))
 	}
 	env := toolchain.Detect(app.Root)
 	env.Verbose = *verbose
@@ -285,7 +290,23 @@ func dev(platform string, args []string) error {
 	if fs.NArg() > 0 {
 		dir = fs.Arg(0)
 	}
-	app, err := toolchain.LoadApp(dir, "", "")
+	var app *toolchain.App
+	var err error
+	if toolchain.IsProject(dir) {
+		var id string
+		switch platform {
+		case "ios":
+			id, err = toolchain.IOSProjectID(dir)
+		case "android":
+			id, err = toolchain.AndroidProjectID(dir)
+		}
+		if err != nil {
+			return err
+		}
+		app, err = toolchain.LoadProject(dir, "app/mobile", id)
+	} else {
+		app, err = toolchain.LoadApp(dir, "", "")
+	}
 	if err != nil {
 		return err
 	}

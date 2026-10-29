@@ -38,6 +38,10 @@ func (e *Env) Dev(a *App, platform string, port int) error {
 	d.relay = &relay{out: e.Out, onDevice: d.deviceConnected}
 	go d.relay.serve(ln)
 
+	// Each session starts on the first screen; reloads within it keep the
+	// screen (ui/navstate.go).
+	os.Remove(d.navFile())
+
 	// The app process starts when the shell connects (deviceConnected).
 	if err := d.buildShell(); err != nil {
 		return err
@@ -45,8 +49,8 @@ func (e *Env) Dev(a *App, platform string, port int) error {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	snap := snapshot(a.Dir)
-	fmt.Fprintf(e.Out, "\n  Watching %s — save a .go file to reload. Ctrl+C to stop.\n\n", a.Dir)
+	snap := snapshot(a.root())
+	fmt.Fprintf(e.Out, "\n  Watching %s — save a .go file to reload. Ctrl+C to stop.\n\n", a.root())
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
 	for {
@@ -57,7 +61,7 @@ func (e *Env) Dev(a *App, platform string, port int) error {
 			fmt.Fprintln(e.Out, "\n  Stopped.")
 			return nil
 		case <-tick.C:
-			now := snapshot(a.Dir)
+			now := snapshot(a.root())
 			if now == snap {
 				continue
 			}
@@ -66,7 +70,7 @@ func (e *Env) Dev(a *App, platform string, port int) error {
 			if err := d.reload(t0); err != nil {
 				fmt.Fprintf(e.Out, "\n%v\n  (still running the last good build)\n\n", err)
 			}
-			snap = snapshot(a.Dir) // gen may have rewritten generated files
+			snap = snapshot(a.root())
 		}
 	}
 }
@@ -91,7 +95,7 @@ type devSession struct {
 // code, with the proxy as its Go library.
 func (d *devSession) shellApp() *App {
 	s := *d.a
-	s.GoDir = filepath.Join(d.a.Dir, "build", "devshell")
+	s.GoDir = filepath.Join(d.a.root(), "build", "devshell")
 	return &s
 }
 
@@ -121,7 +125,11 @@ func (d *devSession) buildShell() error {
 	d.stopDeviceLogs()
 	switch d.platform {
 	case "ios":
-		app, err := e.BuildIOS(shell, IOSSimulator)
+		build := e.BuildIOS
+		if shell.Root != "" {
+			build = e.BuildIOSProject // the project's Xcode build, with the proxy as its Go
+		}
+		app, err := build(shell, IOSSimulator)
 		if err != nil {
 			return err
 		}
@@ -135,7 +143,11 @@ func (d *devSession) buildShell() error {
 		e.step("launch %s on the simulator", d.a.ID)
 		d.logs = exec.Command("xcrun", "simctl", "launch", "--console-pty", "--terminate-running-process", udid, d.a.ID)
 	case "android":
-		apk, err := e.BuildAndroid(shell, []string{"arm64-v8a"})
+		build := e.BuildAndroid
+		if shell.Root != "" {
+			build = e.BuildAndroidProject
+		}
+		apk, err := build(shell, []string{"arm64-v8a"})
 		if err != nil {
 			return err
 		}
@@ -206,7 +218,7 @@ func (d *devSession) reload(t0 time.Time) error {
 func (d *devSession) restartApp(t0 time.Time) error {
 	d.restartMu.Lock()
 	defer d.restartMu.Unlock()
-	bin := filepath.Join(d.a.Dir, "build", "dev", "app")
+	bin := filepath.Join(d.a.BuildDir("dev"), "app")
 	build := exec.Command("go", "build", "-tags", "nimbusdev", "-o", bin, ".")
 	build.Dir = d.a.Dir
 	var buf bytes.Buffer
@@ -219,7 +231,7 @@ func (d *devSession) restartApp(t0 time.Time) error {
 	d.stopApp()
 	cmd := exec.Command(bin)
 	cmd.Dir = d.a.Dir
-	cmd.Env = append(os.Environ(), "NIMBUS_DEV_ADDR="+d.addr)
+	cmd.Env = append(os.Environ(), "NIMBUS_DEV_ADDR="+d.addr, "NIMBUS_DEV_STATE="+d.navFile())
 	out, _ := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
 	d.relay.expectReload(t0, built)
@@ -232,6 +244,9 @@ func (d *devSession) restartApp(t0 time.Time) error {
 	d.appMu.Unlock()
 	return nil
 }
+
+// navFile is where the app saves its tabs and stacks for the next reload.
+func (d *devSession) navFile() string { return filepath.Join(d.a.BuildDir("dev"), "navstate") }
 
 func (d *devSession) stopApp() {
 	d.appMu.Lock()
@@ -268,8 +283,10 @@ func writeShellMain(dir, addr string, appSchema uint64, hashes []uint64) error {
 	return writeIfChanged(filepath.Join(dir, "main.go"), []byte(b.String()))
 }
 
-// snapshot fingerprints the app's Go sources (not generated files or build
-// output), so a poll can tell when something was saved.
+// snapshot fingerprints the app's Go sources (not generated files, build
+// output or a project's native/ folder), so a poll can tell when something
+// was saved. Generated files are left out so the reload that rewrites them
+// doesn't trigger another.
 func snapshot(root string) string {
 	var b strings.Builder
 	filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -278,12 +295,12 @@ func snapshot(root string) string {
 		}
 		name := d.Name()
 		if d.IsDir() {
-			if p != root && (name == "build" || strings.HasPrefix(name, ".")) {
+			if p != root && (name == "build" || name == "native" || strings.HasPrefix(name, ".")) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		if (strings.HasSuffix(name, ".go") && name != "wire_gen.go") || name == "go.mod" || name == "go.sum" {
+		if (strings.HasSuffix(name, ".go") && name != "wire_gen.go" && name != RoutesFile) || name == "go.mod" || name == "go.sum" {
 			if info, err := d.Info(); err == nil {
 				fmt.Fprintf(&b, "%s %d %d\n", p, info.Size(), info.ModTime().UnixNano())
 			}

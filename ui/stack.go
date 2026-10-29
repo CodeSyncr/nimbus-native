@@ -31,6 +31,7 @@ type screen struct {
 	title string
 	comp  Component
 	key   string
+	path  string // set by PushPath; what a dev reload reopens
 }
 
 // Nav pushes and pops the screens of the Stack a component is in. Its
@@ -59,6 +60,19 @@ func (n *Nav) Push(title string, screenComp Component) {
 	n.change(func(st *stackState) {
 		st.nextKey++
 		st.screens = append(st.screens, screen{title: title, comp: screenComp, key: "s" + strconv.Itoa(st.nextKey)})
+	})
+}
+
+// PushPath is Push for a screen with a URL path (router.Push uses it), so
+// a dev reload can open the screen again.
+func (n *Nav) PushPath(title, path string, screenComp Component) {
+	if n == nil {
+		logf("ui: Navigation().Push outside a Stack")
+		return
+	}
+	n.change(func(st *stackState) {
+		st.nextKey++
+		st.screens = append(st.screens, screen{title: title, comp: screenComp, path: path, key: "s" + strconv.Itoa(st.nextKey)})
 	})
 }
 
@@ -104,6 +118,7 @@ func (n *Nav) change(f func(*stackState)) {
 func (rt *runtime) reconcileStack(in *instance) {
 	if in.stack == nil {
 		in.stack = &stackState{screens: []screen{{title: in.el.stack.title, comp: in.el.stack.root, key: "s0"}}}
+		rt.savedScreens(in.stack)
 	}
 	st := in.stack
 	st.screens[0].comp = in.el.stack.root // the root screen follows the element's props

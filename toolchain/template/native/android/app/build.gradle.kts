@@ -53,12 +53,14 @@ val nimbusGo by tasks.registering(Exec::class) {
     val tool = layout.buildDirectory.file("nimbus/nimbus-native").get().asFile
     val kit = rootDir.resolve("nimbusnativekit/src/main/kotlin")
     val abis = nimbusABIs()
+    val goPkg = (findProperty("nimbus.go") as String?) ?: "" // dev mode's proxy
 
     inputs.files(fileTree(module) {
         include("**/*.go", "go.mod", "go.sum")
         exclude("native/**", "build/**")
     })
     inputs.property("abis", abis)
+    inputs.property("go", goPkg)
     outputs.dir(out)
 
     workingDir = module
@@ -67,7 +69,7 @@ val nimbusGo by tasks.registering(Exec::class) {
     commandLine("sh", "-c", """
         set -e
         CGO_ENABLED=0 go build -o "$tool" github.com/CodeSyncr/nimbus-native/cmd/nimbus-native
-        exec "$tool" lib android -id ${android.namespace} -abi $abis -jni "$out/jniLibs" -kotlin "$out/kotlin" -kit "$kit"
+        exec "$tool" lib android -id ${android.namespace} -go "$goPkg" -abi $abis -jni "$out/jniLibs" -kotlin "$out/kotlin" -kit "$kit"
     """.trimIndent())
 }
 tasks.named("preBuild") { dependsOn(nimbusGo) }

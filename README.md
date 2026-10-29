@@ -256,8 +256,14 @@ nothing. Android reaches the relay through `adb reverse`.
 Measured on the gallery (1,000 rows): a save is on screen in **1.9–3.5 s on
 the iOS simulator and 2.7 s on the Android emulator**, of which 0.6–2.3 s is
 compiling — this Mac runs the Intel build of Go under Rosetta; the Apple
-Silicon build compiles roughly twice as fast. App state starts fresh on each
-reload.
+Silicon build compiles roughly twice as fast.
+
+In a project, `nimbus native dev ios|android` builds the shell with the
+project's own Xcode or Gradle build and watches the whole module (not
+`native/` or `build/`), so a new page folder is live on the next save.
+Component state starts fresh on each reload, but the screen doesn't: the
+selected tabs and every screen pushed with `router.Push` come back. Each
+`dev` session starts on the first screen.
 
 ## How a screen gets drawn
 

@@ -148,8 +148,12 @@ func (e *Env) GenRoutes(root string) error {
 	if err != nil {
 		return fmt.Errorf("routes: %w\n%s", err, b.Bytes())
 	}
+	out := filepath.Join(pagesDir, RoutesFile)
+	if old, err := os.ReadFile(out); err == nil && bytes.Equal(old, src) {
+		return nil
+	}
 	e.step("gen pages/ → %s (%d routes)", RoutesFile, len(pages))
-	return writeIfChanged(filepath.Join(pagesDir, RoutesFile), src)
+	return os.WriteFile(out, src, 0o644)
 }
 
 // readPage reads a page folder's Page type and checks its parameters

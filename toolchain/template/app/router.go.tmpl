@@ -14,7 +14,7 @@ func init() { router.Register(pages.Routes) }
 // Tab is a top-level destination: a page shown in its own navigation stack.
 type Tab struct {
 	Path string
-	Icon string // an SF Symbol on iOS; Android shows the title
+	Icon string // an SF Symbol on iOS; on Android res/drawable/<name with _ for .>.xml
 }
 
 // Tabs are the app's tabs, in order.

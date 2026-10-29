@@ -9,6 +9,7 @@
 package ui
 
 import (
+	"os"
 	"reflect"
 	"runtime/debug"
 	"strconv"
@@ -38,6 +39,9 @@ func Mount(root Component) {
 		return render.TextSize{}
 	}
 	logf = bridge.Logf
+	if f := os.Getenv("NIMBUS_DEV_STATE"); f != "" {
+		rt.loadNav(f)
+	}
 	bridge.OnMessage(rt.receive)
 	bridge.OnStart(rt.loop)
 }
@@ -77,6 +81,12 @@ type runtime struct {
 	rechild      map[*instance]bool // Lists and Stacks whose children must render again
 	seq          uint64
 	measures     uint32
+
+	// Dev reloads (navstate.go).
+	navFile            string
+	navSaved           *navState
+	navLast            string
+	navTabs, navStacks int
 }
 
 func newRuntime(root Component) *runtime {
@@ -245,6 +255,8 @@ func (rt *runtime) commit() {
 	c.BuildNs, c.LayoutNs, c.Measures = uint64(t1.Sub(t0)), uint64(t2.Sub(t1)), rt.measures
 	rt.send(render.Encode(c))
 	rt.ops = rt.ops[:0]
+
+	rt.saveNav()
 
 	effects := rt.effects
 	rt.effects = nil

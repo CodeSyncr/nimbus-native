@@ -107,6 +107,28 @@ public final class Renderer {
         onPressSent?(tag)
     }
 
+    /// Goes back one step, as the system gesture would: the top modal's own
+    /// stack, else the modal itself, else the visible stack. Returns false
+    /// when there is nowhere to go. (Android's back button calls the same
+    /// method in its kit; on iOS, tests and deep links use it.)
+    @discardableResult
+    public func back() -> Bool {
+        var top = viewController
+        while let presented = top?.presentedViewController { top = presented }
+        let stacks = views.values.compactMap { $0 as? NNStackView }.filter { $0.window != nil && $0.nav.viewControllers.count > 1 }
+        if let modal = top as? NNModalController {
+            if let s = stacks.first(where: { $0.isDescendant(of: modal.view) }) {
+                s.nav.popViewController(animated: true) // reported to Go as Popped
+                return true
+            }
+            modal.close()
+            return true
+        }
+        guard let s = stacks.first else { return false }
+        s.nav.popViewController(animated: true)
+        return true
+    }
+
     /// The tag of the view with this test ID, if it is on screen.
     public func tag(forTestID id: String) -> UInt32? {
         views.first { $0.value.accessibilityIdentifier == id }?.key
@@ -663,6 +685,12 @@ final class NNModalController: UIViewController, UIAdaptivePresentationControlle
     }
 
     func presentationControllerDidDismiss(_ p: UIPresentationController) {
+        renderer?.send(.dismissed(Render.Dismissed(tag: modalTag)))
+    }
+
+    /// Closes the sheet as the user would, and tells Go.
+    func close() {
+        dismiss(animated: true)
         renderer?.send(.dismissed(Render.Dismissed(tag: modalTag)))
     }
 }

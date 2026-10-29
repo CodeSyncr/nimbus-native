@@ -90,6 +90,13 @@ func Register(t Table) {
 	mu.Lock()
 	routes = cs
 	mu.Unlock()
+	ui.RestoreRoute = func(path string) (string, ui.Component, bool) {
+		comp, _, ok := Match(path)
+		if !ok {
+			return "", nil, false
+		}
+		return TitleOf(comp, path), comp, true
+	}
 }
 
 // Match finds the page for a path ("/orders/42?tab=items"): its component
@@ -151,7 +158,7 @@ func Push(c *ui.Ctx, path string) bool {
 	if !ok {
 		return false
 	}
-	ui.Navigation(c).Push(TitleOf(comp, path), comp)
+	ui.Navigation(c).PushPath(TitleOf(comp, path), path, comp)
 	return true
 }
 
