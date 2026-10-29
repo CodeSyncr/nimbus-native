@@ -128,7 +128,8 @@ func (d *devSession) buildShell() error {
 	case "ios":
 		build := e.BuildIOS
 		if shell.Root != "" {
-			build = e.BuildIOSProject // the project's Xcode build, with the proxy as its Go
+			// the project's Xcode build, with the proxy as its Go
+			build = func(a *App, t IOSTarget) (string, error) { return e.BuildIOSProject(a, t) }
 		}
 		app, err := build(shell, IOSSimulator)
 		if err != nil {

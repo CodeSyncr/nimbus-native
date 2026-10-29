@@ -93,7 +93,9 @@ func buildOrRun(cmd, platform string, args []string) error {
 	fs := flag.NewFlagSet(cmd, flag.ExitOnError)
 	name := fs.String("name", "", "app name (default: directory name)")
 	id := fs.String("id", "", "bundle / application id (default: space.nimbusgo.<dir>)")
-	device := fs.Bool("device", false, "iOS: build for a device instead of the simulator")
+	device := fs.Bool("device", false, "iOS: build for (and run on) a phone instead of the simulator")
+	udid := fs.String("udid", "", "iOS: which phone, by name or id, when several are reachable")
+	team := fs.String("team", "", "iOS: the Apple team that signs device builds (or NIMBUS_IOS_TEAM)")
 	abis := fs.String("abi", "arm64-v8a", "Android: comma-separated ABIs (arm64-v8a,armeabi-v7a,x86_64,x86)")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(args)
@@ -106,7 +108,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 		return err
 	}
 	if toolchain.IsProject(dir) {
-		return buildOrRunProject(cmd, platform, dir, *device, strings.Split(*abis, ","), *verbose)
+		return buildOrRunProject(cmd, platform, dir, *device, *udid, *team, strings.Split(*abis, ","), *verbose)
 	}
 	app, err := toolchain.LoadApp(dir, *name, *id)
 	if err != nil {
@@ -149,7 +151,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 
 // buildOrRunProject builds a project's native/ios or native/android with
 // xcodebuild or Gradle, as the IDEs do.
-func buildOrRunProject(cmd, platform, dir string, device bool, abis []string, verbose bool) error {
+func buildOrRunProject(cmd, platform, dir string, device bool, udid, team string, abis []string, verbose bool) error {
 	app, err := toolchain.LoadProject(dir, "app/mobile", "")
 	if err != nil {
 		return err
@@ -161,20 +163,36 @@ func buildOrRunProject(cmd, platform, dir string, device bool, abis []string, ve
 		if app.ID, err = toolchain.IOSProjectID(app.Root); err != nil {
 			return err
 		}
-		target := toolchain.IOSSimulator
-		if device {
-			target = toolchain.IOSDevice
+		if !device {
+			out, err := env.BuildIOSProject(app, toolchain.IOSSimulator)
+			if err != nil {
+				return err
+			}
+			fmt.Println("built", out)
+			if cmd == "run" {
+				return env.RunIOS(app, out)
+			}
+			return nil
 		}
-		out, err := env.BuildIOSProject(app, target)
+		phone, err := toolchain.PickIOSPhone(udid)
+		if err != nil {
+			return err
+		}
+		if team, err = toolchain.IOSTeam(app.Root, team); err != nil {
+			return err
+		}
+		via := "USB"
+		if phone.Wifi {
+			via = "Wi-Fi"
+		}
+		fmt.Printf("› %s over %s, signed by team %s\n", phone.Name, via, team)
+		out, err := env.BuildIOSProject(app, toolchain.IOSDevice, toolchain.IOSDeviceBuild{Team: team, Phone: phone})
 		if err != nil {
 			return err
 		}
 		fmt.Println("built", out)
 		if cmd == "run" {
-			if device {
-				return fmt.Errorf("running on a device is not supported yet; run it from Xcode (native/ios/Runner.xcodeproj)")
-			}
-			return env.RunIOS(app, out)
+			return env.RunIOSPhone(app, out, phone)
 		}
 	case "android":
 		if app.ID, err = toolchain.AndroidProjectID(app.Root); err != nil {
@@ -329,7 +347,7 @@ func usage() {
   nimbus native new [-template counter|shop] <dir>    a project with native/ios and native/android
   nimbus native doctor
   nimbus native gen [app-dir]
-  nimbus native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
+  nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
   nimbus native run   ios|android [...same flags] [app-dir]
   nimbus native dev   ios|android [-port N] [app-dir]   run on this machine, reload on save
   nimbus native lib   ios|android [flags] [project-dir]   the Go side of a project build (Xcode and Gradle run it)`)

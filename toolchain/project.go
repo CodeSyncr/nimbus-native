@@ -12,15 +12,25 @@ import (
 // same way the IDEs build them: xcodebuild for native/ios, Gradle for
 // native/android. Their build steps call back into `nimbus native lib`.
 
-// BuildIOSProject builds native/ios for the simulator or a device and
-// returns the .app path.
-func (e *Env) BuildIOSProject(a *App, t IOSTarget) (string, error) {
+// IOSDeviceBuild is how to sign a build for a phone.
+type IOSDeviceBuild struct {
+	Team  string   // Apple team id
+	Phone IOSPhone // the device to register and build for
+}
+
+// BuildIOSProject builds native/ios for the simulator, or for a phone when
+// dev is set (signed automatically with its team), and returns the .app path.
+func (e *Env) BuildIOSProject(a *App, t IOSTarget, dev ...IOSDeviceBuild) (string, error) {
 	out := filepath.Join(a.BuildDir("ios"), "xcode")
 	e.step("xcodebuild → Runner.app (%s)", t.SDK)
 	args := []string{"-project", filepath.Join(a.Root, "native/ios/Runner.xcodeproj"), "-scheme", "Runner",
 		"-configuration", "Debug", "-sdk", t.SDK, "-derivedDataPath", out}
 	if t.SDK == "iphoneos" {
-		args = append(args, "-allowProvisioningUpdates")
+		args = append(args, "-allowProvisioningUpdates", "-allowProvisioningDeviceRegistration")
+		if len(dev) > 0 {
+			args = append(args, "-destination", "id="+dev[0].Phone.UDID, "DEVELOPMENT_TEAM="+dev[0].Team,
+				"CODE_SIGN_STYLE=Automatic")
+		}
 	} else {
 		args = append(args, "-destination", "generic/platform=iOS Simulator", "ONLY_ACTIVE_ARCH=YES", "ARCHS=arm64")
 	}

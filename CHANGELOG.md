@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.4 (2026-10-30)
+
+- `nimbus native run ios -device`: builds a project for a real iPhone or
+  iPad, signs it automatically with your team (`-team`, `NIMBUS_IOS_TEAM`
+  or the Xcode project's), registers the phone, installs it over USB or
+  Wi-Fi and launches it with its output streaming. Checked on an iPhone 14
+  Pro over Wi-Fi.
+
 ## 0.0.3 (2026-10-30)
 
 - `nimbus native new` makes a counter: one polished screen with a goal
@@ -62,9 +70,9 @@ Native iOS and Android apps in Go, and the same app on the web.
   action sheets, toasts, date and time pickers).
 
 **Known limitations**
-- Tested on simulators, emulators and desktop/mobile browsers, not yet on
-  physical devices or in a store review. `nimbus native run ios -device`
-  is not supported: run device builds from Xcode.
+- Tested on simulators, emulators, desktop and mobile browsers, and an
+  iPhone; not yet through a store review. Dev mode (reload on save) runs on
+  simulators and emulators only.
 - No flex-wrap, animations or gestures yet.
 - Native plugins answer `unavailable` on the web.
 - On the web, each open tab keeps a small UI session on the server.
