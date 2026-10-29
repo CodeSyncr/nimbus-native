@@ -1,14 +1,17 @@
 package toolchain
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 )
 
 // IOSPhone is an iPhone or iPad this Mac can install on, over USB or Wi-Fi
@@ -148,19 +151,49 @@ func xcodeTeams() map[string]string {
 	return teams
 }
 
-// RunIOSPhone installs the app on a phone and launches it, streaming its
-// output until it exits or the command is interrupted.
+// RunIOSPhone installs the app on a phone and opens it (once the phone is
+// unlocked), streaming its output until it exits or the command is
+// interrupted.
 func (e *Env) RunIOSPhone(a *App, appPath string, p IOSPhone) error {
 	e.step("install on %s", p.Name)
 	if err := e.run(nil, "xcrun", "devicectl", "device", "install", "app", "--device", p.ID, appPath); err != nil {
 		return fmt.Errorf("%w\n(is the phone unlocked, with Developer Mode on: Settings → Privacy & Security → Developer Mode?)", err)
 	}
-	e.step("launch %s", a.ID)
-	cmd := exec.Command("xcrun", "devicectl", "device", "process", "launch", "--device", p.ID,
-		"--terminate-existing", "--console", a.ID)
-	cmd.Stdout, cmd.Stderr = e.Out, e.Out
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("launch: %w\n(a first run from a new team needs the phone to trust it: Settings → General → VPN & Device Management)", err)
+	// A locked phone takes the install but not the launch: wait for it to
+	// be unlocked, then open the app.
+	deadline := time.Now().Add(2 * time.Minute)
+	for told := false; ; {
+		e.step("open %s", a.ID)
+		var out bytes.Buffer
+		cmd := exec.Command("xcrun", "devicectl", "device", "process", "launch", "--device", p.ID,
+			"--terminate-existing", "--console", a.ID)
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(e.Out, &out), io.MultiWriter(e.Out, &out)
+		err := cmd.Run()
+		if err == nil {
+			return nil
+		}
+		started := strings.Contains(out.String(), "Launched application")
+		if started {
+			return nil // it ran and has ended (or the run was interrupted)
+		}
+		if locked(out.String()) && time.Now().Before(deadline) {
+			if !told {
+				fmt.Fprintf(e.Out, "\n  Unlock %s to open the app (waiting up to 2 minutes)…\n\n", p.Name)
+				told = true
+			}
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		hint := "is the phone unlocked?"
+		if strings.Contains(strings.ToLower(out.String()), "trust") || strings.Contains(out.String(), "profile") {
+			hint = "the phone must trust this developer: Settings → General → VPN & Device Management"
+		}
+		return fmt.Errorf("opening the app: %w (%s)", err, hint)
 	}
-	return nil
+}
+
+// locked reports whether devicectl failed because the phone is locked.
+func locked(out string) bool {
+	out = strings.ToLower(out)
+	return strings.Contains(out, "locked") || strings.Contains(out, "unlock")
 }

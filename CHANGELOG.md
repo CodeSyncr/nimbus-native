@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.5 (2026-10-30)
+
+- `nimbus native run ios -device` opens the app after installing it even
+  when the phone is locked: it asks you to unlock the phone and opens the
+  app as soon as you do (it waits up to 2 minutes).
+
 ## 0.0.4 (2026-10-30)
 
 - `nimbus native run ios -device`: builds a project for a real iPhone or
