@@ -1,5 +1,5 @@
 // Package proto is the hello app's wire schema: every message between its
-// Go code and its iOS / Android hosts. `nimbus-native gen` (run by every
+// Go code and its iOS / Android hosts. `nimbus native gen` (run by every
 // build) generates wire_gen.go here and the Swift / Java types.
 package proto
 

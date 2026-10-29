@@ -38,19 +38,26 @@ func init() { ui.Mount(Counter{}) }
 | `hosts/ios/…/Renderer.swift` | UIKit renderer and `NimbusViewController` |
 | `hosts/android/…/Renderer.java`, `NimbusView.java` | Android Views renderer and root view |
 | `toolchain/` | Builds apps with the platform tools directly — no gomobile, no Gradle; runs `gen` first |
-| `cmd/nimbus-native/` | CLI (becomes `nimbus native …`) |
+| `cmd/nimbus-native/` | The toolchain behind `nimbus native …` (never called directly) |
 | `examples/hello/` | Bridge and wire checks |
 | `examples/gallery/` | Every primitive plus a 1,000-row list, with a built-in benchmark |
 | `examples/baseline/` | The same list in plain Android views, to calibrate emulator numbers |
 
 ## Try it
 
+Everything goes through the `nimbus` CLI — there is no second tool:
+
 ```sh
-go build -o bin/nimbus-native ./cmd/nimbus-native
-./bin/nimbus-native doctor
-./bin/nimbus-native run ios ./examples/hello       # boots a simulator if needed
-./bin/nimbus-native run android ./examples/hello   # boots the first AVD if needed
+nimbus native doctor
+nimbus native run ios ./examples/gallery       # boots a simulator if needed
+nimbus native run android ./examples/gallery   # boots the first AVD if needed
+nimbus native build ios|android ./examples/gallery
+nimbus native gen ./examples/hello             # every build does this too
 ```
+
+`nimbus native` runs the toolchain (`cmd/nimbus-native`) at the version the
+app's `go.mod` requires, so the CLI always matches the app's runtime. Outside
+such a module, set `NIMBUS_NATIVE_BIN` to a built toolchain.
 
 `run` streams the app's log until you press Ctrl+C.
 
@@ -73,7 +80,7 @@ type Op interface{ isOp() }
 type Remove struct{ ID uint32 }
 ```
 
-`nimbus-native gen` (run by every build) writes `wire_gen.go` next to the
+`nimbus native gen` (run by every build) writes `wire_gen.go` next to the
 schema (`proto.Encode`, `proto.Decode`, methods on each type) and the same
 types for the hosts: `Proto.Message.hello(Proto.Hello(name: "Yash"))` in
 Swift, `new Proto.Hello()` in Java. Supported: bool, every int and uint

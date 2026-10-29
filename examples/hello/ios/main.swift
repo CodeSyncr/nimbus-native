@@ -2,7 +2,7 @@ import UIKit
 
 /// Bridge and wire checks, run at launch. Everything crosses as generated
 /// Proto messages. Every line also goes to the console so
-/// `nimbus-native run ios` can read the result.
+/// `nimbus native run ios` can read the result.
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     private let label = UILabel()

@@ -133,7 +133,7 @@ func nn_start(h *C.nn_host) C.int32_t {
 		return C.NN_ERR_ABI
 	}
 	if uint64(h.schema) != wire.Combined() {
-		Logf("schema mismatch: host %#x, runtime %#x — regenerate with nimbus-native gen", uint64(h.schema), wire.Combined())
+		Logf("schema mismatch: host %#x, runtime %#x — regenerate with nimbus native gen", uint64(h.schema), wire.Combined())
 		return C.NN_ERR_SCHEMA
 	}
 	if !started.CompareAndSwap(false, true) {

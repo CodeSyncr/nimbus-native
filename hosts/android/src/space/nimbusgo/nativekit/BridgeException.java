@@ -22,7 +22,7 @@ public final class BridgeException extends RuntimeException {
             case Bridge.ERR_PANIC: what = "Go panicked"; break;
             case Bridge.ERR_NO_HANDLER: what = "no handler"; break;
             case Bridge.ERR_ARG: what = "bad argument"; break;
-            case Bridge.ERR_SCHEMA: what = "wire schema mismatch; regenerate with nimbus-native gen"; break;
+            case Bridge.ERR_SCHEMA: what = "wire schema mismatch; regenerate with nimbus native gen"; break;
             default: what = "error " + code;
         }
         if (detail == null || detail.length == 0) return "nimbus-native: " + what;

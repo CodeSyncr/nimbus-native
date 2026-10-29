@@ -1,11 +1,11 @@
-// Command nimbus-native builds and runs Nimbus Native apps. It will become
-// `nimbus native …` in the Nimbus CLI; it lives here while the toolchain is
-// built.
+// Command nimbus-native is the Nimbus Native toolchain behind `nimbus native`:
+// the nimbus CLI runs the version of this command that an app depends on,
+// so users never call it directly.
 //
-//	nimbus-native doctor
-//	nimbus-native gen [app-dir]
-//	nimbus-native build ios|android [flags] [app-dir]
-//	nimbus-native run   ios|android [flags] [app-dir]
+//	nimbus native doctor
+//	nimbus native gen [app-dir]
+//	nimbus native build ios|android [flags] [app-dir]
+//	nimbus native run   ios|android [flags] [app-dir]
 package main
 
 import (
@@ -110,9 +110,9 @@ func buildOrRun(cmd, platform string, args []string) error {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  nimbus-native doctor
-  nimbus-native gen [app-dir]
-  nimbus-native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
-  nimbus-native run   ios|android [...same flags] [app-dir]`)
+  nimbus native doctor
+  nimbus native gen [app-dir]
+  nimbus native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
+  nimbus native run   ios|android [...same flags] [app-dir]`)
 	os.Exit(2)
 }
