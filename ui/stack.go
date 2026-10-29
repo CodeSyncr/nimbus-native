@@ -116,10 +116,7 @@ func (rt *runtime) reconcileStack(in *instance) {
 		}
 		w, h = rt.viewport.W, rt.viewport.H-rt.viewport.SafeTop-bar
 	}
-	bg := RGB(255, 255, 255)
-	if rt.viewport.Dark {
-		bg = RGB(0, 0, 0)
-	}
+	bg := rt.theme().Background
 	els := make([]*Element, len(st.screens))
 	for i, sc := range st.screens {
 		els[i] = View(Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(w), Height: Pt(h), Background: bg},

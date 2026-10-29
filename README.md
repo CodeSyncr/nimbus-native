@@ -41,7 +41,7 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
 format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
-navigation, tabs, modals, safe areas, forms. Next: theming, a typed client for
+navigation, tabs, modals, safe areas, forms, theming and dark mode. Next: a typed client for
 Nimbus servers, device builds and signing, then the web.
 
 ## Layout
@@ -217,6 +217,17 @@ back.
 |---|---|---|
 | Push, tap → committed | Go 2 ms; UIKit push 57–123 ms | 19 ms total |
 | Native back → Go follows | ✓ | ✓ |
+
+## Theming and dark mode
+
+`ui.Theme` holds an app's tokens (background, surface, text, muted, border,
+primary, danger, bar colors, radius, type and spacing scales);
+`ui.LightTheme` / `ui.DarkTheme` are built in and `ui.SetTheme(light, dark)`
+replaces them. The runtime follows the system's dark mode: `ui.UseTheme(c)`
+re-renders with the other theme, unset text, input and spinner colors take
+the theme's, and the `Chrome` op restyles what the platform draws —
+navigation and tab bars, screen and modal backgrounds, Android's status and
+navigation bars.
 
 ## Forms
 

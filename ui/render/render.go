@@ -194,6 +194,21 @@ type TabSelect struct {
 	Index uint32
 }
 
+// Chrome is the theme for what the host draws itself: navigation and tab
+// bars, screen and modal backgrounds, the status bar. Sent when it changes.
+//
+//wire:variant Op
+type Chrome struct {
+	Dark       bool
+	Background uint32 // screens, modals, the root
+	Text       uint32
+	TextMuted  uint32 // unselected tabs
+	Accent     uint32 // back buttons, selected tabs
+	Bar        uint32 // navigation and tab bar backgrounds
+	BarText    uint32 // titles on bars
+	Border     uint32 // bar separators
+}
+
 // Present shows a KindModal view over the app, with the platform's
 // transition.
 //

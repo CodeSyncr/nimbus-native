@@ -21,6 +21,8 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
     private val tabs = mutableListOf<View>()
     private val items = HashMap<View, TextView>()
     private var selected = 0
+    private var accent = ACCENT
+    private var muted = 0xff6b7280.toInt()
     private var reportedW = 0
     private var reportedH = 0
 
@@ -50,6 +52,14 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
         show()
     }
 
+    /** Bar colors from the theme. */
+    fun style(barColor: Int, accent: Int, muted: Int) {
+        bar.setBackgroundColor(barColor)
+        this.accent = accent
+        this.muted = muted
+        show()
+    }
+
     fun setItem(tab: View, title: String) {
         items.getOrPut(tab) { newItem() }.text = title
     }
@@ -70,7 +80,7 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
             v.visibility = if (i == selected) VISIBLE else INVISIBLE
             items[v]?.let { item ->
                 val on = i == selected
-                item.setTextColor(if (on) ACCENT else 0xff6b7280.toInt())
+                item.setTextColor(if (on) accent else muted)
                 item.typeface = Typeface.create(Typeface.DEFAULT, if (on) Typeface.BOLD else Typeface.NORMAL)
                 item.background = if (on) indicator() else null
             }
@@ -85,7 +95,7 @@ internal class NNTabs(c: Context, private val r: Renderer, private val tabsTag: 
 
     /** A short accent line under the selected tab's label. */
     private fun indicator() = object : android.graphics.drawable.Drawable() {
-        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = ACCENT }
+        private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = accent }
 
         override fun draw(canvas: android.graphics.Canvas) {
             val b = bounds

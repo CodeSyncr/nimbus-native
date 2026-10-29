@@ -124,10 +124,18 @@ type FieldOptions struct {
 //
 //	ui.TextField(form.Field("email", func(s *Signup) *string { return &s.Email }),
 //		ui.FieldOptions{Label: "Email", Keyboard: render.KeyboardEmail})
-func TextField(f Field, o FieldOptions) *Element {
-	box := Style{BorderWidth: 1, BorderColor: Hex("#d1d5db"), Radius: 10, FontSize: 15}.With(o.Style)
+func TextField(f Field, o FieldOptions) *Element { return C(textField{f, o}) }
+
+type textField struct {
+	f Field
+	o FieldOptions
+}
+
+func (t textField) Render(c *Ctx) *Element {
+	f, o, th := t.f, t.o, UseTheme(c)
+	box := Style{BorderWidth: 1, BorderColor: th.Border, Radius: th.Radius - 2, FontSize: th.Body, Background: th.Surface}.With(o.Style)
 	if f.Error != "" {
-		box.BorderColor = errorRed
+		box.BorderColor = th.Danger
 	}
 	in := TextInput(f.Value, f.OnChange, box).Placeholder(o.Placeholder).Keyboard(o.Keyboard).TestID("field-" + f.Name)
 	if o.Secure {
@@ -135,15 +143,13 @@ func TextField(f Field, o FieldOptions) *Element {
 	}
 	var label, msg *Element
 	if o.Label != "" {
-		label = Text(o.Label, Style{FontSize: 13, FontWeight: 600, Color: Hex("#374151")})
+		label = Text(o.Label, Style{FontSize: th.Caption, FontWeight: 600, Color: th.TextMuted})
 	}
 	if f.Error != "" {
-		msg = Text(f.Error, Style{FontSize: 13, Color: errorRed}).TestID("error-" + f.Name)
+		msg = Text(f.Error, Style{FontSize: th.Caption, Color: th.Danger}).TestID("error-" + f.Name)
 	}
 	return View(Style{Gap: 6}, label, in, msg)
 }
-
-var errorRed = Hex("#dc2626")
 
 // FieldErrorsOf reads field errors out of a validation error — a
 // FieldErrors, Nimbus's validation.ValidationErrors (for example from a

@@ -92,9 +92,10 @@ func (rt *runtime) reconcileTabs(in *instance) {
 			h -= 56
 		}
 	}
+	bg := rt.theme().Background
 	els := make([]*Element, len(tabs))
 	for i, t := range tabs {
-		els[i] = View(Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(w), Height: Pt(h)},
+		els[i] = View(Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(w), Height: Pt(h), Background: bg},
 			C(t.Screen)).Key("t" + strconv.Itoa(i))
 	}
 	rt.reconcileChildren(in, els)

@@ -46,6 +46,13 @@ internal class NNStack(c: Context, private val r: Renderer, private val stackTag
         addView(bar)
     }
 
+    /** Bar colors from the theme. */
+    fun style(bar: Int, text: Int, border: Int) {
+        this.bar.setBackgroundColor(bar)
+        title.setTextColor(text)
+        back.setTextColor(text)
+    }
+
     /** Shows exactly these screens, animating a push or pop of one. */
     fun setScreens(wanted: List<View>) {
         val n = screens.size

@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x55619a6c7a7d7c21
+const SchemaHash uint64 = 0xec96bd45282b38c3
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -262,6 +262,31 @@ func (m *TabSelect) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *Chrome) AppendWire(b []byte) []byte {
+	b = wire.AppendBool(b, m.Dark)
+	b = wire.AppendUint(b, uint64(m.Background))
+	b = wire.AppendUint(b, uint64(m.Text))
+	b = wire.AppendUint(b, uint64(m.TextMuted))
+	b = wire.AppendUint(b, uint64(m.Accent))
+	b = wire.AppendUint(b, uint64(m.Bar))
+	b = wire.AppendUint(b, uint64(m.BarText))
+	b = wire.AppendUint(b, uint64(m.Border))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Chrome) ReadWire(r *wire.Reader) {
+	m.Dark = r.Bool()
+	m.Background = uint32(r.UintMax(1<<32 - 1))
+	m.Text = uint32(r.UintMax(1<<32 - 1))
+	m.TextMuted = uint32(r.UintMax(1<<32 - 1))
+	m.Accent = uint32(r.UintMax(1<<32 - 1))
+	m.Bar = uint32(r.UintMax(1<<32 - 1))
+	m.BarText = uint32(r.UintMax(1<<32 - 1))
+	m.Border = uint32(r.UintMax(1<<32 - 1))
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Present) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	return b
@@ -469,6 +494,7 @@ func (*Input) isOp()     {}
 func (*Screen) isOp()    {}
 func (*TabItem) isOp()   {}
 func (*TabSelect) isOp() {}
+func (*Chrome) isOp()    {}
 func (*Present) isOp()   {}
 func (*Scroll) isOp()    {}
 func (*Spinner) isOp()   {}
@@ -500,12 +526,14 @@ func AppendOp(b []byte, v Op) []byte {
 		return v.AppendWire(wire.AppendUint(b, 10))
 	case *TabSelect:
 		return v.AppendWire(wire.AppendUint(b, 11))
-	case *Present:
+	case *Chrome:
 		return v.AppendWire(wire.AppendUint(b, 12))
-	case *Scroll:
+	case *Present:
 		return v.AppendWire(wire.AppendUint(b, 13))
-	case *Spinner:
+	case *Scroll:
 		return v.AppendWire(wire.AppendUint(b, 14))
+	case *Spinner:
+		return v.AppendWire(wire.AppendUint(b, 15))
 	}
 	panic(fmt.Sprintf("render: %T is not a Op variant", v))
 }
@@ -560,14 +588,18 @@ func ReadOp(r *wire.Reader) Op {
 		v.ReadWire(r)
 		return v
 	case 12:
-		v := new(Present)
+		v := new(Chrome)
 		v.ReadWire(r)
 		return v
 	case 13:
-		v := new(Scroll)
+		v := new(Present)
 		v.ReadWire(r)
 		return v
 	case 14:
+		v := new(Scroll)
+		v.ReadWire(r)
+		return v
+	case 15:
 		v := new(Spinner)
 		v.ReadWire(r)
 		return v

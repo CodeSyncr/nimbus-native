@@ -54,6 +54,10 @@ class Renderer internal constructor(private val root: NimbusView) {
     private val frames = HashMap<Int, IntArray>() // l, t, w, h in px
     private val pendingTitles = HashMap<View, String>() // titles for screens not in a stack yet
     private var rootTag = 0
+
+    /** The theme for what Android draws itself (bars, backgrounds); see Chrome. */
+    internal var chrome = Render.Chrome()
+        private set
     private var lastViewport: Render.Viewport? = null
     private var started = false
 
@@ -180,6 +184,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 }
                 is Render.TabSelect -> (views[op.tag.toInt()] as? NNTabs)?.select(op.index.toInt())
                 is Render.Present -> (views[op.tag.toInt()] as? NNModal)?.let(root::present)
+                is Render.Chrome -> applyChrome(op)
                 null -> {}
             }
         }
@@ -215,6 +220,25 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
         v.id = tag
         views[tag] = v
+        style(v)
+    }
+
+    private fun applyChrome(c: Render.Chrome) {
+        chrome = c
+        root.applyChrome(c)
+        views.values.forEach(::style)
+    }
+
+    /** Theme what the platform draws: bars, modal backgrounds, placeholders. */
+    private fun style(v: View) {
+        val c = chrome
+        if (c.bar == 0L) return
+        when (v) {
+            is NNStack -> v.style(argb(c.bar), argb(c.barText), argb(c.border))
+            is NNTabs -> v.style(argb(c.bar), argb(c.accent), argb(c.textMuted))
+            is NNModal -> v.setBackgroundColor(argb(c.background))
+            is NNInput -> v.setHintTextColor(argb(c.textMuted))
+        }
     }
 
     /**
@@ -375,7 +399,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
     }
 
-    private companion object {
+    internal companion object {
         val NO_FRAME = intArrayOf(0, 0, 0, 0)
         val loader = Executors.newFixedThreadPool(4)!!
         val main = Handler(Looper.getMainLooper())
@@ -411,7 +435,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
 
         /** 0xRRGGBBAA → Android's 0xAARRGGBB. */
-        fun argb(c: Long): Int {
+        internal fun argb(c: Long): Int {
             val v = c.toInt()
             return (v ushr 8) or (v shl 24)
         }

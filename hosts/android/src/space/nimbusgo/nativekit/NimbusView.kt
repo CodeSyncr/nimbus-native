@@ -44,6 +44,21 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
         }
     }
 
+    /** The theme's background here, and its bar color on the system bars. */
+    internal fun applyChrome(c: Render.Chrome) {
+        setBackgroundColor(Renderer.argb(c.background))
+        val window = (context as? android.app.Activity)?.window ?: return
+        @Suppress("DEPRECATION")
+        run {
+            window.statusBarColor = Renderer.argb(c.bar)
+            window.navigationBarColor = Renderer.argb(c.bar)
+            var flags = window.decorView.systemUiVisibility
+            val lightBars = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+            flags = if (c.dark) flags and lightBars.inv() else flags or lightBars
+            window.decorView.systemUiVisibility = flags
+        }
+    }
+
     internal fun present(m: NNModal) {
         if (m in modals) return
         (m.parent as? ViewGroup)?.removeView(m)

@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x55619a6c7a7d7c21uL.toLong()
+    val SCHEMA_HASH: Long = 0xec96bd45282b38c3uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -383,6 +383,44 @@ object Render {
         }
     }
 
+    /** Chrome is the theme for what the host draws itself: navigation and tab bars, screen and modal backgrounds, the status bar. Sent when it changes. */
+    data class Chrome(
+        var dark: Boolean = false,
+        var background: Long = 0L,
+        var text: Long = 0L,
+        var textMuted: Long = 0L,
+        var accent: Long = 0L,
+        var bar: Long = 0L,
+        var barText: Long = 0L,
+        var border: Long = 0L,
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.bool(this.dark)
+            w.uint(this.background)
+            w.uint(this.text)
+            w.uint(this.textMuted)
+            w.uint(this.accent)
+            w.uint(this.bar)
+            w.uint(this.barText)
+            w.uint(this.border)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Chrome {
+                val m = Chrome()
+                m.dark = r0.bool()
+                m.background = r0.uintMax(4294967295L)
+                m.text = r0.uintMax(4294967295L)
+                m.textMuted = r0.uintMax(4294967295L)
+                m.accent = r0.uintMax(4294967295L)
+                m.bar = r0.uintMax(4294967295L)
+                m.barText = r0.uintMax(4294967295L)
+                m.border = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Present shows a KindModal view over the app, with the platform's transition. */
     data class Present(
         var tag: Long = 0L,
@@ -701,9 +739,10 @@ object Render {
             is Screen -> { w.uint(9); v.write(w) }
             is TabItem -> { w.uint(10); v.write(w) }
             is TabSelect -> { w.uint(11); v.write(w) }
-            is Present -> { w.uint(12); v.write(w) }
-            is Scroll -> { w.uint(13); v.write(w) }
-            is Spinner -> { w.uint(14); v.write(w) }
+            is Chrome -> { w.uint(12); v.write(w) }
+            is Present -> { w.uint(13); v.write(w) }
+            is Scroll -> { w.uint(14); v.write(w) }
+            is Spinner -> { w.uint(15); v.write(w) }
         }
     }
 
@@ -720,9 +759,10 @@ object Render {
         9L -> Screen.read(r0)
         10L -> TabItem.read(r0)
         11L -> TabSelect.read(r0)
-        12L -> Present.read(r0)
-        13L -> Scroll.read(r0)
-        14L -> Spinner.read(r0)
+        12L -> Chrome.read(r0)
+        13L -> Present.read(r0)
+        14L -> Scroll.read(r0)
+        15L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 

@@ -69,7 +69,8 @@ type runtime struct {
 	ops          []render.Op
 	destroyed    []uint32
 	effects      []*hookSlot
-	modals       []*modal // open modals, bottom first
+	sentChrome   render.Chrome // the theme the host last got
+	modals       []*modal      // open modals, bottom first
 	modalKey     int
 	lists        map[*instance]bool // mounted Lists
 	rechild      map[*instance]bool // Lists and Stacks whose children must render again
@@ -209,6 +210,7 @@ type measureKey struct {
 func (rt *runtime) commit() {
 	t0 := time.Now()
 	rt.dirty, rt.measures = false, 0
+	rt.chrome()
 	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root), nil)
 	rt.reconcileModals()
 	rt.forceAll = false
@@ -482,9 +484,14 @@ func (rt *runtime) props(in *instance, first bool) {
 	in.sent.box = box
 
 	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight}
+	theme := rt.theme()
+	textColor := s.Color
+	if textColor == 0 {
+		textColor = theme.Text
+	}
 	switch el.kind {
 	case render.KindText:
-		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(s.Color), Align: textAlign(s.TextAlign), Lines: s.Lines}
+		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines}
 		if first || t != in.sent.text {
 			if t.Text != in.sent.text.Text || t.Font != in.sent.text.Font || t.Lines != in.sent.text.Lines {
 				in.measured = nil
@@ -501,7 +508,7 @@ func (rt *runtime) props(in *instance, first bool) {
 		}
 	case render.KindInput:
 		inp := render.Input{Tag: in.tag, Value: el.text, Placeholder: el.placeholder, Font: font,
-			Color: uint32(s.Color), Secure: el.secure, Keyboard: el.keyboard}
+			Color: uint32(textColor), Secure: el.secure, Keyboard: el.keyboard}
 		if first || inp != in.sent.input {
 			if inp.Font != in.sent.input.Font {
 				in.measured = nil
@@ -511,7 +518,11 @@ func (rt *runtime) props(in *instance, first bool) {
 			rt.op(&inp)
 		}
 	case render.KindSpinner:
-		sp := render.Spinner{Tag: in.tag, Color: uint32(s.Color)}
+		spin := s.Color
+		if spin == 0 {
+			spin = theme.Primary
+		}
+		sp := render.Spinner{Tag: in.tag, Color: uint32(spin)}
 		if first || sp != in.sent.spin {
 			in.sent.spin = sp
 			rt.op(&sp)

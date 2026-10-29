@@ -47,6 +47,9 @@ public final class Renderer {
     private var tabControllers: [UInt32: NNTabController] = [:]
     private var modals: [UInt32: NNModalController] = [:]
 
+    /// The theme for what UIKit draws itself (bars, backgrounds); see Chrome.
+    private(set) var chrome = Render.Chrome()
+
     private var views: [UInt32: UIView] = [:]
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
@@ -147,6 +150,7 @@ public final class Renderer {
             case .tabItem(let o):
                 tab(o.tag).tabBarItem = UITabBarItem(title: o.title, image: o.icon.isEmpty ? nil : UIImage(systemName: o.icon), tag: 0)
             case .tabSelect(let o): (views[o.tag] as? NNTabsView)?.select(Int(o.index))
+            case .chrome(let o): applyChrome(o)
             case .present(let o):
                 if let m = modals[o.tag], m.presentingViewController == nil, var top = viewController {
                     while let p = top.presentedViewController { top = p }
@@ -187,11 +191,20 @@ public final class Renderer {
             let s = UIActivityIndicatorView(style: .medium)
             s.startAnimating()
             v = s
-        case .stack: v = NNStackView(renderer: self, tag: o.tag)
-        case .tabs: v = NNTabsView(renderer: self, tag: o.tag)
+        case .stack:
+            let st = NNStackView(renderer: self, tag: o.tag)
+            st.style(chrome)
+            v = st
+        case .tabs:
+            let tb = NNTabsView(renderer: self, tag: o.tag)
+            tb.style(chrome)
+            v = tb
         case .modal:
             v = UIView()
-            modals[o.tag] = NNModalController(renderer: self, tag: o.tag, content: v)
+            let m = NNModalController(renderer: self, tag: o.tag, content: v)
+            m.loadViewIfNeeded()
+            m.view.backgroundColor = color(chrome.background)
+            modals[o.tag] = m
         default: v = UIView()
         }
         v.tag = Int(o.tag)
@@ -243,9 +256,22 @@ public final class Renderer {
 
     fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
 
+    private func applyChrome(_ c: Render.Chrome) {
+        chrome = c
+        container.backgroundColor = color(c.background)
+        for v in views.values {
+            (v as? NNStackView)?.style(c)
+            (v as? NNTabsView)?.style(c)
+        }
+        let backgrounds: [UIViewController] = Array(screens.values) + Array(tabControllers.values) + Array(modals.values)
+        for vc in backgrounds where vc.isViewLoaded { vc.view.backgroundColor = color(c.background) }
+    }
+
     private func tab(_ tag: UInt32) -> NNTabController {
         if let c = tabControllers[tag] { return c }
         let c = NNTabController()
+        c.loadViewIfNeeded()
+        c.view.backgroundColor = color(chrome.background)
         tabControllers[tag] = c
         return c
     }
@@ -253,6 +279,8 @@ public final class Renderer {
     private func screen(_ tag: UInt32) -> NNScreenController {
         if let c = screens[tag] { return c }
         let c = NNScreenController(renderer: self)
+        c.loadViewIfNeeded()
+        c.view.backgroundColor = color(chrome.background)
         screens[tag] = c
         return c
     }
@@ -388,6 +416,24 @@ final class NNStackView: UIView, UINavigationControllerDelegate {
         }
     }
 
+    /// Bar colors from the theme.
+    func style(_ c: Render.Chrome) {
+        guard c.bar != 0 else { return }
+        let a = UINavigationBarAppearance()
+        a.configureWithOpaqueBackground()
+        a.backgroundColor = color(c.bar)
+        a.shadowColor = color(c.border)
+        if let t = color(c.barText) {
+            a.titleTextAttributes = [.foregroundColor: t]
+            a.largeTitleTextAttributes = [.foregroundColor: t]
+        }
+        let bar = nav.navigationBar
+        bar.standardAppearance = a
+        bar.scrollEdgeAppearance = a
+        bar.compactAppearance = a
+        bar.tintColor = color(c.accent)
+    }
+
     func setScreens(_ controllers: [UIViewController]) {
         let current = nav.viewControllers
         depth = controllers.count
@@ -487,6 +533,24 @@ final class NNTabsView: UIView, UITabBarControllerDelegate {
         }
     }
 
+    /// Tab bar colors from the theme.
+    func style(_ c: Render.Chrome) {
+        guard c.bar != 0 else { return }
+        let a = UITabBarAppearance()
+        a.configureWithOpaqueBackground()
+        a.backgroundColor = color(c.bar)
+        a.shadowColor = color(c.border)
+        for item in [a.stackedLayoutAppearance, a.inlineLayoutAppearance, a.compactInlineLayoutAppearance] {
+            item.normal.iconColor = color(c.textMuted)
+            item.normal.titleTextAttributes = [.foregroundColor: color(c.textMuted) ?? .gray]
+            item.selected.iconColor = color(c.accent)
+            item.selected.titleTextAttributes = [.foregroundColor: color(c.accent) ?? .systemBlue]
+        }
+        bar.tabBar.standardAppearance = a
+        bar.tabBar.scrollEdgeAppearance = a
+        bar.tabBar.tintColor = color(c.accent)
+    }
+
     func setTabs(_ controllers: [UIViewController]) {
         if bar.viewControllers ?? [] != controllers {
             bar.setViewControllers(controllers, animated: false)
@@ -555,7 +619,6 @@ final class NNModalController: UIViewController, UIAdaptivePresentationControlle
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
         view.addSubview(content)
         presentationController?.delegate = self
     }

@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x55619a6c7a7d7c21
+    public static let schemaHash: UInt64 = 0xec96bd45282b38c3
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -456,6 +456,54 @@ public enum Render {
         }
     }
 
+    /// Chrome is the theme for what the host draws itself: navigation and tab
+    /// bars, screen and modal backgrounds, the status bar. Sent when it changes.
+    public struct Chrome: Equatable {
+        public var dark: Bool
+        public var background: UInt32
+        public var text: UInt32
+        public var textMuted: UInt32
+        public var accent: UInt32
+        public var bar: UInt32
+        public var barText: UInt32
+        public var border: UInt32
+
+        public init(dark: Bool = false, background: UInt32 = 0, text: UInt32 = 0, textMuted: UInt32 = 0, accent: UInt32 = 0, bar: UInt32 = 0, barText: UInt32 = 0, border: UInt32 = 0) {
+            self.dark = dark
+            self.background = background
+            self.text = text
+            self.textMuted = textMuted
+            self.accent = accent
+            self.bar = bar
+            self.barText = barText
+            self.border = border
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.bool(self.dark)
+            w.uint(UInt64(self.background))
+            w.uint(UInt64(self.text))
+            w.uint(UInt64(self.textMuted))
+            w.uint(UInt64(self.accent))
+            w.uint(UInt64(self.bar))
+            w.uint(UInt64(self.barText))
+            w.uint(UInt64(self.border))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Chrome {
+            var m = Chrome()
+            m.dark = try r.bool()
+            m.background = UInt32(try r.uint(max: 4294967295))
+            m.text = UInt32(try r.uint(max: 4294967295))
+            m.textMuted = UInt32(try r.uint(max: 4294967295))
+            m.accent = UInt32(try r.uint(max: 4294967295))
+            m.bar = UInt32(try r.uint(max: 4294967295))
+            m.barText = UInt32(try r.uint(max: 4294967295))
+            m.border = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Present shows a KindModal view over the app, with the platform's
     /// transition.
     public struct Present: Equatable {
@@ -830,6 +878,7 @@ public enum Render {
         case screen(Screen)
         case tabItem(TabItem)
         case tabSelect(TabSelect)
+        case chrome(Chrome)
         case present(Present)
         case scroll(Scroll)
         case spinner(Spinner)
@@ -871,14 +920,17 @@ public enum Render {
             case .tabSelect(let x)?:
                 w.uint(11)
                 x.write(to: &w)
-            case .present(let x)?:
+            case .chrome(let x)?:
                 w.uint(12)
                 x.write(to: &w)
-            case .scroll(let x)?:
+            case .present(let x)?:
                 w.uint(13)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .scroll(let x)?:
                 w.uint(14)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(15)
                 x.write(to: &w)
             }
         }
@@ -910,10 +962,12 @@ public enum Render {
             case 11:
                 return .tabSelect(try TabSelect.read(from: &r))
             case 12:
-                return .present(try Present.read(from: &r))
+                return .chrome(try Chrome.read(from: &r))
             case 13:
-                return .scroll(try Scroll.read(from: &r))
+                return .present(try Present.read(from: &r))
             case 14:
+                return .scroll(try Scroll.read(from: &r))
+            case 15:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
