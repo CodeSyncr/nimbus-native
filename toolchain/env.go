@@ -98,6 +98,11 @@ func (e *Env) Doctor() bool {
 	check("build-tools", e.BuildTools, "sdkmanager \"build-tools;36.1.0\"")
 	check("android.jar", e.AndroidJar, "sdkmanager \"platforms;android-36\"")
 	check("javac", e.Javac, "install JDK 17+")
+	if kc := InstalledKotlinc(); kc != "" {
+		check("kotlinc", kc, "")
+	} else {
+		fmt.Fprintf(e.Out, "  · %-15s Kotlin %s downloads on the first Android build\n", "kotlinc", kotlinVersion)
+	}
 	check("keystore", e.Keystore, "created by Android Studio; or keytool -genkeypair (see docs)")
 	return ok
 }

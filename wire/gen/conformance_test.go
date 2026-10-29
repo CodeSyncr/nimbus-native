@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/CodeSyncr/nimbus-native/toolchain"
 	"github.com/CodeSyncr/nimbus-native/wire/gen"
 	"github.com/CodeSyncr/nimbus-native/wire/internal/kitchen"
 )
@@ -231,29 +232,29 @@ func TestSwiftConformance(t *testing.T) {
 	checkResults(t, "swift", res, cs)
 }
 
-func TestJavaConformance(t *testing.T) {
-	for _, tool := range []string{"javac", "java"} {
-		if _, err := exec.LookPath(tool); err != nil {
-			t.Skipf("no %s", tool)
-		}
+func TestKotlinConformance(t *testing.T) {
+	kotlinc := toolchain.InstalledKotlinc()
+	if kotlinc == "" {
+		t.Skip("no Kotlin compiler installed (a first Android build installs it, or set NIMBUS_KOTLINC)")
+	}
+	if _, err := exec.LookPath("java"); err != nil {
+		t.Skip("no java")
 	}
 	dir := t.TempDir()
 	out := generate(t)
-	src := filepath.Join(dir, "src")
-	must(t, os.MkdirAll(src, 0o755))
-	must(t, os.WriteFile(filepath.Join(src, "Kitchen.java"), out.Java, 0o644))
-	classes := filepath.Join(dir, "classes")
-	run(t, "javac", "--release", "11", "-Xlint:all", "-Werror", "-d", classes,
-		repo("hosts/android/src/space/nimbusgo/nativekit/WireReader.java"),
-		repo("hosts/android/src/space/nimbusgo/nativekit/WireWriter.java"),
-		repo("hosts/android/src/space/nimbusgo/nativekit/WireException.java"),
-		filepath.Join(src, "Kitchen.java"), "testdata/conformance/Main.java")
+	src := filepath.Join(dir, "Kitchen.kt")
+	must(t, os.WriteFile(src, out.Kotlin, 0o644))
+	jar := filepath.Join(dir, "conformance.jar")
+	kit := repo("hosts/android/src/space/nimbusgo/nativekit")
+	run(t, kotlinc, "-Werror", "-include-runtime", "-d", jar,
+		filepath.Join(kit, "WireReader.kt"), filepath.Join(kit, "WireWriter.kt"), filepath.Join(kit, "WireException.kt"),
+		src, "testdata/conformance/Main.kt")
 
 	cs := cases(t)
 	in, res := filepath.Join(dir, "in.bin"), filepath.Join(dir, "out.bin")
 	writeCases(t, in, cs)
-	run(t, "java", "-cp", classes, "Main", in, res)
-	checkResults(t, "java", res, cs)
+	run(t, "java", "-jar", jar, in, res)
+	checkResults(t, "kotlin", res, cs)
 }
 
 func run(t *testing.T, name string, args ...string) {

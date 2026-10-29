@@ -78,13 +78,26 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 		libs["lib/"+abi.Name+"/"+androidLib] = lib
 	}
 
-	// 2. Java host + app code → classes.dex.
-	e.step("javac + d8 → classes.dex")
-	classes := filepath.Join(obj, "classes")
-	sources := globs(filepath.Join(e.Repo, "hosts/android/src/space/nimbusgo/nativekit/*.java"), filepath.Join(a.Dir, "android/*.java"))
-	sources = append(sources, generated.JavaFiles...)
-	if err := e.run(nil, e.Javac, append([]string{"--release", "11", "-nowarn", "-classpath", e.AndroidJar, "-d", classes}, sources...)...); err != nil {
+	// 2. Kotlin host + app code (and any Java) → classes.dex, with the Kotlin
+	// standard library.
+	kotlinc, err := e.Kotlinc()
+	if err != nil {
 		return "", err
+	}
+	e.step("kotlinc + d8 → classes.dex")
+	classes := filepath.Join(obj, "classes")
+	kt := globs(filepath.Join(e.Repo, "hosts/android/src/space/nimbusgo/nativekit/*.kt"), filepath.Join(a.Dir, "android/*.kt"))
+	kt = append(kt, generated.KotlinFiles...)
+	java := globs(filepath.Join(a.Dir, "android/*.java"))
+	args := []string{"-jvm-target", "11", "-nowarn", "-classpath", e.AndroidJar, "-d", classes}
+	if err := e.run(nil, kotlinc, append(append(args, kt...), java...)...); err != nil {
+		return "", err
+	}
+	if len(java) > 0 {
+		cp := e.AndroidJar + string(os.PathListSeparator) + classes + string(os.PathListSeparator) + kotlinStdlib(kotlinc)
+		if err := e.run(nil, e.Javac, append([]string{"--release", "11", "-nowarn", "-classpath", cp, "-d", classes}, java...)...); err != nil {
+			return "", err
+		}
 	}
 	var classFiles []string
 	_ = filepath.WalkDir(classes, func(p string, d os.DirEntry, err error) error {
@@ -97,7 +110,8 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 	if err := os.MkdirAll(dex, 0o755); err != nil {
 		return "", err
 	}
-	d8 := append([]string{"--release", "--min-api", fmt.Sprint(MinAndroidAPI), "--lib", e.AndroidJar, "--output", dex}, classFiles...)
+	d8 := append([]string{"--release", "--min-api", fmt.Sprint(MinAndroidAPI), "--lib", e.AndroidJar, "--output", dex,
+		kotlinStdlib(kotlinc)}, classFiles...)
 	if err := e.run(nil, filepath.Join(e.BuildTools, "d8"), d8...); err != nil {
 		return "", err
 	}

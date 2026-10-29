@@ -13,7 +13,7 @@ import (
 var update = flag.Bool("update", false, "rewrite the generated Go, Swift and Java")
 
 // The protocol's generated code is committed in three places: here, in the
-// iOS kit and in the Android kit. They must all match the schema.
+// iOS kit and in the Android kit (Kotlin). They must all match the schema.
 func TestGeneratedUpToDate(t *testing.T) {
 	out, err := gen.Generate(".", "space.nimbusgo.nativekit")
 	if err != nil {
@@ -21,8 +21,8 @@ func TestGeneratedUpToDate(t *testing.T) {
 	}
 	files := map[string][]byte{
 		gen.GoFile: out.Go,
-		"../../hosts/ios/Sources/NimbusNativeKit/Render.swift":         out.Swift,
-		"../../hosts/android/src/space/nimbusgo/nativekit/Render.java": out.Java,
+		"../../hosts/ios/Sources/NimbusNativeKit/Render.swift":       out.Swift,
+		"../../hosts/android/src/space/nimbusgo/nativekit/Render.kt": out.Kotlin,
 	}
 	for path, want := range files {
 		if *update {

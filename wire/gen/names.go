@@ -1,5 +1,5 @@
 // Package gen turns a wire schema into code: Go (methods on the schema's own
-// types), Swift (NimbusNativeKit hosts) and Java (Android hosts). All three
+// types), Swift (NimbusNativeKit hosts) and Kotlin (Android hosts). All three
 // produce byte-identical encodings; conformance_test.go proves it.
 package gen
 
@@ -33,7 +33,7 @@ func lowerCamel(s string) string {
 	return string(r)
 }
 
-// upperSnake turns a Go name into a Java constant name: "BigText" → "BIG_TEXT".
+// upperSnake turns a Go name into a Kotlin constant name: "BigText" → "BIG_TEXT".
 func upperSnake(s string) string {
 	var b strings.Builder
 	r := []rune(s)
@@ -55,7 +55,7 @@ func enumConst(e *schema.EnumDef, v schema.EnumValue) string {
 	return v.Name
 }
 
-// namespace is the Swift enum / Java class that holds a schema's types:
+// namespace is the Swift enum / Kotlin object that holds a schema's types:
 // package "proto" → "Proto".
 func namespace(s *schema.Schema) string {
 	r := []rune(s.Package)
@@ -69,13 +69,9 @@ var swiftKeywords = set("associatedtype", "class", "deinit", "enum", "extension"
 	"fallthrough", "for", "guard", "if", "in", "repeat", "return", "switch", "where", "while", "as", "Any", "catch",
 	"false", "is", "nil", "super", "self", "Self", "throw", "throws", "true", "try", "Type")
 
-var javaKeywords = set("abstract", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "const",
-	"continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float", "for", "goto", "if",
-	"implements", "import", "instanceof", "int", "interface", "long", "native", "new", "package", "private",
-	"protected", "public", "return", "short", "static", "strictfp", "super", "switch", "synchronized", "this", "throw",
-	"throws", "transient", "try", "void", "volatile", "while", "true", "false", "null", "var", "record", "yield",
-	// names the generated classes use themselves
-	"write", "read", "getClass", "hashCode", "equals", "toString")
+var kotlinKeywords = set("as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in",
+	"interface", "is", "null", "object", "package", "return", "super", "this", "throw", "true", "try", "typealias",
+	"typeof", "val", "var", "when", "while")
 
 func swiftName(goName string) string {
 	n := lowerCamel(goName)
@@ -85,10 +81,10 @@ func swiftName(goName string) string {
 	return n
 }
 
-func javaName(goName string) string {
+func kotlinName(goName string) string {
 	n := lowerCamel(goName)
-	if javaKeywords[n] {
-		return n + "_"
+	if kotlinKeywords[n] {
+		return "`" + n + "`"
 	}
 	return n
 }

@@ -11,11 +11,12 @@ type Output struct {
 	Schema *schema.Schema
 	Go     []byte // write to <schema dir>/wire_gen.go
 	Swift  []byte // compile into the iOS host
-	Java   []byte // compile into the Android host, as <Namespace>.java
+	Kotlin []byte // compile into the Android host, as <Namespace>.kt
 }
 
-// Generate loads the schema in dir and generates all three languages.
-func Generate(dir, javaPackage string) (*Output, error) {
+// Generate loads the schema in dir and generates all three languages; the
+// Kotlin goes in kotlinPackage.
+func Generate(dir, kotlinPackage string) (*Output, error) {
 	s, err := schema.Load(dir)
 	if err != nil {
 		return nil, err
@@ -30,10 +31,10 @@ func Generate(dir, javaPackage string) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Output{Schema: s, Go: goSrc, Swift: Swift(s), Java: Java(s, javaPackage)}, nil
+	return &Output{Schema: s, Go: goSrc, Swift: Swift(s), Kotlin: Kotlin(s, kotlinPackage)}, nil
 }
 
-// Namespace is the Swift enum / Java class name for the schema.
+// Namespace is the Swift enum / Kotlin object name for the schema.
 func Namespace(s *schema.Schema) string { return namespace(s) }
 
 func typeNames(s *schema.Schema) []string {

@@ -13,7 +13,7 @@ func TestNames(t *testing.T) {
 			t.Errorf("upperSnake(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if swiftName("Default") != "`default`" || javaName("Default") != "default_" || javaName("Read") != "read_" {
+	if swiftName("Default") != "`default`" || kotlinName("Default") != "default" || kotlinName("When") != "`when`" {
 		t.Error("keywords not escaped")
 	}
 }

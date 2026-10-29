@@ -73,7 +73,8 @@ type Node struct {
 	Props    map[string]string
 	Children []*Node
 	Meta     *Meta
-	Default  string // a Swift and Java keyword as a field name
+	Default  string  // a Swift keyword as a field name
+	W        float32 // shares its name with generated code's writer
 }
 
 // Meta is a plain nested struct.

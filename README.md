@@ -28,17 +28,17 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 | Path | What |
 |---|---|
 | `bridge/include/nn.h` | The C ABI: the only boundary between Go and a host |
-| `bridge/` | Go side of the ABI (batched outbox, panic recovery, handle table, stats); `jni_android.c` binds it to Java |
+| `bridge/` | Go side of the ABI (batched outbox, panic recovery, handle table, stats); `jni_android.c` binds it to the Kotlin `Bridge` |
 | `bridge/internal/abitest/` | Desktop C host that checks the whole nn.h contract (`go test ./bridge`) |
 | `hosts/ios/` | `NimbusNativeKit` (Swift) |
-| `hosts/android/` | `space.nimbusgo.nativekit.Bridge` (Java) |
-| `wire/` | Wire format runtime (Go); `wire/schema` reads schemas, `wire/gen` generates Go, Swift, Java |
-| `hosts/*/…/Wire*` | Swift and Java wire runtimes |
+| `hosts/android/` | `space.nimbusgo.nativekit` (Kotlin): `Bridge`, wire runtime, renderer |
+| `wire/` | Wire format runtime (Go); `wire/schema` reads schemas, `wire/gen` generates Go, Swift, Kotlin |
+| `hosts/*/…/Wire*` | Swift and Kotlin wire runtimes |
 | `layout/` | Flexbox engine in pure Go; 62 fixtures match Chromium's layout; incremental |
 | `ui/` | Components, hooks (State, Reducer, Effect, Memo, Ref, Viewport), elements, keyed reconciler, UI loop |
 | `ui/render/` | The Go ↔ native renderer protocol (generated into both kits) |
 | `hosts/ios/…/Renderer.swift` | UIKit renderer and `NimbusViewController` |
-| `hosts/android/…/Renderer.java`, `NimbusView.java` | Android Views renderer and root view |
+| `hosts/android/…/Renderer.kt`, `NimbusView.kt` | Android Views renderer and root view |
 | `dev/` | Dev mode: `frame` (the socket protocol), `client` (the shell's proxy); the relay is in `toolchain/dev.go` |
 | `toolchain/` | Builds apps with the platform tools directly — no gomobile, no Gradle; runs `gen` first |
 | `cmd/nimbus-native/` | The toolchain behind `nimbus native …` (never called directly) |
@@ -87,7 +87,7 @@ type Remove struct{ ID uint32 }
 `nimbus native gen` (run by every build) writes `wire_gen.go` next to the
 schema (`proto.Encode`, `proto.Decode`, methods on each type) and the same
 types for the hosts: `Proto.Message.hello(Proto.Hello(name: "Yash"))` in
-Swift, `new Proto.Hello()` in Java. Supported: bool, every int and uint
+Swift, `Proto.Hello(name = "Yash")` in Kotlin. Supported: bool, every int and uint
 size, float32/64, string, []byte, lists, maps with string or integer keys,
 optionals (`*T`), nested structs, recursion through lists (`[]*Node`),
 unions, open enums.
@@ -97,8 +97,15 @@ sorted map keys; spec in `wire/wire.go`). Each schema has a hash; the host
 passes the combined hash to `nn_start`, which refuses a mismatch with
 `NN_ERR_SCHEMA`. `go test ./wire/gen` proves the three languages agree:
 Go encodes every kitchen-sink fixture plus corrupt variants, and compiled
-Swift and Java programs must decode and re-encode them to identical bytes
+Swift and Kotlin programs must decode and re-encode them to identical bytes
 and reject the same bad inputs.
+
+## Android is Kotlin
+
+The Android kit, generated wire types and example activities are Kotlin.
+`nimbus native` downloads a pinned Kotlin compiler (2.0.21, SHA-256
+checked) into the user cache on the first Android build; `NIMBUS_KOTLINC`
+points it at another. Plain Java activities still build alongside.
 
 ## How a build works
 
@@ -106,7 +113,8 @@ and reject the same bad inputs.
   then `swiftc` links it with the host and app Swift code, writes Info.plist,
   ad-hoc signs the `.app`.
 - **Android:** `go build -buildmode=c-shared` (NDK clang, 16 KB pages) →
-  `libnimbusapp.so` per ABI, then `javac` + `d8` → `classes.dex`, `aapt2` →
+  `libnimbusapp.so` per ABI, then `kotlinc` + `d8` (with the Kotlin standard
+  library) → `classes.dex`, `aapt2` →
   APK, native libs stored uncompressed, `zipalign -P 16`, `apksigner`.
 
 ## How the bridge moves messages
@@ -213,7 +221,7 @@ creates only the visible rows.
 
 | | Desktop | iOS simulator | Android emulator* |
 |---|---|---|---|
-| Swift / Java byte-identical to Go (all fixtures + corrupt inputs) | ✓ | — | — |
+| Swift / Kotlin byte-identical to Go (all fixtures + corrupt inputs) | ✓ | — | — |
 | Stale schema refused at start | ✓ | ✓ | ✓ |
 | Typed sync call (encode + call + decode) | — | 0.67 µs | ~17 µs |
 | 1,000-row list (strings, optional, enum, tags, map) Go → host | — | 1.66 µs/row | ~15 µs/row |

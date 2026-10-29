@@ -11,7 +11,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xfafc98c1af977020
+const SchemaHash uint64 = 0x7315bd8da448f253
 
 func init() { wire.Register("kitchen", SchemaHash) }
 
@@ -286,6 +286,7 @@ func (m *Node) AppendWire(b []byte) []byte {
 		b = m.Meta.AppendWire(b)
 	}
 	b = wire.AppendString(b, m.Default)
+	b = wire.AppendFloat32(b, m.W)
 	return b
 }
 
@@ -318,6 +319,7 @@ func (m *Node) ReadWire(r *wire.Reader) {
 		m.Meta.ReadWire(r)
 	}
 	m.Default = r.String()
+	m.W = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
