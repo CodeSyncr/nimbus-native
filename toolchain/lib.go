@@ -160,17 +160,25 @@ func (e *Env) syncIOSKit(dir string) (bool, error) {
 	if dir == "" {
 		return false, nil
 	}
-	files := map[string][]byte{"Package.swift": []byte(kitPackageSwift)}
+	header, err := os.ReadFile(filepath.Join(e.Repo, "bridge/include/nn.h"))
+	if err != nil {
+		return false, err
+	}
+	files := map[string][]byte{"Package.swift": []byte(kitPackageSwift), "Sources/NimbusNativeC/include/nn.h": header}
 	src := filepath.Join(e.Repo, "hosts/ios/Sources")
-	err := filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		b, err := os.ReadFile(p) // follows nn.h's link to bridge/include
+		name := filepath.Join("Sources", rel(src, p))
+		if _, ok := files[name]; ok {
+			return nil // the header comes from bridge/include
+		}
+		b, err := os.ReadFile(p)
 		if err != nil {
 			return err
 		}
-		files[filepath.Join("Sources", rel(src, p))] = b
+		files[name] = b
 		return nil
 	})
 	if err != nil {

@@ -7,13 +7,13 @@ written in Go. [Nimbus](https://github.com/CodeSyncr/nimbus) is the server,
 and serves the app's pages to browsers too. One language, one codebase,
 backend included.
 
-> **Beta (0.0.1).** Everything below runs on the iOS simulator, the Android
+> **Beta (0.0.2).** Everything below runs on the iOS simulator, the Android
 > emulator and in browsers; it has not shipped to a store yet, and APIs may
 > still change. See [CHANGELOG.md](CHANGELOG.md) for what's in it and what
 > isn't yet.
 
 ```sh
-go run github.com/CodeSyncr/nimbus-native/cmd/nimbus-native@v0.0.1 new shop
+go run github.com/CodeSyncr/nimbus-native/cmd/nimbus-native@v0.0.2 new shop
 # or, with a nimbus CLI that has the native command: nimbus native new shop
 cd shop && go run .              # the server and the web app on :3333
 nimbus native run ios            # in another terminal; or open native/ios in Xcode
