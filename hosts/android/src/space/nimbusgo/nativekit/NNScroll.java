@@ -23,7 +23,7 @@ final class NNScroll extends NNGroup {
         setClipChildren(true); // content must not draw outside the scroll view
     }
 
-    void setContent(int wPx, int hPx, boolean horizontal) {
+    void setContent(int wPx, int hPx, boolean horizontal, boolean report) {
         if (scroller == null || horizontal != this.horizontal) {
             if (scroller != null) {
                 ((android.view.ViewGroup) scroller).removeView(content);
@@ -38,6 +38,9 @@ final class NNScroll extends NNGroup {
         content.fixedW = wPx;
         content.fixedH = hPx;
         content.requestLayout();
+        scroller.setOnScrollChangeListener(report
+                ? (v, x, y, ox, oy) -> r.scrolled(getId(), x, y, v.getWidth(), v.getHeight())
+                : null);
     }
 
     /** The platform scroller, once made (for tests and demos). */

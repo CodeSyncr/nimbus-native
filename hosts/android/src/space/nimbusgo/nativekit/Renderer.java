@@ -111,6 +111,17 @@ public final class Renderer {
         Bridge.send(Render.encode(p));
     }
 
+    /** Reports a List's scroll position (px from the scroller) in dp. */
+    void scrolled(int tag, int x, int y, int w, int h) {
+        Render.Scrolled s = new Render.Scrolled();
+        s.tag = tag;
+        s.x = x / density;
+        s.y = y / density;
+        s.w = w / density;
+        s.h = h / density;
+        Bridge.send(Render.encode(s));
+    }
+
     /** The tag of the view with this test ID, or 0. */
     public int tagForTestID(String id) {
         for (Map.Entry<Integer, View> e : views.entrySet()) {
@@ -168,7 +179,7 @@ public final class Renderer {
             } else if (op instanceof Render.Scroll) {
                 Render.Scroll s = (Render.Scroll) op;
                 View v = views.get((int) s.tag);
-                if (v instanceof NNScroll) ((NNScroll) v).setContent(Math.round(s.w * density), Math.round(s.h * density), s.horizontal);
+                if (v instanceof NNScroll) ((NNScroll) v).setContent(Math.round(s.w * density), Math.round(s.h * density), s.horizontal, s.report);
             } else if (op instanceof Render.Spinner) {
                 Render.Spinner s = (Render.Spinner) op;
                 View v = views.get((int) s.tag);

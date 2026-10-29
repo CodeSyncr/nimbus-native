@@ -23,6 +23,7 @@ final class Bench {
     private var pressAt: CFTimeInterval = 0
     private var tapLatencies: [Double] = []
     private var typing = false
+    private var scrolling = false, scrollCommits = 0
     private var link: CADisplayLink?
     private var frameTimes: [CFTimeInterval] = []
 
@@ -33,6 +34,7 @@ final class Bench {
 
     private func committed(_ c: Render.Commit, _ applyMs: Double) {
         commits += 1
+        if scrolling { scrollCommits += 1 }
         if typing {
             typing = false
             let greeting = (r.view(forTag: r.tag(forTestID: "greeting") ?? 0) as? UILabel)?.text ?? "?"
@@ -83,6 +85,7 @@ final class Bench {
     private func scroll() {
         guard let tag = r.tag(forTestID: "list"), let s = r.view(forTag: tag) as? UIScrollView else { return log("FAIL: no list") }
         log(String(format: "list content: %.0f pt tall", s.contentSize.height))
+        scrolling = true
         link = CADisplayLink(target: self, selector: #selector(step))
         link!.add(to: .main, forMode: .common)
     }
@@ -97,9 +100,20 @@ final class Bench {
             let target = l.targetTimestamp - l.timestamp
             let dropped = intervals.filter { $0 > target * 1.5 }.count
             let fps = Double(intervals.count) / (frameTimes.last! - frameTimes.first!)
-            log(String(format: "scroll: 180 frames through the list, %.1f fps, %d dropped (target %.1f ms/frame)", fps, dropped, target * 1000))
-            let median = tapLatencies.sorted()[10]
-            log(median < 16 && dropped < 9 ? "NN-0D RESULT: PASS" : "NN-0D RESULT: CHECK (see numbers above)")
+            log(String(format: "scroll: 180 frames through the list, %.1f fps, %d dropped (target %.1f ms/frame), %d window commits",
+                       fps, dropped, target * 1000, scrollCommits))
+            scrolling = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [self] in
+                // Rows (views with content; spacers have none) must cover the visible area.
+                let visible = CGRect(origin: s.contentOffset, size: s.bounds.size)
+                let rows = s.subviews.filter { !$0.subviews.isEmpty && $0.frame.intersects(visible) }
+                let covered = rows.map { $0.frame.maxY }.max() ?? 0
+                log(String(format: "after scroll: %d rows on screen, rows reach %.0f of %.0f pt; %d native views in the list",
+                           rows.count, covered - visible.minY, visible.height, s.subviews.count))
+                let median = tapLatencies.sorted()[10]
+                let ok = median < 16 && dropped < 9 && covered >= visible.maxY
+                log(ok ? "NN-P1 LIST RESULT: PASS" : "NN-P1 LIST RESULT: CHECK (see numbers above)")
+            }
         }
     }
 

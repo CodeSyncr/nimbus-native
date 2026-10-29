@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xf896b5db49ad36c6
+const SchemaHash uint64 = 0x91ba88e235aa3ac8
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -226,6 +226,7 @@ func (m *Scroll) AppendWire(b []byte) []byte {
 	b = wire.AppendFloat32(b, m.W)
 	b = wire.AppendFloat32(b, m.H)
 	b = wire.AppendBool(b, m.Horizontal)
+	b = wire.AppendBool(b, m.Report)
 	return b
 }
 
@@ -235,6 +236,7 @@ func (m *Scroll) ReadWire(r *wire.Reader) {
 	m.W = r.Float32()
 	m.H = r.Float32()
 	m.Horizontal = r.Bool()
+	m.Report = r.Bool()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -286,6 +288,25 @@ func (m *Press) AppendWire(b []byte) []byte {
 // ReadWire decodes m from r. Check r.Err() afterwards.
 func (m *Press) ReadWire(r *wire.Reader) {
 	m.Tag = uint32(r.UintMax(1<<32 - 1))
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Scrolled) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendFloat32(b, m.X)
+	b = wire.AppendFloat32(b, m.Y)
+	b = wire.AppendFloat32(b, m.W)
+	b = wire.AppendFloat32(b, m.H)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Scrolled) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.X = r.Float32()
+	m.Y = r.Float32()
+	m.W = r.Float32()
+	m.H = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -427,6 +448,7 @@ type Message interface{ isMessage() }
 func (*Commit) isMessage()      {}
 func (*Viewport) isMessage()    {}
 func (*Press) isMessage()       {}
+func (*Scrolled) isMessage()    {}
 func (*Changed) isMessage()     {}
 func (*MeasureText) isMessage() {}
 func (*TextSize) isMessage()    {}
@@ -442,12 +464,14 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 2))
 	case *Press:
 		return v.AppendWire(wire.AppendUint(b, 3))
-	case *Changed:
+	case *Scrolled:
 		return v.AppendWire(wire.AppendUint(b, 4))
-	case *MeasureText:
+	case *Changed:
 		return v.AppendWire(wire.AppendUint(b, 5))
-	case *TextSize:
+	case *MeasureText:
 		return v.AppendWire(wire.AppendUint(b, 6))
+	case *TextSize:
+		return v.AppendWire(wire.AppendUint(b, 7))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -470,14 +494,18 @@ func ReadMessage(r *wire.Reader) Message {
 		v.ReadWire(r)
 		return v
 	case 4:
-		v := new(Changed)
+		v := new(Scrolled)
 		v.ReadWire(r)
 		return v
 	case 5:
-		v := new(MeasureText)
+		v := new(Changed)
 		v.ReadWire(r)
 		return v
 	case 6:
+		v := new(MeasureText)
+		v.ReadWire(r)
+		return v
+	case 7:
 		v := new(TextSize)
 		v.ReadWire(r)
 		return v

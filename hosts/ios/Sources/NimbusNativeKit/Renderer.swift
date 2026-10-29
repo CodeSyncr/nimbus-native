@@ -38,6 +38,7 @@ public final class Renderer {
     public var onPressSent: ((UInt32) -> Void)?
 
     private var views: [UInt32: UIView] = [:]
+    private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
     private var lastViewport: Render.Viewport?
     private var started = false
@@ -113,6 +114,7 @@ public final class Renderer {
                     s.contentSize = CGSize(width: CGFloat(o.w), height: CGFloat(o.h))
                     s.alwaysBounceVertical = !o.horizontal
                     s.alwaysBounceHorizontal = o.horizontal
+                    s.delegate = o.report ? scrollReporter : nil
                 }
             case .spinner(let o): (views[o.tag] as? UIActivityIndicatorView)?.color = color(o.color) ?? .gray
             }
@@ -190,7 +192,7 @@ public final class Renderer {
         l.numberOfLines = Int(o.lines)
     }
 
-    private func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
+    fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
 
     // MARK: answering Go (on a Go thread)
 
@@ -278,5 +280,18 @@ final class NNImageView: UIImageView {
                 if self?.url == o.url { self?.image = img }
             }
         }.resume()
+    }
+}
+
+/// Reports scrolling for scroll views that asked for it (Lists).
+final class ScrollReporter: NSObject, UIScrollViewDelegate {
+    private weak var renderer: Renderer?
+
+    init(renderer: Renderer) { self.renderer = renderer }
+
+    func scrollViewDidScroll(_ s: UIScrollView) {
+        let o = s.contentOffset, b = s.bounds.size
+        renderer?.send(.scrolled(Render.Scrolled(tag: UInt32(truncatingIfNeeded: s.tag), x: Float(o.x), y: Float(o.y),
+                                                 w: Float(b.width), h: Float(b.height))))
     }
 }

@@ -158,13 +158,15 @@ type Input struct {
 	Keyboard    Keyboard
 }
 
-// Scroll sets a scroll view's content size.
+// Scroll sets a scroll view's content size. With Report, the host sends
+// Scrolled whenever the view scrolls (lists need it to know what to show).
 //
 //wire:variant Op
 type Scroll struct {
 	Tag        uint32
 	W, H       float32
 	Horizontal bool
+	Report     bool
 }
 
 //wire:variant Op
@@ -190,6 +192,16 @@ type Viewport struct {
 //
 //wire:message
 type Press struct{ Tag uint32 }
+
+// Scrolled reports a scroll view's offset and visible size (only for views
+// whose Scroll op asked for it).
+//
+//wire:message
+type Scrolled struct {
+	Tag  uint32
+	X, Y float32
+	W, H float32
+}
 
 // Changed reports an input's new text.
 //

@@ -55,11 +55,6 @@ func (App) Render(c *ui.Ctx) *ui.Element {
 		greeting = "Hello, " + name + " 👋"
 	}
 
-	rows := make([]*ui.Element, len(list))
-	for i, o := range list {
-		rows[i] = ui.C(OrderRow{o}).Key(fmt.Sprint(o.id))
-	}
-
 	return ui.View(ui.Style{Background: surface, Padding: ui.Edges{Top: vp.SafeTop, Bottom: vp.SafeBottom}},
 		ui.View(ui.Style{Padding: ui.XY(16, 12), Gap: 12, Background: ui.RGB(255, 255, 255), BorderWidth: 0},
 			ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: 12},
@@ -80,7 +75,8 @@ func (App) Render(c *ui.Ctx) *ui.Element {
 			),
 			ui.Text(greeting, ui.Style{FontSize: 15, Color: ink}).TestID("greeting"),
 		),
-		ui.Scroll(ui.Flex(1), rows...).TestID("list"),
+		ui.List(len(list), func(i int) *ui.Element { return ui.C(OrderRow{list[i]}) }, ui.Flex(1)).
+			ItemKey(func(i int) string { return fmt.Sprint(list[i].id) }).TestID("list"),
 	)
 }
 

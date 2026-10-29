@@ -155,6 +155,22 @@ reload.
 5. Changed frames join the ops in one `render.Commit`, applied on the UI
    thread in a single pass.
 
+## Lists
+
+`ui.List(count, item, style)` renders only the rows on screen and about one
+screen above and below; rows can differ in height (each is measured once
+shown). Scrolling renders no app components — only rows entering and
+leaving — and re-windows only when the screen nears the edge of what is
+rendered.
+
+| Gallery, 1,000 rows | iOS simulator | Android emulator |
+|---|---|---|
+| Native views at start | 256 (was 8,014) | 256 |
+| First render, Go + layout / apply | 22 ms / 84 ms (was 143 / 457) | 285 ms / 154 ms (was 1.8 s / 1 s) |
+| Tap → screen median | 2.2 ms | 25 ms (was 52) |
+| Fast scroll, 180 frames | 60 fps, 0 dropped, 37 window updates | 51.6 fps (was 38) |
+| Native views in the list after scrolling | 36 | 39 |
+
 ## Phase 0d results
 
 | | iOS simulator | Android emulator* |

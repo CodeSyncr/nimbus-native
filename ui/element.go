@@ -27,6 +27,7 @@ type Element struct {
 	testID      string
 	onPress     func()
 	onChange    func(string)
+	list        *listSpec
 }
 
 // Component is a reusable piece of UI. Its fields are its props; Render runs
@@ -116,5 +117,5 @@ func (e *Element) sameType(o *Element) bool {
 	if e.comp != nil {
 		return reflect.TypeOf(e.comp) == reflect.TypeOf(o.comp)
 	}
-	return e.kind == o.kind && e.horizontal == o.horizontal
+	return e.kind == o.kind && e.horizontal == o.horizontal && (e.list == nil) == (o.list == nil)
 }

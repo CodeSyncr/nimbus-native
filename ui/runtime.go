@@ -69,12 +69,15 @@ type runtime struct {
 	ops          []render.Op
 	destroyed    []uint32
 	effects      []*hookSlot
+	lists        map[*instance]bool // mounted Lists
+	dirtyLists   map[*instance]bool // Lists whose window must render again
 	seq          uint64
 	measures     uint32
 }
 
 func newRuntime(root Component) *runtime {
-	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{}}
+	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
+		lists: map[*instance]bool{}, dirtyLists: map[*instance]bool{}}
 }
 
 // do runs f on the UI loop. Safe from any goroutine, including the loop.
@@ -109,7 +112,9 @@ func (rt *runtime) drain() {
 			guard("update", f)
 		}
 	}
-	if rt.dirty && rt.haveViewport {
+	// A List measures its items after layout and may need another pass to
+	// place them; a few passes always settle.
+	for pass := 0; rt.dirty && rt.haveViewport && pass < 4; pass++ {
 		rt.commit()
 	}
 }
@@ -135,6 +140,10 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onChange != nil {
 				in.el.onChange(m.Text)
 			}
+		case *render.Scrolled:
+			if in := rt.byTag[m.Tag]; in != nil {
+				rt.scrolled(in, m)
+			}
 		}
 	})
 }
@@ -157,6 +166,7 @@ type instance struct {
 	childTags []uint32
 	sent      sentProps
 	measured  map[measureKey]render.TextSize
+	list      *listState // for a List
 }
 
 type sentProps struct {
@@ -180,6 +190,12 @@ func (rt *runtime) commit() {
 	rt.dirty, rt.measures = false, 0
 	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root))
 	rt.forceAll = false
+	for in := range rt.dirtyLists {
+		if !in.unmounted {
+			rt.reconcileList(in)
+		}
+		delete(rt.dirtyLists, in)
+	}
 	c := &render.Commit{}
 	host := hostRoot(rt.rootInst)
 	if host != nil && host.tag != rt.rootTag {
@@ -188,6 +204,9 @@ func (rt *runtime) commit() {
 	t1 := time.Now()
 	if host != nil {
 		host.node.Calculate(rt.viewport.W, rt.viewport.H)
+		if rt.measureLists() {
+			rt.dirty = true // drain renders again with the measured heights
+		}
 		rt.emitFrames(host)
 	}
 	t2 := time.Now()
@@ -251,7 +270,7 @@ func (rt *runtime) mount(el *Element) *instance {
 		in.node.Measure = rt.spinnerMeasure
 	}
 	rt.props(in, true)
-	rt.reconcileChildren(in, el.children)
+	rt.children(in)
 	return in
 }
 
@@ -268,7 +287,17 @@ func (rt *runtime) update(in *instance, el *Element) {
 	}
 	in.el = el
 	rt.props(in, false)
-	rt.reconcileChildren(in, el.children)
+	rt.children(in)
+}
+
+// children reconciles a native view's children: its elements, or for a
+// List the window of items to show.
+func (rt *runtime) children(in *instance) {
+	if in.el.list != nil {
+		rt.reconcileList(in)
+		return
+	}
+	rt.reconcileChildren(in, in.el.children)
 }
 
 func (rt *runtime) renderComponent(in *instance) (out *Element) {
@@ -365,6 +394,8 @@ func (rt *runtime) unmount(in *instance) {
 		delete(rt.byTag, in.tag)
 		rt.destroyed = append(rt.destroyed, in.tag)
 	}
+	delete(rt.lists, in)
+	delete(rt.dirtyLists, in)
 }
 
 // hostRoot is the native view an instance renders to.
@@ -439,7 +470,7 @@ func (rt *runtime) emitFrames(in *instance) {
 		rt.op(&f)
 	}
 	if in.el.kind == render.KindScroll {
-		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal}
+		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil}
 		if sc != in.sent.scroll {
 			in.sent.scroll = sc
 			rt.op(&sc)

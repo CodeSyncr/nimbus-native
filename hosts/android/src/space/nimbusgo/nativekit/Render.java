@@ -8,7 +8,7 @@ import space.nimbusgo.nativekit.WireWriter;
 
 public final class Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    public static final long SCHEMA_HASH = 0xf896b5db49ad36c6L;
+    public static final long SCHEMA_HASH = 0x91ba88e235aa3ac8L;
 
     private Render() {}
 
@@ -306,18 +306,20 @@ public final class Render {
         }
     }
 
-    /** Scroll sets a scroll view's content size. */
+    /** Scroll sets a scroll view's content size. With Report, the host sends Scrolled whenever the view scrolls (lists need it to know what to show). */
     public static final class Scroll implements Op {
         public long tag;
         public float w;
         public float h;
         public boolean horizontal;
+        public boolean report;
 
         public void write(WireWriter w) {
             w.uint(this.tag);
             w.f32(this.w);
             w.f32(this.h);
             w.bool(this.horizontal);
+            w.bool(this.report);
         }
 
         public static Scroll read(WireReader r0) {
@@ -326,6 +328,7 @@ public final class Render {
             m.w = r0.f32();
             m.h = r0.f32();
             m.horizontal = r0.bool();
+            m.report = r0.bool();
             return m;
         }
     }
@@ -397,6 +400,33 @@ public final class Render {
         public static Press read(WireReader r0) {
             Press m = new Press();
             m.tag = r0.uintMax(4294967295L);
+            return m;
+        }
+    }
+
+    /** Scrolled reports a scroll view's offset and visible size (only for views whose Scroll op asked for it). */
+    public static final class Scrolled implements Message {
+        public long tag;
+        public float x;
+        public float y;
+        public float w;
+        public float h;
+
+        public void write(WireWriter w) {
+            w.uint(this.tag);
+            w.f32(this.x);
+            w.f32(this.y);
+            w.f32(this.w);
+            w.f32(this.h);
+        }
+
+        public static Scrolled read(WireReader r0) {
+            Scrolled m = new Scrolled();
+            m.tag = r0.uintMax(4294967295L);
+            m.x = r0.f32();
+            m.y = r0.f32();
+            m.w = r0.f32();
+            m.h = r0.f32();
             return m;
         }
     }
@@ -533,14 +563,17 @@ public final class Render {
         } else if (v instanceof Press) {
             w.uint(3);
             ((Press) v).write(w);
-        } else if (v instanceof Changed) {
+        } else if (v instanceof Scrolled) {
             w.uint(4);
+            ((Scrolled) v).write(w);
+        } else if (v instanceof Changed) {
+            w.uint(5);
             ((Changed) v).write(w);
         } else if (v instanceof MeasureText) {
-            w.uint(5);
+            w.uint(6);
             ((MeasureText) v).write(w);
         } else if (v instanceof TextSize) {
-            w.uint(6);
+            w.uint(7);
             ((TextSize) v).write(w);
         } else {
             throw new IllegalArgumentException(v.getClass().getName() + " is not a Message variant");
@@ -553,9 +586,10 @@ public final class Render {
         if (i == 1) return Commit.read(r0);
         if (i == 2) return Viewport.read(r0);
         if (i == 3) return Press.read(r0);
-        if (i == 4) return Changed.read(r0);
-        if (i == 5) return MeasureText.read(r0);
-        if (i == 6) return TextSize.read(r0);
+        if (i == 4) return Scrolled.read(r0);
+        if (i == 5) return Changed.read(r0);
+        if (i == 6) return MeasureText.read(r0);
+        if (i == 7) return TextSize.read(r0);
         throw new WireException("unknown Message variant " + i);
     }
 

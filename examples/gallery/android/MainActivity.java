@@ -26,7 +26,8 @@ public class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private int commits;
     private long pressAt;
-    private boolean typing;
+    private boolean typing, scrolling;
+    private int scrollCommits;
     private final List<Double> taps = new ArrayList<>();
     private final List<Long> frameTimes = new ArrayList<>();
 
@@ -41,6 +42,7 @@ public class MainActivity extends Activity {
 
     private void committed(Render.Commit c, double applyMs) {
         commits++;
+        if (scrolling) scrollCommits++;
         if (typing) {
             typing = false;
             View g = r.viewForTag(r.tagForTestID("greeting"));
@@ -115,6 +117,7 @@ public class MainActivity extends Activity {
             return;
         }
         int step = Math.round(40 * getResources().getDisplayMetrics().density);
+        scrolling = true;
         Choreographer.getInstance().postFrameCallback(new Choreographer.FrameCallback() {
             @Override
             public void doFrame(long t) {
@@ -131,11 +134,28 @@ public class MainActivity extends Activity {
                     if ((frameTimes.get(i) - frameTimes.get(i - 1)) / 1e6 > target * 1.5) dropped++;
                 }
                 double secs = (frameTimes.get(frameTimes.size() - 1) - frameTimes.get(0)) / 1e9;
-                log(String.format("scroll: 180 frames through the list, %.1f fps, %d dropped (target %.1f ms/frame), now at y=%d",
-                        (frameTimes.size() - 1) / secs, dropped, target, list.getScrollY()));
-                List<Double> s = new ArrayList<>(taps);
-                Collections.sort(s);
-                log(s.get(10) < 16 && dropped < 9 ? "NN-0D RESULT: PASS" : "NN-0D RESULT: CHECK (see numbers above)");
+                log(String.format("scroll: 180 frames through the list, %.1f fps, %d dropped (target %.1f ms/frame), %d window commits",
+                        (frameTimes.size() - 1) / secs, dropped, target, scrollCommits));
+                scrolling = false;
+                int droppedFrames = dropped;
+                main.postDelayed(() -> {
+                    // Rows (groups with children; spacers have none) must cover the visible area.
+                    android.view.ViewGroup content = (android.view.ViewGroup) ((android.view.ViewGroup) list).getChildAt(0);
+                    int top = list.getScrollY(), bottom = top + list.getHeight(), reach = 0, rows = 0;
+                    for (int i = 0; i < content.getChildCount(); i++) {
+                        View v = content.getChildAt(i);
+                        if (v instanceof android.view.ViewGroup && ((android.view.ViewGroup) v).getChildCount() > 0
+                                && v.getBottom() > top && v.getTop() < bottom) {
+                            rows++;
+                            reach = Math.max(reach, v.getBottom());
+                        }
+                    }
+                    log(String.format("after scroll: %d rows on screen, rows reach %d of %d px; %d native views in the list",
+                            rows, reach - top, bottom - top, content.getChildCount()));
+                    List<Double> s = new ArrayList<>(taps);
+                    Collections.sort(s);
+                    log(s.get(10) < 16 && droppedFrames < 9 && reach >= bottom ? "NN-P1 LIST RESULT: PASS" : "NN-P1 LIST RESULT: CHECK (see numbers above)");
+                }, 300);
             }
         });
     }

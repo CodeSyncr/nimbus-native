@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xf896b5db49ad36c6
+    public static let schemaHash: UInt64 = 0x91ba88e235aa3ac8
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -378,18 +378,21 @@ public enum Render {
         }
     }
 
-    /// Scroll sets a scroll view's content size.
+    /// Scroll sets a scroll view's content size. With Report, the host sends
+    /// Scrolled whenever the view scrolls (lists need it to know what to show).
     public struct Scroll: Equatable {
         public var tag: UInt32
         public var w: Float
         public var h: Float
         public var horizontal: Bool
+        public var report: Bool
 
-        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false) {
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false, report: Bool = false) {
             self.tag = tag
             self.w = w
             self.h = h
             self.horizontal = horizontal
+            self.report = report
         }
 
         public func write(to w: inout WireWriter) {
@@ -397,6 +400,7 @@ public enum Render {
             w.float32(self.w)
             w.float32(self.h)
             w.bool(self.horizontal)
+            w.bool(self.report)
         }
 
         public static func read(from r: inout WireReader) throws -> Scroll {
@@ -405,6 +409,7 @@ public enum Render {
             m.w = try r.float32()
             m.h = try r.float32()
             m.horizontal = try r.bool()
+            m.report = try r.bool()
             return m
         }
     }
@@ -498,6 +503,42 @@ public enum Render {
         public static func read(from r: inout WireReader) throws -> Press {
             var m = Press()
             m.tag = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
+    /// Scrolled reports a scroll view's offset and visible size (only for views
+    /// whose Scroll op asked for it).
+    public struct Scrolled: Equatable {
+        public var tag: UInt32
+        public var x: Float
+        public var y: Float
+        public var w: Float
+        public var h: Float
+
+        public init(tag: UInt32 = 0, x: Float = 0, y: Float = 0, w: Float = 0, h: Float = 0) {
+            self.tag = tag
+            self.x = x
+            self.y = y
+            self.w = w
+            self.h = h
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.float32(self.x)
+            w.float32(self.y)
+            w.float32(self.w)
+            w.float32(self.h)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Scrolled {
+            var m = Scrolled()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.x = try r.float32()
+            m.y = try r.float32()
+            m.w = try r.float32()
+            m.h = try r.float32()
             return m
         }
     }
@@ -664,6 +705,7 @@ public enum Render {
         case commit(Commit)
         case viewport(Viewport)
         case press(Press)
+        case scrolled(Scrolled)
         case changed(Changed)
         case measureText(MeasureText)
         case textSize(TextSize)
@@ -681,14 +723,17 @@ public enum Render {
             case .press(let x)?:
                 w.uint(3)
                 x.write(to: &w)
-            case .changed(let x)?:
+            case .scrolled(let x)?:
                 w.uint(4)
                 x.write(to: &w)
-            case .measureText(let x)?:
+            case .changed(let x)?:
                 w.uint(5)
                 x.write(to: &w)
-            case .textSize(let x)?:
+            case .measureText(let x)?:
                 w.uint(6)
+                x.write(to: &w)
+            case .textSize(let x)?:
+                w.uint(7)
                 x.write(to: &w)
             }
         }
@@ -704,10 +749,12 @@ public enum Render {
             case 3:
                 return .press(try Press.read(from: &r))
             case 4:
-                return .changed(try Changed.read(from: &r))
+                return .scrolled(try Scrolled.read(from: &r))
             case 5:
-                return .measureText(try MeasureText.read(from: &r))
+                return .changed(try Changed.read(from: &r))
             case 6:
+                return .measureText(try MeasureText.read(from: &r))
+            case 7:
                 return .textSize(try TextSize.read(from: &r))
             default:
                 throw WireError.variant
