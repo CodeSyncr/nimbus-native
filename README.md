@@ -93,8 +93,8 @@ Not yet: flex-wrap, animations and gestures, plugins on the web.
 ## Start a project
 
 ```sh
-nimbus native new shop
-cd shop
+nimbus native new myapp         # a counter; -template shop for the shop
+cd myapp
 go run .                        # the Nimbus server and the web app, on :3333
 nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
 nimbus native run android       # or open native/android in Android Studio
