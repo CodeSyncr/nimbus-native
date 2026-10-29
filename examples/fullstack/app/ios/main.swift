@@ -4,7 +4,7 @@ import UIKit
 /// server that logs "[fullstack]" lines.
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
-    private let vc = NimbusViewController()
+    private let vc = NimbusViewController(schema: NimbusSchema.combined)
 
     func application(_ app: UIApplication, didFinishLaunchingWithOptions opts: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)

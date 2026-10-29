@@ -33,6 +33,15 @@ func Swift(s *schema.Schema) []byte {
 	return []byte(g.b.String())
 }
 
+// SwiftApp is Swift for an app's own schema: it imports NimbusNativeKit
+// when the kit is a separate module (a Swift package in an Xcode project)
+// and compiles as one module with it otherwise (the CLI build).
+func SwiftApp(s *schema.Schema) []byte {
+	src := Swift(s)
+	header, rest, _ := strings.Cut(string(src), "\n")
+	return []byte(header + "\n#if canImport(NimbusNativeKit)\nimport NimbusNativeKit\n#endif\n" + rest)
+}
+
 // SwiftSchema generates the file that tells the host which combined schema
 // hash to pass to nn_start.
 func SwiftSchema(combined uint64) []byte {

@@ -4,7 +4,7 @@ import UIKit
 /// runs by itself after launch and logs "[gallery]" lines.
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
-    private let vc = NimbusViewController()
+    private let vc = NimbusViewController(schema: NimbusSchema.combined)
     private var bench: Bench?
 
     func application(_ app: UIApplication, didFinishLaunchingWithOptions opts: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {

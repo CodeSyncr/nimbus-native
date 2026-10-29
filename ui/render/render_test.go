@@ -21,7 +21,7 @@ func TestGeneratedUpToDate(t *testing.T) {
 	}
 	files := map[string][]byte{
 		gen.GoFile: out.Go,
-		"../../hosts/ios/Sources/NimbusNativeKit/Render.swift":       out.Swift,
+		"../../hosts/ios/Sources/NimbusNativeKit/Render.swift":       gen.Swift(out.Schema), // inside the kit: no import
 		"../../hosts/android/src/space/nimbusgo/nativekit/Render.kt": out.Kotlin,
 	}
 	for path, want := range files {

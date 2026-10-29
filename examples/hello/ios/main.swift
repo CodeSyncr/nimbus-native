@@ -58,7 +58,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         t0 = .now()
-        try bridge.start()
+        try bridge.start(schema: NimbusSchema.combined)
         log("start: ok in \(fmt(ms(since: t0))) ms, schema \(String(NimbusSchema.combined, radix: 16))")
 
         guard case .greeting(let g) = try call(.hello(Proto.Hello(name: "Yash"))) else { return fail("no greeting") }

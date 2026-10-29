@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(NimbusNativeC)
+import NimbusNativeC // a Swift package build; the CLI build uses a bridging header
+#endif
 
 /// A failed call into the Go runtime. `code` is one of the NN_ERR_* values
 /// from nn.h; for a recovered panic, `detail` holds the Go panic and stack.
@@ -25,7 +28,7 @@ public final class Bridge {
     /// Boots the app's Go side. Call once, at launch. `schema` is the
     /// generated `NimbusSchema.combined`; the runtime refuses to start
     /// (NN_ERR_SCHEMA) if the Go side was generated from a different schema.
-    public func start(schema: UInt64 = NimbusSchema.combined) throws {
+    public func start(schema: UInt64) throws {
         var host = nn_host()
         host.abi = UInt32(NN_ABI_VERSION)
         host.schema = schema

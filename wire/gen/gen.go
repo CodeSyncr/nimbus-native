@@ -10,7 +10,7 @@ import (
 type Output struct {
 	Schema *schema.Schema
 	Go     []byte // write to <schema dir>/wire_gen.go
-	Swift  []byte // compile into the iOS host
+	Swift  []byte // compile into the iOS app (imports NimbusNativeKit when it is a package)
 	Kotlin []byte // compile into the Android host, as <Namespace>.kt
 }
 
@@ -31,7 +31,7 @@ func Generate(dir, kotlinPackage string) (*Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Output{Schema: s, Go: goSrc, Swift: Swift(s), Kotlin: Kotlin(s, kotlinPackage)}, nil
+	return &Output{Schema: s, Go: goSrc, Swift: SwiftApp(s), Kotlin: Kotlin(s, kotlinPackage)}, nil
 }
 
 // Namespace is the Swift enum / Kotlin object name for the schema.

@@ -3,7 +3,15 @@ import UIKit
 /// The root of a Nimbus Native app's UI. Make it the window's root view
 /// controller; it starts the Go runtime and shows what the app renders.
 open class NimbusViewController: UIViewController {
-    public let renderer = Renderer()
+    public let renderer: Renderer
+
+    /// schema is the app's generated NimbusSchema.combined.
+    public init(schema: UInt64) {
+        renderer = Renderer(schema: schema)
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    public required init?(coder: NSCoder) { fatalError("create NimbusViewController in code, with init(schema:)") }
 
     open override func loadView() {
         view = renderer.container
@@ -55,8 +63,10 @@ public final class Renderer {
     private var rootTag: UInt32 = 0
     private var lastViewport: Render.Viewport?
     private var started = false
+    private let schema: UInt64
 
-    public init() {}
+    /// schema is the app's generated NimbusSchema.combined.
+    public init(schema: UInt64) { self.schema = schema }
 
     public func start() {
         let bridge = Bridge.shared
@@ -66,7 +76,7 @@ public final class Renderer {
         }
         bridge.onHostCall = { try Renderer.answer($0) }
         do {
-            try bridge.start()
+            try bridge.start(schema: schema)
             started = true
         } catch {
             let label = UILabel(frame: container.bounds.insetBy(dx: 20, dy: 80))
