@@ -1,14 +1,23 @@
 # Nimbus Native
 
-Native iOS and Android apps written in Go. Your app's Go code is compiled
-into the app and drives real native views — UIKit on iOS, Android Views on
-Android — laid out by a flexbox engine written in Go. [Nimbus](https://github.com/CodeSyncr/nimbus)
-is the server; Nimbus Native is the device. One language, one codebase,
+Native iOS and Android apps written in Go, and the same app on the web.
+Your app's Go code is compiled into the app and drives real native views —
+UIKit on iOS, Android Views on Android — laid out by a flexbox engine
+written in Go. [Nimbus](https://github.com/CodeSyncr/nimbus) is the server,
+and serves the app's pages to browsers too. One language, one codebase,
 backend included.
 
-> **Early preview.** The engine, lists, navigation and hot reload work on
-> the iOS simulator and the Android emulator; APIs will change and it has
-> not shipped to a store yet. See [Roadmap](#roadmap).
+> **Beta (0.0.1).** Everything below runs on the iOS simulator, the Android
+> emulator and in browsers; it has not shipped to a store yet, and APIs may
+> still change. See [CHANGELOG.md](CHANGELOG.md) for what's in it and what
+> isn't yet.
+
+```sh
+go run github.com/CodeSyncr/nimbus-native/cmd/nimbus-native@v0.0.1 new shop
+# or, with a nimbus CLI that has the native command: nimbus native new shop
+cd shop && go run .              # the server and the web app on :3333
+nimbus native run ios            # in another terminal; or open native/ios in Xcode
+```
 
 ```go
 type Counter struct{}
@@ -30,11 +39,14 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 ## Requirements
 
 - Go 1.23+, and the `nimbus` CLI from [Nimbus](https://github.com/CodeSyncr/nimbus)
-- iOS: macOS with Xcode (simulator builds today)
+- iOS: macOS with Xcode 16+. Simulator builds work as they are; for a
+  device, open `native/ios/Runner.xcodeproj` and pick your team under
+  Signing & Capabilities.
 - Android: the Android SDK with an NDK and build-tools, JDK 17+. The Kotlin
   compiler is downloaded on the first build.
 
-`nimbus native doctor` checks all of it.
+`nimbus native doctor` checks all of it. Release Android builds are signed
+with the debug key until you add yours to `native/android/app/build.gradle.kts`.
 
 ## Roadmap
 
