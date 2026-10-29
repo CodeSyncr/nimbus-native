@@ -19,6 +19,9 @@ const (
 	KindScroll
 	KindInput
 	KindSpinner
+	// KindStack is a navigation stack: its children are screens, shown one
+	// at a time under a native bar, with native push / pop transitions.
+	KindStack
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -158,6 +161,15 @@ type Input struct {
 	Keyboard    Keyboard
 }
 
+// Screen sets a stack screen's title. Tag is the screen's root view, a
+// child of a KindStack view.
+//
+//wire:variant Op
+type Screen struct {
+	Tag   uint32
+	Title string
+}
+
 // Scroll sets a scroll view's content size. With Report, the host sends
 // Scrolled whenever the view scrolls (lists need it to know what to show).
 //
@@ -200,6 +212,23 @@ type Press struct{ Tag uint32 }
 type Scrolled struct {
 	Tag  uint32
 	X, Y float32
+	W, H float32
+}
+
+// Popped reports that the user went back in a stack (back button, swipe or
+// system back), leaving Depth screens.
+//
+//wire:message
+type Popped struct {
+	Tag   uint32
+	Depth uint32
+}
+
+// Resized reports the size a stack gives its screens (below its bar).
+//
+//wire:message
+type Resized struct {
+	Tag  uint32
 	W, H float32
 }
 

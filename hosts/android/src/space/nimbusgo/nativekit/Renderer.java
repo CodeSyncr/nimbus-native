@@ -53,6 +53,7 @@ public final class Renderer {
     final NimbusView root;
     private final Map<Integer, View> views = new HashMap<>();
     private final Map<Integer, int[]> frames = new HashMap<>(); // l, t, w, h in px
+    private final Map<View, String> pendingTitles = new HashMap<>(); // titles for screens not in a stack yet
     private int rootTag;
     private Render.Viewport lastViewport;
     private boolean started;
@@ -111,6 +112,35 @@ public final class Renderer {
         Bridge.send(Render.encode(p));
     }
 
+    /** Tells Go the user went back in a stack. */
+    void popped(int tag, int depth) {
+        Render.Popped p = new Render.Popped();
+        p.tag = tag;
+        p.depth = depth;
+        Bridge.send(Render.encode(p));
+    }
+
+    /** Tells Go the size a stack gives its screens (px → dp). */
+    void resized(int tag, int w, int h) {
+        Render.Resized m = new Render.Resized();
+        m.tag = tag;
+        m.w = w / density;
+        m.h = h / density;
+        Bridge.send(Render.encode(m));
+    }
+
+    /**
+     * The system back button: goes back in the deepest stack that can. Returns false when there is
+     * nowhere to go back to, so the Activity can finish.
+     */
+    public boolean back() {
+        NNStack best = null;
+        for (View v : views.values()) {
+            if (v instanceof NNStack && v.isShown() && ((NNStack) v).depth() > 1) best = (NNStack) v;
+        }
+        return best != null && best.goBack();
+    }
+
     /** Reports a List's scroll position (px from the scroller) in dp. */
     void scrolled(int tag, int x, int y, int w, int h) {
         Render.Scrolled s = new Render.Scrolled();
@@ -153,10 +183,21 @@ public final class Renderer {
             if (op instanceof Render.Create) {
                 create((Render.Create) op);
             } else if (op instanceof Render.Destroy) {
+                // Detach only the top of each destroyed subtree: its descendants go with it.
+                // A screen sliding out of a stack goes when its animation ends.
+                Set<View> gone = new HashSet<>();
+                for (long tag : ((Render.Destroy) op).tags) {
+                    View v = views.get((int) tag);
+                    if (v != null) gone.add(v);
+                }
                 for (long tag : ((Render.Destroy) op).tags) {
                     View v = views.remove((int) tag);
                     frames.remove((int) tag);
-                    if (v != null && v.getParent() instanceof ViewGroup) ((ViewGroup) v.getParent()).removeView(v);
+                    if (v == null || !(v.getParent() instanceof ViewGroup)) continue;
+                    ViewGroup parent = (ViewGroup) v.getParent();
+                    if (gone.contains(parent) || gone.contains(contentOwner(parent))) continue;
+                    if (parent instanceof NNStack && ((NNStack) parent).isLeaving(v)) continue;
+                    parent.removeView(v);
                 }
             } else if (op instanceof Render.Children) {
                 children((Render.Children) op);
@@ -180,6 +221,11 @@ public final class Renderer {
                 Render.Scroll s = (Render.Scroll) op;
                 View v = views.get((int) s.tag);
                 if (v instanceof NNScroll) ((NNScroll) v).setContent(Math.round(s.w * density), Math.round(s.h * density), s.horizontal, s.report);
+            } else if (op instanceof Render.Screen) {
+                Render.Screen sc = (Render.Screen) op;
+                View v = views.get((int) sc.tag);
+                if (v != null && v.getParent() instanceof NNStack) ((NNStack) v.getParent()).setTitle(v, sc.title);
+                else if (v != null) pendingTitles.put(v, sc.title);
             } else if (op instanceof Render.Spinner) {
                 Render.Spinner s = (Render.Spinner) op;
                 View v = views.get((int) s.tag);
@@ -197,6 +243,14 @@ public final class Renderer {
             if (v.getParent() instanceof View) ((View) v.getParent()).requestLayout();
         }
         if (onCommit != null) onCommit.onCommit(c, (System.nanoTime() - t0) / 1e6);
+    }
+
+    /** For a scroll view's content group (content → platform scroller → NNScroll), the NNScroll. */
+    private static View contentOwner(View v) {
+        if (v.getParent() instanceof android.widget.FrameLayout && v.getParent().getParent() instanceof NNScroll) {
+            return (View) v.getParent().getParent();
+        }
+        return v;
     }
 
     private void create(Render.Create o) {
@@ -224,6 +278,9 @@ public final class Renderer {
             case Render.Kind.INPUT:
                 v = new NNInput(ctx, this, tag);
                 break;
+            case Render.Kind.STACK:
+                v = new NNStack(ctx, this, tag);
+                break;
             case Render.Kind.SPINNER:
                 ProgressBar p = new ProgressBar(ctx);
                 p.setIndeterminate(true);
@@ -240,6 +297,20 @@ public final class Renderer {
     private void children(Render.Children o) {
         View pv = views.get((int) o.tag);
         if (pv == null) return;
+        if (pv instanceof NNStack) {
+            NNStack stack = (NNStack) pv;
+            java.util.List<View> screens = new java.util.ArrayList<>();
+            for (long t : o.children) {
+                View v = views.get((int) t);
+                if (v != null) screens.add(v);
+            }
+            stack.setScreens(screens);
+            for (View v : screens) {
+                String title = pendingTitles.remove(v);
+                if (title != null) stack.setTitle(v, title);
+            }
+            return;
+        }
         ViewGroup parent = pv instanceof NNScroll ? ((NNScroll) pv).content : (ViewGroup) pv;
         Set<View> keep = new HashSet<>();
         View[] wanted = new View[o.children.size()];

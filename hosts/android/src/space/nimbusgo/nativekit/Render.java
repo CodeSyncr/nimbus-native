@@ -8,7 +8,7 @@ import space.nimbusgo.nativekit.WireWriter;
 
 public final class Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    public static final long SCHEMA_HASH = 0x91ba88e235aa3ac8L;
+    public static final long SCHEMA_HASH = 0xff71496213c89c2bL;
 
     private Render() {}
 
@@ -22,6 +22,7 @@ public final class Render {
         public static final int SCROLL = 4;
         public static final int INPUT = 5;
         public static final int SPINNER = 6;
+        public static final int STACK = 7;
     }
 
     /** Align is horizontal text alignment. */
@@ -306,6 +307,24 @@ public final class Render {
         }
     }
 
+    /** Screen sets a stack screen's title. Tag is the screen's root view, a child of a KindStack view. */
+    public static final class Screen implements Op {
+        public long tag;
+        public String title = "";
+
+        public void write(WireWriter w) {
+            w.uint(this.tag);
+            w.string(this.title);
+        }
+
+        public static Screen read(WireReader r0) {
+            Screen m = new Screen();
+            m.tag = r0.uintMax(4294967295L);
+            m.title = r0.string();
+            return m;
+        }
+    }
+
     /** Scroll sets a scroll view's content size. With Report, the host sends Scrolled whenever the view scrolls (lists need it to know what to show). */
     public static final class Scroll implements Op {
         public long tag;
@@ -431,6 +450,45 @@ public final class Render {
         }
     }
 
+    /** Popped reports that the user went back in a stack (back button, swipe or system back), leaving Depth screens. */
+    public static final class Popped implements Message {
+        public long tag;
+        public long depth;
+
+        public void write(WireWriter w) {
+            w.uint(this.tag);
+            w.uint(this.depth);
+        }
+
+        public static Popped read(WireReader r0) {
+            Popped m = new Popped();
+            m.tag = r0.uintMax(4294967295L);
+            m.depth = r0.uintMax(4294967295L);
+            return m;
+        }
+    }
+
+    /** Resized reports the size a stack gives its screens (below its bar). */
+    public static final class Resized implements Message {
+        public long tag;
+        public float w;
+        public float h;
+
+        public void write(WireWriter w) {
+            w.uint(this.tag);
+            w.f32(this.w);
+            w.f32(this.h);
+        }
+
+        public static Resized read(WireReader r0) {
+            Resized m = new Resized();
+            m.tag = r0.uintMax(4294967295L);
+            m.w = r0.f32();
+            m.h = r0.f32();
+            return m;
+        }
+    }
+
     /** Changed reports an input's new text. */
     public static final class Changed implements Message {
         public long tag;
@@ -521,11 +579,14 @@ public final class Render {
         } else if (v instanceof Input) {
             w.uint(8);
             ((Input) v).write(w);
-        } else if (v instanceof Scroll) {
+        } else if (v instanceof Screen) {
             w.uint(9);
+            ((Screen) v).write(w);
+        } else if (v instanceof Scroll) {
+            w.uint(10);
             ((Scroll) v).write(w);
         } else if (v instanceof Spinner) {
-            w.uint(10);
+            w.uint(11);
             ((Spinner) v).write(w);
         } else {
             throw new IllegalArgumentException(v.getClass().getName() + " is not a Op variant");
@@ -543,8 +604,9 @@ public final class Render {
         if (i == 6) return Text.read(r0);
         if (i == 7) return Image.read(r0);
         if (i == 8) return Input.read(r0);
-        if (i == 9) return Scroll.read(r0);
-        if (i == 10) return Spinner.read(r0);
+        if (i == 9) return Screen.read(r0);
+        if (i == 10) return Scroll.read(r0);
+        if (i == 11) return Spinner.read(r0);
         throw new WireException("unknown Op variant " + i);
     }
 
@@ -566,14 +628,20 @@ public final class Render {
         } else if (v instanceof Scrolled) {
             w.uint(4);
             ((Scrolled) v).write(w);
-        } else if (v instanceof Changed) {
+        } else if (v instanceof Popped) {
             w.uint(5);
+            ((Popped) v).write(w);
+        } else if (v instanceof Resized) {
+            w.uint(6);
+            ((Resized) v).write(w);
+        } else if (v instanceof Changed) {
+            w.uint(7);
             ((Changed) v).write(w);
         } else if (v instanceof MeasureText) {
-            w.uint(6);
+            w.uint(8);
             ((MeasureText) v).write(w);
         } else if (v instanceof TextSize) {
-            w.uint(7);
+            w.uint(9);
             ((TextSize) v).write(w);
         } else {
             throw new IllegalArgumentException(v.getClass().getName() + " is not a Message variant");
@@ -587,9 +655,11 @@ public final class Render {
         if (i == 2) return Viewport.read(r0);
         if (i == 3) return Press.read(r0);
         if (i == 4) return Scrolled.read(r0);
-        if (i == 5) return Changed.read(r0);
-        if (i == 6) return MeasureText.read(r0);
-        if (i == 7) return TextSize.read(r0);
+        if (i == 5) return Popped.read(r0);
+        if (i == 6) return Resized.read(r0);
+        if (i == 7) return Changed.read(r0);
+        if (i == 8) return MeasureText.read(r0);
+        if (i == 9) return TextSize.read(r0);
         throw new WireException("unknown Message variant " + i);
     }
 

@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x91ba88e235aa3ac8
+const SchemaHash uint64 = 0xff71496213c89c2b
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -221,6 +221,19 @@ func (m *Input) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *Screen) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendString(b, m.Title)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Screen) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.Title = r.String()
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Scroll) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	b = wire.AppendFloat32(b, m.W)
@@ -310,6 +323,34 @@ func (m *Scrolled) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *Popped) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendUint(b, uint64(m.Depth))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Popped) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.Depth = uint32(r.UintMax(1<<32 - 1))
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Resized) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendFloat32(b, m.W)
+	b = wire.AppendFloat32(b, m.H)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Resized) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.W = r.Float32()
+	m.H = r.Float32()
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Changed) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	b = wire.AppendString(b, m.Text)
@@ -360,6 +401,7 @@ func (*Box) isOp()      {}
 func (*Text) isOp()     {}
 func (*Image) isOp()    {}
 func (*Input) isOp()    {}
+func (*Screen) isOp()   {}
 func (*Scroll) isOp()   {}
 func (*Spinner) isOp()  {}
 
@@ -384,10 +426,12 @@ func AppendOp(b []byte, v Op) []byte {
 		return v.AppendWire(wire.AppendUint(b, 7))
 	case *Input:
 		return v.AppendWire(wire.AppendUint(b, 8))
-	case *Scroll:
+	case *Screen:
 		return v.AppendWire(wire.AppendUint(b, 9))
-	case *Spinner:
+	case *Scroll:
 		return v.AppendWire(wire.AppendUint(b, 10))
+	case *Spinner:
+		return v.AppendWire(wire.AppendUint(b, 11))
 	}
 	panic(fmt.Sprintf("render: %T is not a Op variant", v))
 }
@@ -430,10 +474,14 @@ func ReadOp(r *wire.Reader) Op {
 		v.ReadWire(r)
 		return v
 	case 9:
-		v := new(Scroll)
+		v := new(Screen)
 		v.ReadWire(r)
 		return v
 	case 10:
+		v := new(Scroll)
+		v.ReadWire(r)
+		return v
+	case 11:
 		v := new(Spinner)
 		v.ReadWire(r)
 		return v
@@ -449,6 +497,8 @@ func (*Commit) isMessage()      {}
 func (*Viewport) isMessage()    {}
 func (*Press) isMessage()       {}
 func (*Scrolled) isMessage()    {}
+func (*Popped) isMessage()      {}
+func (*Resized) isMessage()     {}
 func (*Changed) isMessage()     {}
 func (*MeasureText) isMessage() {}
 func (*TextSize) isMessage()    {}
@@ -466,12 +516,16 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 3))
 	case *Scrolled:
 		return v.AppendWire(wire.AppendUint(b, 4))
-	case *Changed:
+	case *Popped:
 		return v.AppendWire(wire.AppendUint(b, 5))
-	case *MeasureText:
+	case *Resized:
 		return v.AppendWire(wire.AppendUint(b, 6))
-	case *TextSize:
+	case *Changed:
 		return v.AppendWire(wire.AppendUint(b, 7))
+	case *MeasureText:
+		return v.AppendWire(wire.AppendUint(b, 8))
+	case *TextSize:
+		return v.AppendWire(wire.AppendUint(b, 9))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -498,14 +552,22 @@ func ReadMessage(r *wire.Reader) Message {
 		v.ReadWire(r)
 		return v
 	case 5:
-		v := new(Changed)
+		v := new(Popped)
 		v.ReadWire(r)
 		return v
 	case 6:
-		v := new(MeasureText)
+		v := new(Resized)
 		v.ReadWire(r)
 		return v
 	case 7:
+		v := new(Changed)
+		v.ReadWire(r)
+		return v
+	case 8:
+		v := new(MeasureText)
+		v.ReadWire(r)
+		return v
+	case 9:
 		v := new(TextSize)
 		v.ReadWire(r)
 		return v

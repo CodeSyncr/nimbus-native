@@ -183,7 +183,7 @@ func (rt *runtime) measureLists() bool {
 		}
 		if changed {
 			// New heights move the spacers, and may change the window.
-			rt.dirtyLists[in] = true
+			rt.rechild[in] = true
 			again = true
 		}
 	}
@@ -214,7 +214,7 @@ func (rt *runtime) scrolled(in *instance, m *render.Scrolled) {
 	}
 	first, last, _, _ := ls.window(spec, rt.viewport.H)
 	if first != ls.first || last != ls.last {
-		rt.dirtyLists[in] = true
+		rt.rechild[in] = true
 		rt.dirty = true
 	}
 }

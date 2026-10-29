@@ -24,6 +24,8 @@ final class Bench {
     private var tapLatencies: [Double] = []
     private var typing = false
     private var scrolling = false, scrollCommits = 0
+    private var listOK = false
+    private var pushing = false
     private var link: CADisplayLink?
     private var frameTimes: [CFTimeInterval] = []
 
@@ -35,6 +37,13 @@ final class Bench {
     private func committed(_ c: Render.Commit, _ applyMs: Double) {
         commits += 1
         if scrolling { scrollCommits += 1 }
+        if pushing {
+            pushing = false
+            log(String(format: "push: row tap → detail screen committed in %.2f ms (%d ops; Go build %.2f ms, layout %.2f ms with %d text measurements; apply incl. push %.2f ms)",
+                       (CACurrentMediaTime() - pressAt) * 1000, c.ops.count, Double(c.buildNs) / 1e6, Double(c.layoutNs) / 1e6, c.measures, applyMs))
+            pressAt = 0
+            return
+        }
         if typing {
             typing = false
             let greeting = (r.view(forTag: r.tag(forTestID: "greeting") ?? 0) as? UILabel)?.text ?? "?"
@@ -110,9 +119,29 @@ final class Bench {
                 let covered = rows.map { $0.frame.maxY }.max() ?? 0
                 log(String(format: "after scroll: %d rows on screen, rows reach %.0f of %.0f pt; %d native views in the list",
                            rows.count, covered - visible.minY, visible.height, s.subviews.count))
-                let median = tapLatencies.sorted()[10]
-                let ok = median < 16 && dropped < 9 && covered >= visible.maxY
-                log(ok ? "NN-P1 LIST RESULT: PASS" : "NN-P1 LIST RESULT: CHECK (see numbers above)")
+                listOK = tapLatencies.sorted()[10] < 16 && dropped < 9 && covered >= visible.maxY
+                navigate(s)
+            }
+        }
+    }
+
+    /// Taps the first row on screen, then goes back the way a user does.
+    private func navigate(_ list: UIScrollView) {
+        let visible = CGRect(origin: list.contentOffset, size: list.bounds.size)
+        guard let row = list.subviews.first(where: { ($0.accessibilityIdentifier ?? "").hasPrefix("row-") && $0.frame.intersects(visible) }),
+              let stack = r.view(forTag: r.tag(forTestID: "stack") ?? 0) as? NNStackView else { return log("FAIL: no row or stack") }
+        pushing = true
+        pressAt = CACurrentMediaTime()
+        r.press(tag: UInt32(row.tag))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+            let title = r.view(forTag: r.tag(forTestID: "detail-title") ?? 0) as? UILabel
+            log("after push: \(stack.nav.viewControllers.count) screens, bar title \"\(stack.nav.topViewController?.title ?? "")\", detail shows \(title?.text ?? "nothing")")
+            let pushed = stack.nav.viewControllers.count == 2 && title != nil
+            stack.nav.popViewController(animated: true) // what the back button and swipe do
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                let goFollowed = r.tag(forTestID: "detail-title") == nil
+                log("after native back: \(stack.nav.viewControllers.count) screen, Go dropped the detail screen: \(goFollowed)")
+                log(listOK && pushed && goFollowed ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
             }
         }
     }

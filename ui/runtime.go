@@ -70,14 +70,14 @@ type runtime struct {
 	destroyed    []uint32
 	effects      []*hookSlot
 	lists        map[*instance]bool // mounted Lists
-	dirtyLists   map[*instance]bool // Lists whose window must render again
+	rechild      map[*instance]bool // Lists and Stacks whose children must render again
 	seq          uint64
 	measures     uint32
 }
 
 func newRuntime(root Component) *runtime {
 	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
-		lists: map[*instance]bool{}, dirtyLists: map[*instance]bool{}}
+		lists: map[*instance]bool{}, rechild: map[*instance]bool{}}
 }
 
 // do runs f on the UI loop. Safe from any goroutine, including the loop.
@@ -144,6 +144,14 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil {
 				rt.scrolled(in, m)
 			}
+		case *render.Popped:
+			if in := rt.byTag[m.Tag]; in != nil {
+				rt.popped(in, int(m.Depth))
+			}
+		case *render.Resized:
+			if in := rt.byTag[m.Tag]; in != nil {
+				rt.resized(in, m.W, m.H)
+			}
 		}
 	})
 }
@@ -152,6 +160,7 @@ func (rt *runtime) receive(b []byte) {
 // view with its tag, layout node and the last props sent for it.
 type instance struct {
 	el        *Element
+	parent    *instance
 	unmounted bool
 	dirty     bool // a component whose state changed since its last render
 
@@ -165,8 +174,10 @@ type instance struct {
 	children  []*instance
 	childTags []uint32
 	sent      sentProps
+	title     string // a stack screen's title, as last sent
 	measured  map[measureKey]render.TextSize
-	list      *listState // for a List
+	list      *listState  // for a List
+	stack     *stackState // for a Stack
 }
 
 type sentProps struct {
@@ -188,13 +199,13 @@ type measureKey struct {
 func (rt *runtime) commit() {
 	t0 := time.Now()
 	rt.dirty, rt.measures = false, 0
-	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root))
+	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root), nil)
 	rt.forceAll = false
-	for in := range rt.dirtyLists {
+	for in := range rt.rechild {
 		if !in.unmounted {
-			rt.reconcileList(in)
+			rt.children(in)
 		}
-		delete(rt.dirtyLists, in)
+		delete(rt.rechild, in)
 	}
 	c := &render.Commit{}
 	host := hostRoot(rt.rootInst)
@@ -233,7 +244,7 @@ func (rt *runtime) commit() {
 func (rt *runtime) op(o render.Op) { rt.ops = append(rt.ops, o) }
 
 // reconcile makes old show el, reusing it when it is the same type.
-func (rt *runtime) reconcile(old *instance, el *Element) *instance {
+func (rt *runtime) reconcile(old *instance, el *Element, parent *instance) *instance {
 	switch {
 	case el == nil:
 		if old != nil {
@@ -241,19 +252,19 @@ func (rt *runtime) reconcile(old *instance, el *Element) *instance {
 		}
 		return nil
 	case old == nil:
-		return rt.mount(el)
+		return rt.mount(el, parent)
 	case !el.sameType(old.el):
 		rt.unmount(old)
-		return rt.mount(el)
+		return rt.mount(el, parent)
 	}
 	rt.update(old, el)
 	return old
 }
 
-func (rt *runtime) mount(el *Element) *instance {
-	in := &instance{el: el}
+func (rt *runtime) mount(el *Element, parent *instance) *instance {
+	in := &instance{el: el, parent: parent}
 	if el.comp != nil {
-		in.child = rt.reconcile(nil, rt.renderComponent(in))
+		in.child = rt.reconcile(nil, rt.renderComponent(in), in)
 		return in
 	}
 	rt.nextTag++
@@ -279,9 +290,11 @@ func (rt *runtime) update(in *instance, el *Element) {
 		// Same props and no state change: what it rendered last time stands.
 		skip := !rt.forceAll && !in.dirty && propsEqual(in.el.comp, el.comp)
 		in.el = el
-		if !skip {
+		if skip {
+			rt.refresh(in.child) // components further down may have changed state
+		} else {
 			in.dirty = false
-			in.child = rt.reconcile(in.child, rt.renderComponent(in))
+			in.child = rt.reconcile(in.child, rt.renderComponent(in), in)
 		}
 		return
 	}
@@ -290,11 +303,36 @@ func (rt *runtime) update(in *instance, el *Element) {
 	rt.children(in)
 }
 
+// refresh walks a subtree whose elements are unchanged and re-renders the
+// components in it whose state changed.
+func (rt *runtime) refresh(in *instance) {
+	if in == nil {
+		return
+	}
+	if in.el.comp != nil {
+		if in.dirty {
+			in.dirty = false
+			in.child = rt.reconcile(in.child, rt.renderComponent(in), in)
+		} else {
+			rt.refresh(in.child)
+		}
+		return
+	}
+	for _, c := range in.children {
+		rt.refresh(c)
+	}
+	rt.syncChildren(in) // a re-rendered component may now show a different view
+}
+
 // children reconciles a native view's children: its elements, or for a
 // List the window of items to show.
 func (rt *runtime) children(in *instance) {
-	if in.el.list != nil {
+	switch {
+	case in.el.list != nil:
 		rt.reconcileList(in)
+		return
+	case in.el.stack != nil:
+		rt.reconcileStack(in)
 		return
 	}
 	rt.reconcileChildren(in, in.el.children)
@@ -328,16 +366,21 @@ func (rt *runtime) reconcileChildren(in *instance, els []*Element) {
 			rt.update(o, el)
 			next = append(next, o)
 		} else {
-			next = append(next, rt.mount(el))
+			next = append(next, rt.mount(el, in))
 		}
 	}
 	for _, o := range old {
 		rt.unmount(o)
 	}
 	in.children = next
+	rt.syncChildren(in)
+}
 
-	tags := make([]uint32, 0, len(next))
-	for _, c := range next {
+// syncChildren tells the host (and the layout) a view's native children
+// when they changed.
+func (rt *runtime) syncChildren(in *instance) {
+	tags := make([]uint32, 0, len(in.children))
+	for _, c := range in.children {
 		if h := hostRoot(c); h != nil {
 			tags = append(tags, h.tag)
 		}
@@ -395,7 +438,7 @@ func (rt *runtime) unmount(in *instance) {
 		rt.destroyed = append(rt.destroyed, in.tag)
 	}
 	delete(rt.lists, in)
-	delete(rt.dirtyLists, in)
+	delete(rt.rechild, in)
 }
 
 // hostRoot is the native view an instance renders to.

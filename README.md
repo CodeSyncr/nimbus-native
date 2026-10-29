@@ -155,6 +155,28 @@ reload.
 5. Changed frames join the ops in one `render.Commit`, applied on the UI
    thread in a single pass.
 
+## Navigation
+
+```go
+ui.Stack("Orders", OrdersScreen{}, ui.Flex(1))   // the app's root
+
+nav := ui.Navigation(c)                          // in any component on a screen
+nav.Push("Order #10012", OrderDetail{o})
+nav.Pop()
+```
+
+The stack is native: `UINavigationController` on iOS (its bar, push
+animation and swipe-back), a Material-style bar with a back arrow, slide
+transitions and the system back button on Android
+(`onBackPressed` → `renderer.back()`). Go owns the screens; when the user
+goes back, the host tells Go (`Popped`) and the two stay in step. Each
+screen's content is Go-rendered at the size the host reports.
+
+| Gallery: tap a row → detail | iOS simulator | Android emulator |
+|---|---|---|
+| Push, tap → committed | Go 2 ms; UIKit push 57–123 ms | 19 ms total |
+| Native back → Go follows | ✓ | ✓ |
+
 ## Lists
 
 `ui.List(count, item, style)` renders only the rows on screen and about one

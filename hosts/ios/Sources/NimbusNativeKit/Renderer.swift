@@ -5,7 +5,10 @@ import UIKit
 open class NimbusViewController: UIViewController {
     public let renderer = Renderer()
 
-    open override func loadView() { view = renderer.container }
+    open override func loadView() {
+        view = renderer.container
+        renderer.viewController = self
+    }
 
     open override func viewDidLoad() {
         super.viewDidLoad()
@@ -36,6 +39,11 @@ public final class Renderer {
 
     /// Called after the renderer sends a press, before Go has answered.
     public var onPressSent: ((UInt32) -> Void)?
+
+    /// The view controller hosting the UI; navigation stacks become its children.
+    public weak var viewController: UIViewController?
+
+    private var screens: [UInt32: NNScreenController] = [:]
 
     private var views: [UInt32: UIView] = [:]
     private lazy var scrollReporter = ScrollReporter(renderer: self)
@@ -101,7 +109,17 @@ public final class Renderer {
             switch op {
             case .create(let o): create(o)
             case .destroy(let o):
-                for t in o.tags { views.removeValue(forKey: t)?.removeFromSuperview() }
+                // Detach only the top of each destroyed subtree: its
+                // descendants go with it. A stack screen's root stays in its
+                // controller, which may be animating out, and goes with it.
+                let gone = Set(o.tags.compactMap { views[$0] }.map(ObjectIdentifier.init))
+                for t in o.tags {
+                    let v = views.removeValue(forKey: t)
+                    let isScreen = screens.removeValue(forKey: t) != nil
+                    if let v, !isScreen, !(v.superview.map { gone.contains(ObjectIdentifier($0)) } ?? false) {
+                        v.removeFromSuperview()
+                    }
+                }
             case .children(let o): children(o)
             case .frame(let o):
                 views[o.tag]?.frame = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
@@ -117,6 +135,7 @@ public final class Renderer {
                     s.delegate = o.report ? scrollReporter : nil
                 }
             case .spinner(let o): (views[o.tag] as? UIActivityIndicatorView)?.color = color(o.color) ?? .gray
+            case .screen(let o): screen(o.tag).title = o.title
             }
         }
         if c.root != 0, let v = views[c.root] {
@@ -152,6 +171,7 @@ public final class Renderer {
             let s = UIActivityIndicatorView(style: .medium)
             s.startAnimating()
             v = s
+        case .stack: v = NNStackView(renderer: self, tag: o.tag)
         default: v = UIView()
         }
         v.tag = Int(o.tag)
@@ -162,6 +182,11 @@ public final class Renderer {
     private func children(_ o: Render.Children) {
         guard let parent = views[o.tag] else { return }
         let wanted = o.children.compactMap { views[$0] }
+        if let stack = parent as? NNStackView {
+            // A stack's children are screens: each goes in its own controller.
+            stack.setScreens(o.children.compactMap { t in views[t].map { screen(t).holding($0, in: stack) } })
+            return
+        }
         let keep = Set(wanted.map(ObjectIdentifier.init))
         for sub in parent.subviews where views[UInt32(truncatingIfNeeded: sub.tag)] === sub && !keep.contains(ObjectIdentifier(sub)) {
             sub.removeFromSuperview()
@@ -193,6 +218,13 @@ public final class Renderer {
     }
 
     fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
+
+    private func screen(_ tag: UInt32) -> NNScreenController {
+        if let c = screens[tag] { return c }
+        let c = NNScreenController(renderer: self)
+        screens[tag] = c
+        return c
+    }
 
     // MARK: answering Go (on a Go thread)
 
@@ -293,5 +325,96 @@ final class ScrollReporter: NSObject, UIScrollViewDelegate {
         let o = s.contentOffset, b = s.bounds.size
         renderer?.send(.scrolled(Render.Scrolled(tag: UInt32(truncatingIfNeeded: s.tag), x: Float(o.x), y: Float(o.y),
                                                  w: Float(b.width), h: Float(b.height))))
+    }
+}
+
+/// A navigation stack: a UINavigationController whose screens' content is
+/// Go-rendered views. It animates when Go pushes or pops one screen, and
+/// tells Go when the user goes back.
+final class NNStackView: UIView, UINavigationControllerDelegate {
+    let nav = UINavigationController()
+    let stackTag: UInt32
+    private weak var renderer: Renderer?
+    private var depth = 0 // the depth Go last asked for
+
+    init(renderer: Renderer, tag: UInt32) {
+        self.renderer = renderer
+        stackTag = tag
+        super.init(frame: .zero)
+        nav.delegate = self
+        nav.view.frame = bounds
+        nav.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(nav.view)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, nav.parent == nil, let host = renderer?.viewController {
+            host.addChild(nav)
+            nav.didMove(toParent: host)
+        }
+    }
+
+    func setScreens(_ controllers: [UIViewController]) {
+        let current = nav.viewControllers
+        depth = controllers.count
+        let animated = window != nil
+        if controllers.count == current.count + 1, Array(controllers.prefix(current.count)) == current {
+            nav.pushViewController(controllers.last!, animated: animated)
+        } else if controllers.count == current.count - 1, Array(current.prefix(controllers.count)) == controllers {
+            nav.popViewController(animated: animated)
+        } else if controllers != current {
+            nav.setViewControllers(controllers, animated: false)
+        }
+    }
+
+    func navigationController(_ n: UINavigationController, didShow vc: UIViewController, animated: Bool) {
+        // Fewer screens than Go asked for: the user went back.
+        if n.viewControllers.count < depth {
+            depth = n.viewControllers.count
+            renderer?.send(.popped(Render.Popped(tag: stackTag, depth: UInt32(depth))))
+        }
+    }
+
+    func reportSize(_ size: CGSize) {
+        renderer?.send(.resized(Render.Resized(tag: stackTag, w: Float(size.width), h: Float(size.height))))
+    }
+}
+
+/// One stack screen: its view sits below the navigation bar and holds the
+/// screen's Go-rendered root view.
+final class NNScreenController: UIViewController {
+    private weak var renderer: Renderer?
+    private weak var stack: NNStackView?
+    private var reported = CGSize.zero
+
+    init(renderer: Renderer) {
+        self.renderer = renderer
+        super.init(nibName: nil, bundle: nil)
+        edgesForExtendedLayout = []
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+    }
+
+    func holding(_ content: UIView, in stack: NNStackView) -> NNScreenController {
+        self.stack = stack
+        if content.superview !== view { view.addSubview(content) }
+        return self
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let size = view.bounds.size
+        if size != reported, size.width > 0 {
+            reported = size
+            stack?.reportSize(size)
+        }
     }
 }

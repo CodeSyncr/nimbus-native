@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x91ba88e235aa3ac8
+    public static let schemaHash: UInt64 = 0xff71496213c89c2b
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -16,6 +16,7 @@ public enum Render {
         public static let scroll = Kind(rawValue: 4)
         public static let input = Kind(rawValue: 5)
         public static let spinner = Kind(rawValue: 6)
+        public static let stack = Kind(rawValue: 7)
     }
 
     /// Align is horizontal text alignment.
@@ -378,6 +379,30 @@ public enum Render {
         }
     }
 
+    /// Screen sets a stack screen's title. Tag is the screen's root view, a
+    /// child of a KindStack view.
+    public struct Screen: Equatable {
+        public var tag: UInt32
+        public var title: String
+
+        public init(tag: UInt32 = 0, title: String = "") {
+            self.tag = tag
+            self.title = title
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.string(self.title)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Screen {
+            var m = Screen()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.title = try r.string()
+            return m
+        }
+    }
+
     /// Scroll sets a scroll view's content size. With Report, the host sends
     /// Scrolled whenever the view scrolls (lists need it to know what to show).
     public struct Scroll: Equatable {
@@ -543,6 +568,57 @@ public enum Render {
         }
     }
 
+    /// Popped reports that the user went back in a stack (back button, swipe or
+    /// system back), leaving Depth screens.
+    public struct Popped: Equatable {
+        public var tag: UInt32
+        public var depth: UInt32
+
+        public init(tag: UInt32 = 0, depth: UInt32 = 0) {
+            self.tag = tag
+            self.depth = depth
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.uint(UInt64(self.depth))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Popped {
+            var m = Popped()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.depth = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
+    /// Resized reports the size a stack gives its screens (below its bar).
+    public struct Resized: Equatable {
+        public var tag: UInt32
+        public var w: Float
+        public var h: Float
+
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0) {
+            self.tag = tag
+            self.w = w
+            self.h = h
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.float32(self.w)
+            w.float32(self.h)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Resized {
+            var m = Resized()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.w = try r.float32()
+            m.h = try r.float32()
+            return m
+        }
+    }
+
     /// Changed reports an input's new text.
     public struct Changed: Equatable {
         public var tag: UInt32
@@ -630,6 +706,7 @@ public enum Render {
         case text(Text)
         case image(Image)
         case input(Input)
+        case screen(Screen)
         case scroll(Scroll)
         case spinner(Spinner)
 
@@ -661,11 +738,14 @@ public enum Render {
             case .input(let x)?:
                 w.uint(8)
                 x.write(to: &w)
-            case .scroll(let x)?:
+            case .screen(let x)?:
                 w.uint(9)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .scroll(let x)?:
                 w.uint(10)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(11)
                 x.write(to: &w)
             }
         }
@@ -691,8 +771,10 @@ public enum Render {
             case 8:
                 return .input(try Input.read(from: &r))
             case 9:
-                return .scroll(try Scroll.read(from: &r))
+                return .screen(try Screen.read(from: &r))
             case 10:
+                return .scroll(try Scroll.read(from: &r))
+            case 11:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -706,6 +788,8 @@ public enum Render {
         case viewport(Viewport)
         case press(Press)
         case scrolled(Scrolled)
+        case popped(Popped)
+        case resized(Resized)
         case changed(Changed)
         case measureText(MeasureText)
         case textSize(TextSize)
@@ -726,14 +810,20 @@ public enum Render {
             case .scrolled(let x)?:
                 w.uint(4)
                 x.write(to: &w)
-            case .changed(let x)?:
+            case .popped(let x)?:
                 w.uint(5)
                 x.write(to: &w)
-            case .measureText(let x)?:
+            case .resized(let x)?:
                 w.uint(6)
                 x.write(to: &w)
-            case .textSize(let x)?:
+            case .changed(let x)?:
                 w.uint(7)
+                x.write(to: &w)
+            case .measureText(let x)?:
+                w.uint(8)
+                x.write(to: &w)
+            case .textSize(let x)?:
+                w.uint(9)
                 x.write(to: &w)
             }
         }
@@ -751,10 +841,14 @@ public enum Render {
             case 4:
                 return .scrolled(try Scrolled.read(from: &r))
             case 5:
-                return .changed(try Changed.read(from: &r))
+                return .popped(try Popped.read(from: &r))
             case 6:
-                return .measureText(try MeasureText.read(from: &r))
+                return .resized(try Resized.read(from: &r))
             case 7:
+                return .changed(try Changed.read(from: &r))
+            case 8:
+                return .measureText(try MeasureText.read(from: &r))
+            case 9:
                 return .textSize(try TextSize.read(from: &r))
             default:
                 throw WireError.variant

@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private int commits;
     private long pressAt;
-    private boolean typing, scrolling;
+    private boolean typing, scrolling, pushing, listOK;
     private int scrollCommits;
     private final List<Double> taps = new ArrayList<>();
     private final List<Long> frameTimes = new ArrayList<>();
@@ -43,6 +43,13 @@ public class MainActivity extends Activity {
     private void committed(Render.Commit c, double applyMs) {
         commits++;
         if (scrolling) scrollCommits++;
+        if (pushing) {
+            pushing = false;
+            log(String.format("push: row tap → detail screen committed in %.2f ms (%d ops; Go build %.2f ms, layout %.2f ms with %d text measurements; apply incl. push %.2f ms)",
+                    (SystemClock.elapsedRealtimeNanos() - pressAt) / 1e6, c.ops.size(), c.buildNs / 1e6, c.layoutNs / 1e6, c.measures, applyMs));
+            pressAt = 0;
+            return;
+        }
         if (typing) {
             typing = false;
             View g = r.viewForTag(r.tagForTestID("greeting"));
@@ -154,10 +161,48 @@ public class MainActivity extends Activity {
                             rows, reach - top, bottom - top, content.getChildCount()));
                     List<Double> s = new ArrayList<>(taps);
                     Collections.sort(s);
-                    log(s.get(10) < 16 && droppedFrames < 9 && reach >= bottom ? "NN-P1 LIST RESULT: PASS" : "NN-P1 LIST RESULT: CHECK (see numbers above)");
+                    listOK = s.get(10) < 16 && droppedFrames < 9 && reach >= bottom;
+                    navigate(content, top, bottom);
                 }, 300);
             }
         });
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (!r.back()) super.onBackPressed(); // stacks first, then leave the app
+    }
+
+    /** Taps the first row on screen, then presses the system back button. */
+    private void navigate(android.view.ViewGroup content, int top, int bottom) {
+        View row = null;
+        for (int i = 0; i < content.getChildCount(); i++) {
+            View v = content.getChildAt(i);
+            Object id = v.getTag();
+            if (id instanceof String && ((String) id).startsWith("row-") && v.getBottom() > top && v.getTop() < bottom) {
+                row = v;
+                break;
+            }
+        }
+        if (row == null) {
+            log("FAIL: no row on screen");
+            return;
+        }
+        pushing = true;
+        pressAt = SystemClock.elapsedRealtimeNanos();
+        r.press(row.getId());
+        main.postDelayed(() -> {
+            View title = r.viewForTag(r.tagForTestID("detail-title"));
+            String shown = title instanceof TextView ? ((TextView) title).getText().toString() : "nothing";
+            log("after push: detail shows " + shown);
+            boolean pushed = title != null;
+            onBackPressed(); // what the system back button does
+            main.postDelayed(() -> {
+                boolean goFollowed = r.tagForTestID("detail-title") == 0;
+                log("after system back: Go dropped the detail screen: " + goFollowed);
+                log(listOK && pushed && goFollowed ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)");
+            }, 1000);
+        }, 1000);
     }
 
     private static void log(String s) {
