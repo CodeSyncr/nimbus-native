@@ -72,7 +72,7 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 		if abi.GOARM != "" {
 			env = append(env, "GOARM="+abi.GOARM)
 		}
-		if err := e.goBuild(a.Dir, env, "c-shared", lib, "-extldflags=-Wl,-z,max-page-size=16384"); err != nil {
+		if err := e.goBuild(a.goDir(), env, "c-shared", lib, "-extldflags=-Wl,-z,max-page-size=16384"); err != nil {
 			return "", err
 		}
 		libs["lib/"+abi.Name+"/"+androidLib] = lib

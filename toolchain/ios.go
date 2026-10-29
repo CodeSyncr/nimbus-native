@@ -59,7 +59,7 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 	lib := filepath.Join(obj, "libapp.a")
 	cc := fmt.Sprintf("%s -isysroot %s -target %s", clang, sdkPath, t.Triple)
 	goEnv := []string{"GOOS=ios", "GOARCH=arm64", "CGO_ENABLED=1", "CC=" + cc}
-	if err := e.goBuild(a.Dir, goEnv, "c-archive", lib); err != nil {
+	if err := e.goBuild(a.goDir(), goEnv, "c-archive", lib); err != nil {
 		return "", err
 	}
 

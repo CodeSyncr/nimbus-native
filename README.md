@@ -4,9 +4,9 @@ Native iOS and Android apps written in Go — the app's code is compiled into
 the app and drives real native views (UIKit, Android Views). Nimbus is the
 server; Nimbus Native is the device.
 
-**Status: Phase 0d** — apps are Go components rendered as real UIKit and
+**Status: Phase 0e** — apps are Go components rendered as real UIKit and
 Android views, laid out by a pure-Go flexbox engine, over our own
-toolchain, bridge and typed wire format.
+toolchain, bridge and typed wire format — with hot reload while you work.
 
 ```go
 type Counter struct{}
@@ -19,6 +19,8 @@ func (Counter) Render(c *ui.Ctx) *ui.Element {
 }
 
 func init() { ui.Mount(Counter{}) }
+
+func main() { ui.Main() } // runs only in dev mode; on a device the host owns the process
 ```
 
 ## Layout
@@ -37,6 +39,7 @@ func init() { ui.Mount(Counter{}) }
 | `ui/render/` | The Go ↔ native renderer protocol (generated into both kits) |
 | `hosts/ios/…/Renderer.swift` | UIKit renderer and `NimbusViewController` |
 | `hosts/android/…/Renderer.java`, `NimbusView.java` | Android Views renderer and root view |
+| `dev/` | Dev mode: `frame` (the socket protocol), `client` (the shell's proxy); the relay is in `toolchain/dev.go` |
 | `toolchain/` | Builds apps with the platform tools directly — no gomobile, no Gradle; runs `gen` first |
 | `cmd/nimbus-native/` | The toolchain behind `nimbus native …` (never called directly) |
 | `examples/hello/` | Bridge and wire checks |
@@ -49,6 +52,7 @@ Everything goes through the `nimbus` CLI — there is no second tool:
 
 ```sh
 nimbus native doctor
+nimbus native dev ios ./examples/gallery       # hot reload: edit, save, see it
 nimbus native run ios ./examples/gallery       # boots a simulator if needed
 nimbus native run android ./examples/gallery   # boots the first AVD if needed
 nimbus native build ios|android ./examples/gallery
@@ -116,6 +120,29 @@ and reject the same bad inputs.
   waiting message in one buffer. A burst costs one thread hop, not one per
   message.
 - Hosts refer to Go values by integer `Handle`, never by pointer.
+
+## Dev mode
+
+```
+ laptop                                        simulator / emulator
+ nimbus native dev ── relay :7357 ◄──TCP──►   dev shell: the real app, its Go
+   │ your app, built for the laptop            library swapped for a proxy
+   └ restarted on every save                   (dev/client); native code as shipped
+```
+
+`nimbus native dev ios|android` builds a dev shell once, then runs the app's
+Go code on the laptop (`-tags nimbusdev`: the same bridge API over a
+socket). Saving a `.go` file rebuilds and restarts it; the shell clears the
+old views and the new process renders. A compile error is printed and the
+last good build keeps running. A wire-schema change rebuilds the shell. The
+relay caches the device's text measurements, so a reload re-measures
+nothing. Android reaches the relay through `adb reverse`.
+
+Measured on the gallery (1,000 rows): a save is on screen in **1.9–3.5 s on
+the iOS simulator and 2.7 s on the Android emulator**, of which 0.6–2.3 s is
+compiling — this Mac runs the Intel build of Go under Rosetta; the Apple
+Silicon build compiles roughly twice as fast. App state starts fresh on each
+reload.
 
 ## How a screen gets drawn
 

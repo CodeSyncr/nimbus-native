@@ -84,5 +84,5 @@ func snapshot(n int) *proto.Snapshot {
 	return s
 }
 
-// main is unused: the app is built as a library and the host owns the process.
-func main() {}
+// main runs only under `nimbus native dev`; on a device the host owns the process.
+func main() { bridge.Main() }

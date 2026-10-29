@@ -18,6 +18,18 @@ type App struct {
 	Dir  string // absolute
 	Name string // display and executable name, e.g. "Hello"
 	ID   string // bundle id / application id, e.g. "space.nimbusgo.hello"
+
+	// For dev shells: the Go package compiled into the app instead of Dir,
+	// whose schemas also count toward the hash.
+	GoDir string
+}
+
+// goDir is the Go package built into the app's native library.
+func (a *App) goDir() string {
+	if a.GoDir != "" {
+		return a.GoDir
+	}
+	return a.Dir
 }
 
 var idPart = regexp.MustCompile(`[^a-z0-9]`)

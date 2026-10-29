@@ -6,6 +6,7 @@
 //	nimbus native gen [app-dir]
 //	nimbus native build ios|android [flags] [app-dir]
 //	nimbus native run   ios|android [flags] [app-dir]
+//	nimbus native dev   ios|android [-port N] [app-dir]
 package main
 
 import (
@@ -40,6 +41,14 @@ func main() {
 			}
 		}
 		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	case "dev":
+		if len(os.Args) < 3 {
+			usage()
+		}
+		if err := dev(os.Args[2], os.Args[3:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
@@ -108,11 +117,31 @@ func buildOrRun(cmd, platform string, args []string) error {
 	return nil
 }
 
+// dev runs the app on this machine against a dev shell, reloading on save.
+func dev(platform string, args []string) error {
+	fs := flag.NewFlagSet("dev", flag.ExitOnError)
+	port := fs.Int("port", 7357, "port for the dev relay")
+	verbose := fs.Bool("v", false, "print every tool invocation")
+	_ = fs.Parse(args)
+	dir := "."
+	if fs.NArg() > 0 {
+		dir = fs.Arg(0)
+	}
+	app, err := toolchain.LoadApp(dir, "", "")
+	if err != nil {
+		return err
+	}
+	env := toolchain.Detect(app.Dir)
+	env.Verbose = *verbose
+	return env.Dev(app, platform, *port)
+}
+
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   nimbus native doctor
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
-  nimbus native run   ios|android [...same flags] [app-dir]`)
+  nimbus native run   ios|android [...same flags] [app-dir]
+  nimbus native dev   ios|android [-port N] [app-dir]   run on this machine, reload on save`)
 	os.Exit(2)
 }

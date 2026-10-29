@@ -42,6 +42,11 @@ func Mount(root Component) {
 	bridge.OnStart(rt.loop)
 }
 
+// Main is for the app's main function: func main() { ui.Main() }. On a device
+// the host owns the process and main never runs; under `nimbus native dev`
+// the app runs on the laptop and Main serves the device until it reloads.
+func Main() { bridge.Main() }
+
 type runtime struct {
 	mu    sync.Mutex
 	queue []func()

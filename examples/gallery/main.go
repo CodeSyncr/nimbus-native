@@ -10,8 +10,8 @@ import (
 
 func init() { ui.Mount(App{}) }
 
-// main is unused: the app is built as a library and the host owns the process.
-func main() {}
+// main runs only under `nimbus native dev`; on a device the host owns the process.
+func main() { ui.Main() }
 
 var (
 	ink     = ui.Hex("#111827")

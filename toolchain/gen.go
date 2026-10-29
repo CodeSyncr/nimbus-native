@@ -15,9 +15,11 @@ import (
 
 // Generated holds the host code produced by Gen.
 type Generated struct {
-	Combined   uint64
-	SwiftFiles []string // compile into the iOS app
-	JavaFiles  []string // compile into the Android app
+	Combined    uint64   // every schema the native library links: what hosts pass to nn_start
+	AppCombined uint64   // only the schemas the app's own package links
+	Hashes      []uint64 // the schemas behind Combined
+	SwiftFiles  []string // compile into the iOS app
+	JavaFiles   []string // compile into the Android app
 }
 
 // Gen regenerates every wire schema inside the app (directories whose Go
@@ -28,6 +30,21 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 	dirs, err := linkedPackageDirs(a.Dir)
 	if err != nil {
 		return nil, err
+	}
+	appDirs := map[string]bool{}
+	for _, d := range dirs {
+		appDirs[d] = true
+	}
+	if a.GoDir != "" && a.GoDir != a.Dir {
+		more, err := linkedPackageDirs(a.GoDir)
+		if err != nil {
+			return nil, err
+		}
+		for _, d := range more {
+			if !appDirs[d] {
+				dirs = append(dirs, d)
+			}
+		}
 	}
 	out := filepath.Join(a.Dir, "build", "gen")
 	if err := os.RemoveAll(out); err != nil {
@@ -42,7 +59,7 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 	}
 
 	res := &Generated{}
-	var hashes []uint64
+	var hashes, appHashes []uint64
 	for _, dir := range dirs {
 		if !isSchemaDir(dir) {
 			continue
@@ -54,6 +71,9 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 				return nil, fmt.Errorf("schema %s: %w", dir, err)
 			}
 			hashes = append(hashes, s.Hash)
+			if appDirs[dir] {
+				appHashes = append(appHashes, s.Hash)
+			}
 			continue
 		}
 		o, err := gen.Generate(dir, a.ID)
@@ -77,9 +97,12 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 		res.SwiftFiles = append(res.SwiftFiles, filepath.Join(swiftDir, ns+".swift"))
 		res.JavaFiles = append(res.JavaFiles, filepath.Join(javaDir, ns+".java"))
 		hashes = append(hashes, o.Schema.Hash)
+		if appDirs[dir] {
+			appHashes = append(appHashes, o.Schema.Hash)
+		}
 	}
 
-	res.Combined = wire.Combine(hashes)
+	res.Combined, res.AppCombined, res.Hashes = wire.Combine(hashes), wire.Combine(appHashes), hashes
 	sw, jv := filepath.Join(swiftDir, "NimbusSchema.swift"), filepath.Join(javaDir, "NimbusSchema.java")
 	if err := os.WriteFile(sw, gen.SwiftSchema(res.Combined), 0o644); err != nil {
 		return nil, err
