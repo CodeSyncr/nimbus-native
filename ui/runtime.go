@@ -363,7 +363,20 @@ func (rt *runtime) renderComponent(in *instance) (out *Element) {
 			out = nil
 		}
 	}()
-	return in.el.comp.Render(&Ctx{rt: rt, inst: in})
+	out = in.el.comp.Render(&Ctx{rt: rt, inst: in})
+	// A component's TestID and Label land on what it renders, unless that
+	// sets its own: ui.C(Button{...}).TestID("save") names the button.
+	if out != nil && (in.el.testID != "" && out.testID == "" || in.el.label != "" && out.label == "") {
+		cp := *out // the component may return a shared element
+		if cp.testID == "" {
+			cp.testID = in.el.testID
+		}
+		if cp.label == "" {
+			cp.label = in.el.label
+		}
+		out = &cp
+	}
+	return out
 }
 
 // reconcileChildren matches new child elements to existing instances by key

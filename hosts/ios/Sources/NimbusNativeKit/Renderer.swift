@@ -59,6 +59,7 @@ public final class Renderer {
     private(set) var chrome = Render.Chrome()
 
     private var views: [UInt32: UIView] = [:]
+    private var radii: [UInt32: CGFloat] = [:] // as asked; drawn at most half the short side
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
     private var lastViewport: Render.Viewport?
@@ -129,6 +130,7 @@ public final class Renderer {
                 // controller, which may be animating out, and goes with it.
                 let gone = Set(o.tags.compactMap { views[$0] }.map(ObjectIdentifier.init))
                 for t in o.tags {
+                    radii.removeValue(forKey: t)
                     let v = views.removeValue(forKey: t)
                     if let m = modals.removeValue(forKey: t) {
                         // Its controller keeps the views while it animates away.
@@ -143,7 +145,9 @@ public final class Renderer {
                 }
             case .children(let o): children(o)
             case .frame(let o):
-                views[o.tag]?.frame = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
+                guard let v = views[o.tag] else { break }
+                v.frame = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
+                if let r = radii[o.tag] { round(v, r) }
             case .box(let o): box(o)
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
             case .image(let o): (views[o.tag] as? NNImageView)?.load(o)
@@ -246,7 +250,8 @@ public final class Renderer {
     private func box(_ o: Render.Box) {
         guard let v = views[o.tag] else { return }
         v.backgroundColor = color(o.background) ?? .clear // nil paints some views (UILabel) black
-        v.layer.cornerRadius = CGFloat(o.radius)
+        radii[o.tag] = o.radius > 0 ? CGFloat(o.radius) : nil
+        round(v, CGFloat(o.radius))
         v.layer.borderWidth = CGFloat(o.borderWidth)
         v.layer.borderColor = color(o.borderColor)?.cgColor
         if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }
@@ -254,6 +259,12 @@ public final class Renderer {
         v.accessibilityLabel = o.label.isEmpty ? nil : o.label
         v.accessibilityIdentifier = o.testID.isEmpty ? nil : o.testID
         if !o.label.isEmpty { v.isAccessibilityElement = true }
+    }
+
+    /// Core Animation draws nothing for a corner radius over half the short
+    /// side, so a pill (Radius: 999) is clamped to a full round end.
+    private func round(_ v: UIView, _ r: CGFloat) {
+        v.layer.cornerRadius = min(r, min(v.bounds.width, v.bounds.height) / 2)
     }
 
     private func text(_ l: UILabel, _ o: Render.Text) {

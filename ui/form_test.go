@@ -104,3 +104,32 @@ func TestFormShowsServerErrors(t *testing.T) {
 		t.Fatal("editing the field should clear its server error")
 	}
 }
+
+type saveButton struct{ onPress func() }
+
+func (b saveButton) Render(c *Ctx) *Element {
+	return Pressable(b.onPress, Style{Height: Pt(44)}, Text("Save", Style{}))
+}
+
+type ownID struct{}
+
+func (ownID) Render(c *Ctx) *Element { return View(Style{}).TestID("inner") }
+
+type idScreen struct{ onSave func() }
+
+func (s idScreen) Render(c *Ctx) *Element {
+	return View(Style{}, C(saveButton{s.onSave}).TestID("save"), C(ownID{}).TestID("outer"))
+}
+
+// A TestID on a component names what it renders, unless that has its own.
+func TestComponentTestID(t *testing.T) {
+	pressed := 0
+	h := start(t, idScreen{func() { pressed++ }})
+	h.send(&render.Press{Tag: h.tagOf("save")})
+	if pressed != 1 {
+		t.Fatal("the component's TestID did not reach its Pressable")
+	}
+	if h.tagOf("inner") == 0 || h.tagOf("outer") != 0 {
+		t.Fatal("an element's own TestID should win over its component's")
+	}
+}

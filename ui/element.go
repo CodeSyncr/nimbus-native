@@ -104,11 +104,13 @@ func (e *Element) Fit(f render.Fit) *Element { e.fit = f; return e }
 // Horizontal makes a Scroll scroll sideways.
 func (e *Element) Horizontal() *Element { e.horizontal = true; return e }
 
-// Label is the accessibility label screen readers speak.
+// Label is the accessibility label screen readers speak. On a component, it
+// labels what the component renders.
 func (e *Element) Label(l string) *Element { e.label = l; return e }
 
 // TestID names the element for UI tests (accessibilityIdentifier on iOS,
-// the view tag on Android).
+// the view tag on Android). On a component, it names what the component
+// renders.
 func (e *Element) TestID(id string) *Element { e.testID = id; return e }
 
 // sameType reports whether e can update an instance made from o.
