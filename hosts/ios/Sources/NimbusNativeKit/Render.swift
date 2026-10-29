@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xff71496213c89c2b
+    public static let schemaHash: UInt64 = 0x852b5ebd2df9df76
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -17,6 +17,7 @@ public enum Render {
         public static let input = Kind(rawValue: 5)
         public static let spinner = Kind(rawValue: 6)
         public static let stack = Kind(rawValue: 7)
+        public static let tabs = Kind(rawValue: 8)
     }
 
     /// Align is horizontal text alignment.
@@ -403,6 +404,57 @@ public enum Render {
         }
     }
 
+    /// TabItem sets a tab's title and icon (an SF Symbol name on iOS). Tag is
+    /// the tab's root view, a child of a KindTabs view.
+    public struct TabItem: Equatable {
+        public var tag: UInt32
+        public var title: String
+        public var icon: String
+
+        public init(tag: UInt32 = 0, title: String = "", icon: String = "") {
+            self.tag = tag
+            self.title = title
+            self.icon = icon
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.string(self.title)
+            w.string(self.icon)
+        }
+
+        public static func read(from r: inout WireReader) throws -> TabItem {
+            var m = TabItem()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.title = try r.string()
+            m.icon = try r.string()
+            return m
+        }
+    }
+
+    /// TabSelect shows the tab at Index.
+    public struct TabSelect: Equatable {
+        public var tag: UInt32
+        public var index: UInt32
+
+        public init(tag: UInt32 = 0, index: UInt32 = 0) {
+            self.tag = tag
+            self.index = index
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.uint(UInt64(self.index))
+        }
+
+        public static func read(from r: inout WireReader) throws -> TabSelect {
+            var m = TabSelect()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.index = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Scroll sets a scroll view's content size. With Report, the host sends
     /// Scrolled whenever the view scrolls (lists need it to know what to show).
     public struct Scroll: Equatable {
@@ -592,22 +644,50 @@ public enum Render {
         }
     }
 
-    /// Resized reports the size a stack gives its screens (below its bar).
+    /// Selected reports that the user picked the tab at Index.
+    public struct Selected: Equatable {
+        public var tag: UInt32
+        public var index: UInt32
+
+        public init(tag: UInt32 = 0, index: UInt32 = 0) {
+            self.tag = tag
+            self.index = index
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.uint(UInt64(self.index))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Selected {
+            var m = Selected()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.index = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
+    /// Resized reports the size a stack or tab bar gives its screens. Bottom is
+    /// how much of that height a bar covers (iOS tabs run under the tab bar);
+    /// content should keep clear of it.
     public struct Resized: Equatable {
         public var tag: UInt32
         public var w: Float
         public var h: Float
+        public var bottom: Float
 
-        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0) {
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, bottom: Float = 0) {
             self.tag = tag
             self.w = w
             self.h = h
+            self.bottom = bottom
         }
 
         public func write(to w: inout WireWriter) {
             w.uint(UInt64(self.tag))
             w.float32(self.w)
             w.float32(self.h)
+            w.float32(self.bottom)
         }
 
         public static func read(from r: inout WireReader) throws -> Resized {
@@ -615,6 +695,7 @@ public enum Render {
             m.tag = UInt32(try r.uint(max: 4294967295))
             m.w = try r.float32()
             m.h = try r.float32()
+            m.bottom = try r.float32()
             return m
         }
     }
@@ -707,6 +788,8 @@ public enum Render {
         case image(Image)
         case input(Input)
         case screen(Screen)
+        case tabItem(TabItem)
+        case tabSelect(TabSelect)
         case scroll(Scroll)
         case spinner(Spinner)
 
@@ -741,11 +824,17 @@ public enum Render {
             case .screen(let x)?:
                 w.uint(9)
                 x.write(to: &w)
-            case .scroll(let x)?:
+            case .tabItem(let x)?:
                 w.uint(10)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .tabSelect(let x)?:
                 w.uint(11)
+                x.write(to: &w)
+            case .scroll(let x)?:
+                w.uint(12)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(13)
                 x.write(to: &w)
             }
         }
@@ -773,8 +862,12 @@ public enum Render {
             case 9:
                 return .screen(try Screen.read(from: &r))
             case 10:
-                return .scroll(try Scroll.read(from: &r))
+                return .tabItem(try TabItem.read(from: &r))
             case 11:
+                return .tabSelect(try TabSelect.read(from: &r))
+            case 12:
+                return .scroll(try Scroll.read(from: &r))
+            case 13:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -789,6 +882,7 @@ public enum Render {
         case press(Press)
         case scrolled(Scrolled)
         case popped(Popped)
+        case selected(Selected)
         case resized(Resized)
         case changed(Changed)
         case measureText(MeasureText)
@@ -813,17 +907,20 @@ public enum Render {
             case .popped(let x)?:
                 w.uint(5)
                 x.write(to: &w)
-            case .resized(let x)?:
+            case .selected(let x)?:
                 w.uint(6)
                 x.write(to: &w)
-            case .changed(let x)?:
+            case .resized(let x)?:
                 w.uint(7)
                 x.write(to: &w)
-            case .measureText(let x)?:
+            case .changed(let x)?:
                 w.uint(8)
                 x.write(to: &w)
-            case .textSize(let x)?:
+            case .measureText(let x)?:
                 w.uint(9)
+                x.write(to: &w)
+            case .textSize(let x)?:
+                w.uint(10)
                 x.write(to: &w)
             }
         }
@@ -843,12 +940,14 @@ public enum Render {
             case 5:
                 return .popped(try Popped.read(from: &r))
             case 6:
-                return .resized(try Resized.read(from: &r))
+                return .selected(try Selected.read(from: &r))
             case 7:
-                return .changed(try Changed.read(from: &r))
+                return .resized(try Resized.read(from: &r))
             case 8:
-                return .measureText(try MeasureText.read(from: &r))
+                return .changed(try Changed.read(from: &r))
             case 9:
+                return .measureText(try MeasureText.read(from: &r))
+            case 10:
                 return .textSize(try TextSize.read(from: &r))
             default:
                 throw WireError.variant

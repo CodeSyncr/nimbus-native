@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xff71496213c89c2b
+const SchemaHash uint64 = 0x852b5ebd2df9df76
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -234,6 +234,34 @@ func (m *Screen) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *TabItem) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendString(b, m.Title)
+	b = wire.AppendString(b, m.Icon)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *TabItem) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.Title = r.String()
+	m.Icon = r.String()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *TabSelect) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendUint(b, uint64(m.Index))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *TabSelect) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.Index = uint32(r.UintMax(1<<32 - 1))
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Scroll) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	b = wire.AppendFloat32(b, m.W)
@@ -336,10 +364,24 @@ func (m *Popped) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *Selected) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendUint(b, uint64(m.Index))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Selected) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.Index = uint32(r.UintMax(1<<32 - 1))
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Resized) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	b = wire.AppendFloat32(b, m.W)
 	b = wire.AppendFloat32(b, m.H)
+	b = wire.AppendFloat32(b, m.Bottom)
 	return b
 }
 
@@ -348,6 +390,7 @@ func (m *Resized) ReadWire(r *wire.Reader) {
 	m.Tag = uint32(r.UintMax(1<<32 - 1))
 	m.W = r.Float32()
 	m.H = r.Float32()
+	m.Bottom = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -393,17 +436,19 @@ func (m *TextSize) ReadWire(r *wire.Reader) {
 	m.H = r.Float32()
 }
 
-func (*Create) isOp()   {}
-func (*Destroy) isOp()  {}
-func (*Children) isOp() {}
-func (*Frame) isOp()    {}
-func (*Box) isOp()      {}
-func (*Text) isOp()     {}
-func (*Image) isOp()    {}
-func (*Input) isOp()    {}
-func (*Screen) isOp()   {}
-func (*Scroll) isOp()   {}
-func (*Spinner) isOp()  {}
+func (*Create) isOp()    {}
+func (*Destroy) isOp()   {}
+func (*Children) isOp()  {}
+func (*Frame) isOp()     {}
+func (*Box) isOp()       {}
+func (*Text) isOp()      {}
+func (*Image) isOp()     {}
+func (*Input) isOp()     {}
+func (*Screen) isOp()    {}
+func (*TabItem) isOp()   {}
+func (*TabSelect) isOp() {}
+func (*Scroll) isOp()    {}
+func (*Spinner) isOp()   {}
 
 // AppendOp appends a Op: its variant index (0 for nil), then the variant.
 func AppendOp(b []byte, v Op) []byte {
@@ -428,10 +473,14 @@ func AppendOp(b []byte, v Op) []byte {
 		return v.AppendWire(wire.AppendUint(b, 8))
 	case *Screen:
 		return v.AppendWire(wire.AppendUint(b, 9))
-	case *Scroll:
+	case *TabItem:
 		return v.AppendWire(wire.AppendUint(b, 10))
-	case *Spinner:
+	case *TabSelect:
 		return v.AppendWire(wire.AppendUint(b, 11))
+	case *Scroll:
+		return v.AppendWire(wire.AppendUint(b, 12))
+	case *Spinner:
+		return v.AppendWire(wire.AppendUint(b, 13))
 	}
 	panic(fmt.Sprintf("render: %T is not a Op variant", v))
 }
@@ -478,10 +527,18 @@ func ReadOp(r *wire.Reader) Op {
 		v.ReadWire(r)
 		return v
 	case 10:
-		v := new(Scroll)
+		v := new(TabItem)
 		v.ReadWire(r)
 		return v
 	case 11:
+		v := new(TabSelect)
+		v.ReadWire(r)
+		return v
+	case 12:
+		v := new(Scroll)
+		v.ReadWire(r)
+		return v
+	case 13:
 		v := new(Spinner)
 		v.ReadWire(r)
 		return v
@@ -498,6 +555,7 @@ func (*Viewport) isMessage()    {}
 func (*Press) isMessage()       {}
 func (*Scrolled) isMessage()    {}
 func (*Popped) isMessage()      {}
+func (*Selected) isMessage()    {}
 func (*Resized) isMessage()     {}
 func (*Changed) isMessage()     {}
 func (*MeasureText) isMessage() {}
@@ -518,14 +576,16 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 4))
 	case *Popped:
 		return v.AppendWire(wire.AppendUint(b, 5))
-	case *Resized:
+	case *Selected:
 		return v.AppendWire(wire.AppendUint(b, 6))
-	case *Changed:
+	case *Resized:
 		return v.AppendWire(wire.AppendUint(b, 7))
-	case *MeasureText:
+	case *Changed:
 		return v.AppendWire(wire.AppendUint(b, 8))
-	case *TextSize:
+	case *MeasureText:
 		return v.AppendWire(wire.AppendUint(b, 9))
+	case *TextSize:
+		return v.AppendWire(wire.AppendUint(b, 10))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -556,18 +616,22 @@ func ReadMessage(r *wire.Reader) Message {
 		v.ReadWire(r)
 		return v
 	case 6:
-		v := new(Resized)
+		v := new(Selected)
 		v.ReadWire(r)
 		return v
 	case 7:
-		v := new(Changed)
+		v := new(Resized)
 		v.ReadWire(r)
 		return v
 	case 8:
-		v := new(MeasureText)
+		v := new(Changed)
 		v.ReadWire(r)
 		return v
 	case 9:
+		v := new(MeasureText)
+		v.ReadWire(r)
+		return v
+	case 10:
 		v := new(TextSize)
 		v.ReadWire(r)
 		return v

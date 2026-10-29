@@ -29,6 +29,7 @@ type Element struct {
 	onChange    func(string)
 	list        *listSpec
 	stack       *stackSpec
+	tabs        *tabsSpec
 }
 
 // Component is a reusable piece of UI. Its fields are its props; Render runs
@@ -119,5 +120,5 @@ func (e *Element) sameType(o *Element) bool {
 		return reflect.TypeOf(e.comp) == reflect.TypeOf(o.comp)
 	}
 	return e.kind == o.kind && e.horizontal == o.horizontal && (e.list == nil) == (o.list == nil) &&
-		(e.stack == nil) == (o.stack == nil)
+		(e.stack == nil) == (o.stack == nil) && (e.tabs == nil) == (o.tabs == nil)
 }

@@ -41,11 +41,41 @@ func orders() []order {
 	return out
 }
 
-// App is the root component: a navigation stack starting at the orders.
+// App is the root component: two tabs, each with its own navigation stack.
 type App struct{}
 
 func (App) Render(c *ui.Ctx) *ui.Element {
+	return ui.Tabs(ui.Flex(1),
+		ui.Tab{Title: "Orders", Icon: "list.bullet", Screen: OrdersTab{}},
+		ui.Tab{Title: "Account", Icon: "person.crop.circle", Screen: AccountTab{}},
+	).TestID("tabs")
+}
+
+type OrdersTab struct{}
+
+func (OrdersTab) Render(c *ui.Ctx) *ui.Element {
 	return ui.Stack("Orders", OrdersScreen{}, ui.Flex(1)).TestID("stack")
+}
+
+type AccountTab struct{}
+
+func (AccountTab) Render(c *ui.Ctx) *ui.Element {
+	return ui.Stack("Account", AccountScreen{}, ui.Flex(1))
+}
+
+// AccountScreen is the second tab's first screen.
+type AccountScreen struct{}
+
+func (AccountScreen) Render(c *ui.Ctx) *ui.Element {
+	tabs := ui.TabsOf(c)
+	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(20), Gap: 12, Background: surface},
+		ui.Text("Asha Rao", ui.Style{FontSize: 24, FontWeight: 700, Color: ink}).TestID("account-title"),
+		ui.Text("asha@example.com · Pune", ui.Style{FontSize: 15, Color: muted}),
+		ui.Pressable(func() { tabs.Select(0) },
+			ui.Style{Background: accent, Radius: 12, Padding: ui.XY(16, 14), AlignItems: ui.AlignCenter},
+			ui.Text("Show my orders", ui.Style{Color: ui.RGB(255, 255, 255), FontWeight: 600}),
+		).TestID("to-orders"),
+	)
 }
 
 // OrdersScreen is the first screen.

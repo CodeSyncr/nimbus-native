@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xff71496213c89c2buL.toLong()
+    val SCHEMA_HASH: Long = 0x852b5ebd2df9df76uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -17,6 +17,7 @@ object Render {
         const val INPUT: Int = 5
         const val SPINNER: Int = 6
         const val STACK: Int = 7
+        const val TABS: Int = 8
     }
 
     /** Align is horizontal text alignment. */
@@ -338,6 +339,49 @@ object Render {
         }
     }
 
+    /** TabItem sets a tab's title and icon (an SF Symbol name on iOS). Tag is the tab's root view, a child of a KindTabs view. */
+    data class TabItem(
+        var tag: Long = 0L,
+        var title: String = "",
+        var icon: String = "",
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.string(this.title)
+            w.string(this.icon)
+        }
+
+        companion object {
+            fun read(r0: WireReader): TabItem {
+                val m = TabItem()
+                m.tag = r0.uintMax(4294967295L)
+                m.title = r0.string()
+                m.icon = r0.string()
+                return m
+            }
+        }
+    }
+
+    /** TabSelect shows the tab at Index. */
+    data class TabSelect(
+        var tag: Long = 0L,
+        var index: Long = 0L,
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.uint(this.index)
+        }
+
+        companion object {
+            fun read(r0: WireReader): TabSelect {
+                val m = TabSelect()
+                m.tag = r0.uintMax(4294967295L)
+                m.index = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Scroll sets a scroll view's content size. With Report, the host sends Scrolled whenever the view scrolls (lists need it to know what to show). */
     data class Scroll(
         var tag: Long = 0L,
@@ -493,16 +537,38 @@ object Render {
         }
     }
 
-    /** Resized reports the size a stack gives its screens (below its bar). */
+    /** Selected reports that the user picked the tab at Index. */
+    data class Selected(
+        var tag: Long = 0L,
+        var index: Long = 0L,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.uint(this.index)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Selected {
+                val m = Selected()
+                m.tag = r0.uintMax(4294967295L)
+                m.index = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
+    /** Resized reports the size a stack or tab bar gives its screens. Bottom is how much of that height a bar covers (iOS tabs run under the tab bar); content should keep clear of it. */
     data class Resized(
         var tag: Long = 0L,
         var w: Float = 0f,
         var h: Float = 0f,
+        var bottom: Float = 0f,
     ) : Message {
         fun write(w: WireWriter) {
             w.uint(this.tag)
             w.f32(this.w)
             w.f32(this.h)
+            w.f32(this.bottom)
         }
 
         companion object {
@@ -511,6 +577,7 @@ object Render {
                 m.tag = r0.uintMax(4294967295L)
                 m.w = r0.f32()
                 m.h = r0.f32()
+                m.bottom = r0.f32()
                 return m
             }
         }
@@ -597,8 +664,10 @@ object Render {
             is Image -> { w.uint(7); v.write(w) }
             is Input -> { w.uint(8); v.write(w) }
             is Screen -> { w.uint(9); v.write(w) }
-            is Scroll -> { w.uint(10); v.write(w) }
-            is Spinner -> { w.uint(11); v.write(w) }
+            is TabItem -> { w.uint(10); v.write(w) }
+            is TabSelect -> { w.uint(11); v.write(w) }
+            is Scroll -> { w.uint(12); v.write(w) }
+            is Spinner -> { w.uint(13); v.write(w) }
         }
     }
 
@@ -613,8 +682,10 @@ object Render {
         7L -> Image.read(r0)
         8L -> Input.read(r0)
         9L -> Screen.read(r0)
-        10L -> Scroll.read(r0)
-        11L -> Spinner.read(r0)
+        10L -> TabItem.read(r0)
+        11L -> TabSelect.read(r0)
+        12L -> Scroll.read(r0)
+        13L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 
@@ -629,10 +700,11 @@ object Render {
             is Press -> { w.uint(3); v.write(w) }
             is Scrolled -> { w.uint(4); v.write(w) }
             is Popped -> { w.uint(5); v.write(w) }
-            is Resized -> { w.uint(6); v.write(w) }
-            is Changed -> { w.uint(7); v.write(w) }
-            is MeasureText -> { w.uint(8); v.write(w) }
-            is TextSize -> { w.uint(9); v.write(w) }
+            is Selected -> { w.uint(6); v.write(w) }
+            is Resized -> { w.uint(7); v.write(w) }
+            is Changed -> { w.uint(8); v.write(w) }
+            is MeasureText -> { w.uint(9); v.write(w) }
+            is TextSize -> { w.uint(10); v.write(w) }
         }
     }
 
@@ -643,10 +715,11 @@ object Render {
         3L -> Press.read(r0)
         4L -> Scrolled.read(r0)
         5L -> Popped.read(r0)
-        6L -> Resized.read(r0)
-        7L -> Changed.read(r0)
-        8L -> MeasureText.read(r0)
-        9L -> TextSize.read(r0)
+        6L -> Selected.read(r0)
+        7L -> Resized.read(r0)
+        8L -> Changed.read(r0)
+        9L -> MeasureText.read(r0)
+        10L -> TextSize.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

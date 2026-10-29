@@ -3,7 +3,9 @@ package ui
 // SafeArea is a View padded by the screen's safe-area insets — the notch or
 // status bar, the home indicator, rounded corners — on top of any padding
 // in s, so its children stay clear of them. Inside a Stack the navigation
-// bar already covers the top, so only the other edges are padded.
+// bar already covers the top. Inside Tabs the bottom is padded clear of the
+// tab bar instead (iOS tabs run under it); a Stack in a tab already stops
+// above the bar.
 //
 //	ui.SafeArea(ui.Style{Padding: ui.All(16)}, ui.Text("Hello", ui.Style{}))
 func SafeArea(s Style, children ...*Element) *Element {
@@ -18,12 +20,19 @@ type safeArea struct {
 func (a safeArea) Render(c *Ctx) *Element {
 	vp := Viewport(c)
 	s := a.style
-	top := vp.SafeTop
-	if inStack(c) {
+	top, bottom := vp.SafeTop, vp.SafeBottom
+	stacked := inStack(c)
+	if stacked {
 		top = 0
 	}
+	if tabs := tabsAround(c); tabs != nil && tabs.tabs != nil {
+		bottom = tabs.tabs.bottom
+		if stacked {
+			bottom = 0
+		}
+	}
 	s.Padding.Top += top
-	s.Padding.Bottom += vp.SafeBottom
+	s.Padding.Bottom += bottom
 	s.Padding.Left += vp.SafeLeft
 	s.Padding.Right += vp.SafeRight
 	return View(s, a.children...)

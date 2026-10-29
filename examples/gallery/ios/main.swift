@@ -141,7 +141,25 @@ final class Bench {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
                 let goFollowed = r.tag(forTestID: "detail-title") == nil
                 log("after native back: \(stack.nav.viewControllers.count) screen, Go dropped the detail screen: \(goFollowed)")
-                log(listOK && pushed && goFollowed ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
+                switchTabs(listOK && pushed && goFollowed)
+            }
+        }
+    }
+
+    /// Taps the Account tab the way a user does, then switches back from Go.
+    private func switchTabs(_ okSoFar: Bool) {
+        guard let tabs = r.view(forTag: r.tag(forTestID: "tabs") ?? 0) as? NNTabsView else { return log("FAIL: no tabs") }
+        tabs.bar.selectedIndex = 1
+        tabs.bar.delegate?.tabBarController?(tabs.bar, didSelect: tabs.bar.viewControllers![1])
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [self] in
+            let account = (r.view(forTag: r.tag(forTestID: "account-title") ?? 0) as? UILabel)?.text ?? "nothing"
+            log("user picked Account: tab \(tabs.bar.selectedIndex) shows \(account)")
+            guard let button = r.tag(forTestID: "to-orders") else { return log("FAIL: no button") }
+            r.press(tag: button)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [self] in
+                log("Go selected Orders: tab bar now on tab \(tabs.bar.selectedIndex)")
+                let ok = okSoFar && account == "Asha Rao" && tabs.bar.selectedIndex == 0
+                log(ok ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
             }
         }
     }

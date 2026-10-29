@@ -148,9 +148,13 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil {
 				rt.popped(in, int(m.Depth))
 			}
+		case *render.Selected:
+			if in := rt.byTag[m.Tag]; in != nil {
+				rt.selected(in, int(m.Index))
+			}
 		case *render.Resized:
 			if in := rt.byTag[m.Tag]; in != nil {
-				rt.resized(in, m.W, m.H)
+				rt.resized(in, m.W, m.H, m.Bottom)
 			}
 		}
 	})
@@ -174,10 +178,12 @@ type instance struct {
 	children  []*instance
 	childTags []uint32
 	sent      sentProps
-	title     string // a stack screen's title, as last sent
+	title     string // a stack screen's or tab's title, as last sent
+	icon      string // a tab's icon, as last sent
 	measured  map[measureKey]render.TextSize
 	list      *listState  // for a List
 	stack     *stackState // for a Stack
+	tabs      *tabsState  // for Tabs
 }
 
 type sentProps struct {
@@ -333,6 +339,9 @@ func (rt *runtime) children(in *instance) {
 		return
 	case in.el.stack != nil:
 		rt.reconcileStack(in)
+		return
+	case in.el.tabs != nil:
+		rt.reconcileTabs(in)
 		return
 	}
 	rt.reconcileChildren(in, in.el.children)

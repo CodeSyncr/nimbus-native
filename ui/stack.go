@@ -145,13 +145,24 @@ func (rt *runtime) popped(in *instance, depth int) {
 	rt.dirty = true
 }
 
-// resized gives the stack's screens the size the host reports.
-func (rt *runtime) resized(in *instance, w, h float32) {
-	st := in.stack
-	if st == nil || (st.w == w && st.h == h) {
+// resized gives a stack's screens or tabs' screens the size the host reports.
+func (rt *runtime) resized(in *instance, w, h, bottom float32) {
+	switch {
+	case in.stack != nil:
+		if in.stack.w == w && in.stack.h == h {
+			return
+		}
+		in.stack.w, in.stack.h = w, h
+	case in.tabs != nil:
+		t := in.tabs
+		if t.w == w && t.h == h && t.bottom == bottom {
+			return
+		}
+		t.w, t.h, t.bottom = w, h, bottom
+		rt.forceAll = true // SafeAreas in the tabs pad by the new bottom
+	default:
 		return
 	}
-	st.w, st.h = w, h
 	rt.rechild[in] = true
 	rt.dirty = true
 }

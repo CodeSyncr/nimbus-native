@@ -164,9 +164,27 @@ class MainActivity : Activity() {
             main.postDelayed({
                 val goFollowed = r.tagForTestID("detail-title") == 0
                 log("after system back: Go dropped the detail screen: $goFollowed")
-                log(if (listOK && pushed && goFollowed) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
+                switchTabs(listOK && pushed && goFollowed)
             }, 1000)
         }, 1000)
+    }
+
+    /** Taps the Account tab the way a user does, then switches back from Go. */
+    private fun switchTabs(okSoFar: Boolean) {
+        val tabs = r.viewForTag(r.tagForTestID("tabs")) as? ViewGroup ?: return log("FAIL: no tabs")
+        val bar = tabs.getChildAt(tabs.childCount - 1) as ViewGroup
+        bar.getChildAt(1).performClick()
+        main.postDelayed({
+            val account = r.viewForTag(r.tagForTestID("account-title")) as? TextView
+            val showing = account?.isShown == true
+            log("user picked Account: shows ${if (showing) account?.text else "nothing"}")
+            r.press(r.tagForTestID("to-orders"))
+            main.postDelayed({
+                val back = account?.isShown == false && r.viewForTag(r.tagForTestID("list"))?.isShown == true
+                log("Go selected Orders: orders list showing again: $back")
+                log(if (okSoFar && showing && back) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
+            }, 800)
+        }, 800)
     }
 
     private fun log(s: String) {

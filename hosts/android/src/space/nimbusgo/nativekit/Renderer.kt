@@ -94,6 +94,10 @@ class Renderer internal constructor(private val root: NimbusView) {
     internal fun popped(tag: Int, depth: Int) =
         Bridge.send(Render.encode(Render.Popped(tag = tag.toLong(), depth = depth.toLong())))
 
+    /** Tells Go the user picked a tab. */
+    internal fun selectedTab(tag: Int, index: Int) =
+        Bridge.send(Render.encode(Render.Selected(tag = tag.toLong(), index = index.toLong())))
+
     /** Tells Go the size a stack gives its screens (px → dp). */
     internal fun resized(tag: Int, w: Int, h: Int) =
         Bridge.send(Render.encode(Render.Resized(tag = tag.toLong(), w = w / density, h = h / density)))
@@ -152,6 +156,11 @@ class Renderer internal constructor(private val root: NimbusView) {
                     val stack = v?.parent as? NNStack
                     if (stack != null) stack.setTitle(v, op.title) else if (v != null) pendingTitles[v] = op.title
                 }
+                is Render.TabItem -> {
+                    val v = views[op.tag.toInt()]
+                    (v?.parent as? NNTabs)?.setItem(v, op.title)
+                }
+                is Render.TabSelect -> (views[op.tag.toInt()] as? NNTabs)?.select(op.index.toInt())
                 null -> {}
             }
         }
@@ -180,6 +189,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.SCROLL -> NNScroll(ctx, this)
             Render.Kind.INPUT -> NNInput(ctx, tag, density)
             Render.Kind.STACK -> NNStack(ctx, this, tag)
+            Render.Kind.TABS -> NNTabs(ctx, this, tag)
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
             else -> NNGroup(ctx, this)
         }
@@ -210,6 +220,10 @@ class Renderer internal constructor(private val root: NimbusView) {
         if (pv is NNStack) {
             pv.setScreens(wanted)
             for (v in wanted) pendingTitles.remove(v)?.let { pv.setTitle(v, it) }
+            return
+        }
+        if (pv is NNTabs) {
+            pv.setTabs(wanted)
             return
         }
         val parent = if (pv is NNScroll) pv.content else pv as ViewGroup

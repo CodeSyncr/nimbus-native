@@ -44,6 +44,7 @@ public final class Renderer {
     public weak var viewController: UIViewController?
 
     private var screens: [UInt32: NNScreenController] = [:]
+    private var tabControllers: [UInt32: NNTabController] = [:]
 
     private var views: [UInt32: UIView] = [:]
     private lazy var scrollReporter = ScrollReporter(renderer: self)
@@ -115,7 +116,7 @@ public final class Renderer {
                 let gone = Set(o.tags.compactMap { views[$0] }.map(ObjectIdentifier.init))
                 for t in o.tags {
                     let v = views.removeValue(forKey: t)
-                    let isScreen = screens.removeValue(forKey: t) != nil
+                    let isScreen = screens.removeValue(forKey: t) != nil || tabControllers.removeValue(forKey: t) != nil
                     if let v, !isScreen, !(v.superview.map { gone.contains(ObjectIdentifier($0)) } ?? false) {
                         v.removeFromSuperview()
                     }
@@ -136,6 +137,9 @@ public final class Renderer {
                 }
             case .spinner(let o): (views[o.tag] as? UIActivityIndicatorView)?.color = color(o.color) ?? .gray
             case .screen(let o): screen(o.tag).title = o.title
+            case .tabItem(let o):
+                tab(o.tag).tabBarItem = UITabBarItem(title: o.title, image: o.icon.isEmpty ? nil : UIImage(systemName: o.icon), tag: 0)
+            case .tabSelect(let o): (views[o.tag] as? NNTabsView)?.select(Int(o.index))
             }
         }
         if c.root != 0, let v = views[c.root] {
@@ -172,6 +176,7 @@ public final class Renderer {
             s.startAnimating()
             v = s
         case .stack: v = NNStackView(renderer: self, tag: o.tag)
+        case .tabs: v = NNTabsView(renderer: self, tag: o.tag)
         default: v = UIView()
         }
         v.tag = Int(o.tag)
@@ -185,6 +190,10 @@ public final class Renderer {
         if let stack = parent as? NNStackView {
             // A stack's children are screens: each goes in its own controller.
             stack.setScreens(o.children.compactMap { t in views[t].map { screen(t).holding($0, in: stack) } })
+            return
+        }
+        if let tabs = parent as? NNTabsView {
+            tabs.setTabs(o.children.compactMap { t in views[t].map { tab(t).holding($0, in: tabs) } })
             return
         }
         let keep = Set(wanted.map(ObjectIdentifier.init))
@@ -218,6 +227,13 @@ public final class Renderer {
     }
 
     fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
+
+    private func tab(_ tag: UInt32) -> NNTabController {
+        if let c = tabControllers[tag] { return c }
+        let c = NNTabController()
+        tabControllers[tag] = c
+        return c
+    }
 
     private func screen(_ tag: UInt32) -> NNScreenController {
         if let c = screens[tag] { return c }
@@ -351,7 +367,7 @@ final class NNStackView: UIView, UINavigationControllerDelegate {
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
-        if window != nil, nav.parent == nil, let host = renderer?.viewController {
+        if window != nil, nav.parent == nil, let host = owningViewController(self) ?? renderer?.viewController {
             host.addChild(nav)
             nav.didMove(toParent: host)
         }
@@ -415,6 +431,91 @@ final class NNScreenController: UIViewController {
         if size != reported, size.width > 0 {
             reported = size
             stack?.reportSize(size)
+        }
+    }
+}
+
+/// The view controller whose view contains v (for nesting stacks in tabs).
+func owningViewController(_ v: UIView) -> UIViewController? {
+    var r: UIResponder? = v.next
+    while let x = r {
+        if let vc = x as? UIViewController { return vc }
+        r = x.next
+    }
+    return nil
+}
+
+/// A tab bar: a UITabBarController whose tabs' content is Go-rendered views.
+/// It tells Go which tab the user picks and how much room tabs have.
+final class NNTabsView: UIView, UITabBarControllerDelegate {
+    let bar = UITabBarController()
+    let tabsTag: UInt32
+    private weak var renderer: Renderer?
+
+    init(renderer: Renderer, tag: UInt32) {
+        self.renderer = renderer
+        tabsTag = tag
+        super.init(frame: .zero)
+        bar.delegate = self
+        bar.view.frame = bounds
+        bar.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        addSubview(bar.view)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil, bar.parent == nil, let host = owningViewController(self) ?? renderer?.viewController {
+            host.addChild(bar)
+            bar.didMove(toParent: host)
+        }
+    }
+
+    func setTabs(_ controllers: [UIViewController]) {
+        if bar.viewControllers ?? [] != controllers {
+            bar.setViewControllers(controllers, animated: false)
+        }
+    }
+
+    func select(_ i: Int) {
+        if i < (bar.viewControllers?.count ?? 0) { bar.selectedIndex = i }
+    }
+
+    func tabBarController(_ c: UITabBarController, didSelect vc: UIViewController) {
+        renderer?.send(.selected(Render.Selected(tag: tabsTag, index: UInt32(c.selectedIndex))))
+    }
+
+    func reportSize(_ size: CGSize, bottom: CGFloat) {
+        renderer?.send(.resized(Render.Resized(tag: tabsTag, w: Float(size.width), h: Float(size.height), bottom: Float(bottom))))
+    }
+}
+
+/// One tab: its Go-rendered root view fills the screen, under the status bar
+/// and the translucent tab bar, as UIKit expects; Go is told how much of the
+/// bottom the bar covers. A stack inside stops above the bar by itself.
+final class NNTabController: UIViewController {
+    private weak var tabs: NNTabsView?
+    private var reported = CGSize.zero, reportedBottom: CGFloat = -1
+
+    func holding(_ content: UIView, in tabs: NNTabsView) -> NNTabController {
+        self.tabs = tabs
+        if content.superview !== view { view.addSubview(content) }
+        return self
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let size = view.bounds.size, bottom = view.safeAreaInsets.bottom
+        if (size != reported || bottom != reportedBottom), size.width > 0 {
+            reported = size
+            reportedBottom = bottom
+            tabs?.reportSize(size, bottom: bottom)
         }
     }
 }

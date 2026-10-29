@@ -22,6 +22,9 @@ const (
 	// KindStack is a navigation stack: its children are screens, shown one
 	// at a time under a native bar, with native push / pop transitions.
 	KindStack
+	// KindTabs is a tab bar: its children are the tabs' root views, one
+	// shown at a time above the native tab bar.
+	KindTabs
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -170,6 +173,24 @@ type Screen struct {
 	Title string
 }
 
+// TabItem sets a tab's title and icon (an SF Symbol name on iOS). Tag is
+// the tab's root view, a child of a KindTabs view.
+//
+//wire:variant Op
+type TabItem struct {
+	Tag   uint32
+	Title string
+	Icon  string
+}
+
+// TabSelect shows the tab at Index.
+//
+//wire:variant Op
+type TabSelect struct {
+	Tag   uint32
+	Index uint32
+}
+
 // Scroll sets a scroll view's content size. With Report, the host sends
 // Scrolled whenever the view scrolls (lists need it to know what to show).
 //
@@ -224,12 +245,23 @@ type Popped struct {
 	Depth uint32
 }
 
-// Resized reports the size a stack gives its screens (below its bar).
+// Selected reports that the user picked the tab at Index.
+//
+//wire:message
+type Selected struct {
+	Tag   uint32
+	Index uint32
+}
+
+// Resized reports the size a stack or tab bar gives its screens. Bottom is
+// how much of that height a bar covers (iOS tabs run under the tab bar);
+// content should keep clear of it.
 //
 //wire:message
 type Resized struct {
-	Tag  uint32
-	W, H float32
+	Tag    uint32
+	W, H   float32
+	Bottom float32
 }
 
 // Changed reports an input's new text.
