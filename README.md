@@ -43,8 +43,8 @@ format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
 navigation, tabs, modals, safe areas, forms, theming and dark mode, a
 typed client for Nimbus servers with data-loading hooks, `nimbus native new`
-projects that open in Xcode and Android Studio, folder routing. Next: the
-same UI on the web, then device builds and signing.
+projects that open in Xcode and Android Studio, folder routing, native
+plugins (secure storage, app info, links, key-value storage).
 
 ## Layout
 
@@ -71,6 +71,8 @@ same UI on the web, then device builds and signing.
 | `examples/fullstack/` | A Nimbus server and app sharing one contract (its own module) |
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
 | `router/` | Path → page matching and `router.Push`; the table comes from `pages/` (`toolchain/routes.go`) |
+| `plugin/` | Calls native code: `plugin.Call` to a Swift/Kotlin plugin (`hosts/*/Plugins.*`) |
+| `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, and `storage` (a key-value file) |
 
 ## Start a project
 
@@ -149,6 +151,52 @@ router.Push(c, "/orders/42")    // any screen
 
 Go skips `_`-prefixed folders in `./...` patterns, so `go vet ./...` passes
 over parameter pages; they are compiled through the table the app imports.
+
+## Plugins: calling native code
+
+Go reaches Swift and Kotlin through plugins. Built in:
+
+```go
+securestore.Set(ctx, "token", t)            // Keychain / Android Keystore
+token, ok, err := securestore.Get(ctx, "token")
+storage.Set(ctx, "theme", "dark")            // JSON in the app's data folder
+info, _ := appinfo.Get(ctx)                  // version, locale, data and cache dirs
+linking.Open(ctx, "https://example.com")     // browser, tel:, mailto:, maps
+```
+
+Your own plugin is a name and a handler in the host, and one call in Go.
+Arguments and answers are JSON, so neither side needs generated code:
+
+```swift
+// native/ios/Runner/AppDelegate.swift, before the NimbusViewController
+Plugins.register("battery") { call in
+    UIDevice.current.isBatteryMonitoringEnabled = true
+    call.resolve(["level": UIDevice.current.batteryLevel])
+}
+```
+
+```kotlin
+// native/android/.../MainActivity.kt, before the NimbusView
+Plugins.register("battery") { call ->
+    val bm = getSystemService(BATTERY_SERVICE) as android.os.BatteryManager
+    call.resolve(mapOf("level" to bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY) / 100.0))
+}
+```
+
+```go
+type battery struct{ Level float64 `json:"level"` }
+b, err := plugin.Call[battery](ctx, "battery", "level", nil)
+```
+
+Handlers run on the main thread and answer once with `resolve` or
+`reject(code, message)`; codes (`cancelled`, `denied`, `not_found`,
+`unavailable`, `failed`) come back as `plugin.Error`, testable with
+`plugin.IsCode`. `plugin.Call` blocks its goroutine until the answer, so
+call it from `ui.UseQuery`, `ui.UseAction` or an effect, not in Render.
+Plugins work unchanged under `nimbus native dev`.
+
+On Android, `fmt.Println` and `log` output goes to logcat (tag
+`NimbusNativeApp`), which `nimbus native run android` streams.
 
 ## Try the examples
 

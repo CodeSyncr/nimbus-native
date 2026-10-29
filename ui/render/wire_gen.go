@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xec96bd45282b38c3
+const SchemaHash uint64 = 0xa95ccab54add04c6
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -483,6 +483,51 @@ func (m *TextSize) ReadWire(r *wire.Reader) {
 	m.H = r.Float32()
 }
 
+// AppendWire appends m's wire encoding to b.
+func (m *PluginCall) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.ID))
+	b = wire.AppendString(b, m.Plugin)
+	b = wire.AppendString(b, m.Method)
+	b = wire.AppendString(b, m.Args)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *PluginCall) ReadWire(r *wire.Reader) {
+	m.ID = uint64(r.Uint())
+	m.Plugin = r.String()
+	m.Method = r.String()
+	m.Args = r.String()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *PluginAck) AppendWire(b []byte) []byte {
+	b = wire.AppendString(b, m.Err)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *PluginAck) ReadWire(r *wire.Reader) {
+	m.Err = r.String()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *PluginResult) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.ID))
+	b = wire.AppendString(b, m.Value)
+	b = wire.AppendString(b, m.Code)
+	b = wire.AppendString(b, m.Err)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *PluginResult) ReadWire(r *wire.Reader) {
+	m.ID = uint64(r.Uint())
+	m.Value = r.String()
+	m.Code = r.String()
+	m.Err = r.String()
+}
+
 func (*Create) isOp()    {}
 func (*Destroy) isOp()   {}
 func (*Children) isOp()  {}
@@ -611,17 +656,20 @@ func ReadOp(r *wire.Reader) Op {
 // Message is any top-level message in this schema.
 type Message interface{ isMessage() }
 
-func (*Commit) isMessage()      {}
-func (*Viewport) isMessage()    {}
-func (*Press) isMessage()       {}
-func (*Scrolled) isMessage()    {}
-func (*Popped) isMessage()      {}
-func (*Dismissed) isMessage()   {}
-func (*Selected) isMessage()    {}
-func (*Resized) isMessage()     {}
-func (*Changed) isMessage()     {}
-func (*MeasureText) isMessage() {}
-func (*TextSize) isMessage()    {}
+func (*Commit) isMessage()       {}
+func (*Viewport) isMessage()     {}
+func (*Press) isMessage()        {}
+func (*Scrolled) isMessage()     {}
+func (*Popped) isMessage()       {}
+func (*Dismissed) isMessage()    {}
+func (*Selected) isMessage()     {}
+func (*Resized) isMessage()      {}
+func (*Changed) isMessage()      {}
+func (*MeasureText) isMessage()  {}
+func (*TextSize) isMessage()     {}
+func (*PluginCall) isMessage()   {}
+func (*PluginAck) isMessage()    {}
+func (*PluginResult) isMessage() {}
 
 // AppendMessage appends a Message: its variant index (0 for nil), then the variant.
 func AppendMessage(b []byte, v Message) []byte {
@@ -650,6 +698,12 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 10))
 	case *TextSize:
 		return v.AppendWire(wire.AppendUint(b, 11))
+	case *PluginCall:
+		return v.AppendWire(wire.AppendUint(b, 12))
+	case *PluginAck:
+		return v.AppendWire(wire.AppendUint(b, 13))
+	case *PluginResult:
+		return v.AppendWire(wire.AppendUint(b, 14))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -701,6 +755,18 @@ func ReadMessage(r *wire.Reader) Message {
 		return v
 	case 11:
 		v := new(TextSize)
+		v.ReadWire(r)
+		return v
+	case 12:
+		v := new(PluginCall)
+		v.ReadWire(r)
+		return v
+	case 13:
+		v := new(PluginAck)
+		v.ReadWire(r)
+		return v
+	case 14:
+		v := new(PluginResult)
 		v.ReadWire(r)
 		return v
 	}

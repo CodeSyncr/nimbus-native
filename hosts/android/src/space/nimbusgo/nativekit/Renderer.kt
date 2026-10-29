@@ -62,6 +62,7 @@ class Renderer internal constructor(private val root: NimbusView) {
     private var started = false
 
     internal fun start(schema: Long) {
+        Plugins.context = ctx.applicationContext
         Bridge.setListener { bytes ->
             val m = try {
                 Render.decode(bytes)
@@ -407,9 +408,15 @@ class Renderer internal constructor(private val root: NimbusView) {
             override fun sizeOf(key: String, value: Bitmap) = value.byteCount
         }
 
-        /** Measures text the way TextView draws it (on a Go thread). */
-        fun answer(req: ByteArray, d: Float): ByteArray? {
-            val mt = Render.decode(req) as? Render.MeasureText ?: return null
+        /** Answers Go's synchronous calls (on a Go thread): text measurement, and starting plugin calls. */
+        fun answer(req: ByteArray, d: Float): ByteArray? = when (val m = Render.decode(req)) {
+            is Render.MeasureText -> measure(m, d)
+            is Render.PluginCall -> Render.encode(Plugins.start(m))
+            else -> null
+        }
+
+        /** Measures text the way TextView draws it. */
+        private fun measure(mt: Render.MeasureText, d: Float): ByteArray {
             val p = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 textSize = mt.font.size * d
                 typeface = fontFor(mt.font.weight)

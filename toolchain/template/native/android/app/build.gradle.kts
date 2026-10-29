@@ -55,13 +55,11 @@ val nimbusGo by tasks.registering(Exec::class) {
     val abis = nimbusABIs()
     val goPkg = (findProperty("nimbus.go") as String?) ?: "" // dev mode's proxy
 
-    inputs.files(fileTree(module) {
-        include("**/*.go", "go.mod", "go.sum")
-        exclude("native/**", "build/**")
-    })
-    inputs.property("abis", abis)
-    inputs.property("go", goPkg)
+    // Always run, like Xcode's "Build Go" phase: Go's build cache makes an
+    // unchanged build quick, and the app's Go code may live outside this
+    // module (a replace directive), where Gradle can't see it change.
     outputs.dir(out)
+    outputs.upToDateWhen { false }
 
     workingDir = module
     environment("PATH", goPath())

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/CodeSyncr/nimbus-native/dev/frame"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
 // Dev runs the app's Go code on this machine against a dev shell on the
@@ -464,6 +465,13 @@ func (r *relay) handle(c net.Conn) {
 func (r *relay) answerFromCache(app *peer, p []byte) bool {
 	id, req, ok := frame.SplitID(p)
 	if !ok {
+		return false
+	}
+	// Only text measurements repeat exactly and answer the same each time;
+	// anything else (plugin calls) always goes to the device.
+	if m, err := render.Decode(req); err != nil {
+		return false
+	} else if _, measure := m.(*render.MeasureText); !measure {
 		return false
 	}
 	r.mu.Lock()

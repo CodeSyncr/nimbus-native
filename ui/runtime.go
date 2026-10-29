@@ -18,6 +18,7 @@ import (
 
 	"github.com/CodeSyncr/nimbus-native/bridge"
 	"github.com/CodeSyncr/nimbus-native/layout"
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
@@ -138,6 +139,10 @@ func (rt *runtime) receive(b []byte) {
 	m, err := render.Decode(b)
 	if err != nil {
 		logf("ui: undecodable host message: %v", err)
+		return
+	}
+	if r, ok := m.(*render.PluginResult); ok {
+		plugin.Deliver(r) // straight to the waiting call, not through the UI loop
 		return
 	}
 	rt.do(func() {

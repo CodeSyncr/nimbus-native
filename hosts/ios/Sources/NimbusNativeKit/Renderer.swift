@@ -330,9 +330,17 @@ public final class Renderer {
 
     // MARK: answering Go (on a Go thread)
 
-    /// Measures text the way UILabel draws it.
+    /// Answers Go's synchronous calls: text measurement, and starting plugin calls.
     static func answer(_ data: Data) throws -> Data {
-        guard case .measureText(let m) = try Render.Message.decode([UInt8](data)) else { throw WireError.variant }
+        switch try Render.Message.decode([UInt8](data)) {
+        case .measureText(let m): return measure(m)
+        case .pluginCall(let c): return Data(Render.Message.pluginAck(Plugins.start(c)).encode())
+        default: throw WireError.variant
+        }
+    }
+
+    /// Measures text the way UILabel draws it.
+    static func measure(_ m: Render.MeasureText) -> Data {
         let font = font(m.font)
         let maxW = m.maxWidth < 0 ? CGFloat.greatestFiniteMagnitude : CGFloat(m.maxWidth)
         let r = (m.text as NSString).boundingRect(with: CGSize(width: maxW, height: .greatestFiniteMagnitude),

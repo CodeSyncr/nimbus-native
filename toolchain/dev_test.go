@@ -9,7 +9,10 @@ import (
 	"time"
 
 	"github.com/CodeSyncr/nimbus-native/dev/frame"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
+
+func measure(text string) []byte { return render.Encode(&render.MeasureText{Text: text}) }
 
 type end struct {
 	t *testing.T
@@ -75,33 +78,42 @@ func TestRelay(t *testing.T) {
 
 	// A host call goes to the device once; the same question is then
 	// answered by the relay, even for the next app process.
-	app.send(frame.HostCall, frame.WithID(1, []byte("measure Hello")))
+	app.send(frame.HostCall, frame.WithID(1, measure("Hello")))
 	id, req, _ := frame.SplitID(device.expect(frame.HostCall))
 	device.send(frame.HostReply, frame.Reply(id, 0, []byte("40x20")))
-	if _, _, reply, _ := frame.SplitReply(app.expect(frame.HostReply)); string(reply) != "40x20" || string(req) != "measure Hello" {
+	if _, _, reply, _ := frame.SplitReply(app.expect(frame.HostReply)); string(reply) != "40x20" || string(req) != string(measure("Hello")) {
 		t.Fatalf("first answer %q for %q", reply, req)
 	}
 
 	app2 := dial(t, addr, frame.RoleApp, 42)
 	device.expect(frame.Reset)
-	app2.send(frame.HostCall, frame.WithID(9, []byte("measure Hello")))
+	app2.send(frame.HostCall, frame.WithID(9, measure("Hello")))
 	if id, _, reply, _ := frame.SplitReply(app2.expect(frame.HostReply)); id != 9 || string(reply) != "40x20" {
 		t.Fatalf("cached answer: id %d, %q", id, reply)
 	}
 	device.expectNothing() // the device was not asked again
 
 	// A failed answer is not cached.
-	app2.send(frame.HostCall, frame.WithID(10, []byte("measure Bye")))
+	app2.send(frame.HostCall, frame.WithID(10, measure("Bye")))
 	id, _, _ = frame.SplitID(device.expect(frame.HostCall))
 	device.send(frame.HostReply, frame.Reply(id, 3, nil))
 	app2.expect(frame.HostReply)
-	app2.send(frame.HostCall, frame.WithID(11, []byte("measure Bye")))
+	app2.send(frame.HostCall, frame.WithID(11, measure("Bye")))
 	device.expect(frame.HostCall)
+
+	// Plugin calls are never answered from the cache, even when identical.
+	call := render.Encode(&render.PluginCall{ID: 1, Plugin: "secureStorage", Method: "get", Args: `{"key":"t"}`})
+	for i := uint32(20); i < 22; i++ {
+		app2.send(frame.HostCall, frame.WithID(i, call))
+		id, _, _ := frame.SplitID(device.expect(frame.HostCall))
+		device.send(frame.HostReply, frame.Reply(id, 0, render.Encode(&render.PluginAck{})))
+		app2.expect(frame.HostReply)
+	}
 
 	// A new device starts a fresh cache and restarts the app.
 	device2 := dial(t, addr, frame.RoleDevice, 42)
 	<-devices
-	app2.send(frame.HostCall, frame.WithID(12, []byte("measure Hello")))
+	app2.send(frame.HostCall, frame.WithID(12, measure("Hello")))
 	device2.expect(frame.HostCall)
 }
 

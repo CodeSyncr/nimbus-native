@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xec96bd45282b38c3uL.toLong()
+    val SCHEMA_HASH: Long = 0xa95ccab54add04c6uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -722,6 +722,75 @@ object Render {
         }
     }
 
+    /** PluginCall asks a native plugin to run a method (synchronous host call). The host answers at once with PluginAck and sends the outcome later as a PluginResult with the same ID. Args and results are JSON. */
+    data class PluginCall(
+        var id: Long = 0L,
+        var plugin: String = "",
+        var method: String = "",
+        var args: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.id)
+            w.string(this.plugin)
+            w.string(this.method)
+            w.string(this.args)
+        }
+
+        companion object {
+            fun read(r0: WireReader): PluginCall {
+                val m = PluginCall()
+                m.id = r0.uint()
+                m.plugin = r0.string()
+                m.method = r0.string()
+                m.args = r0.string()
+                return m
+            }
+        }
+    }
+
+    /** PluginAck answers PluginCall: Err is empty when the call started. */
+    data class PluginAck(
+        var err: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.string(this.err)
+        }
+
+        companion object {
+            fun read(r0: WireReader): PluginAck {
+                val m = PluginAck()
+                m.err = r0.string()
+                return m
+            }
+        }
+    }
+
+    /** PluginResult is a plugin call's outcome. A failure has a Code ("unavailable", "cancelled", "denied", "not_found", "failed") and Err. */
+    data class PluginResult(
+        var id: Long = 0L,
+        var value: String = "",
+        var code: String = "",
+        var err: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.id)
+            w.string(this.value)
+            w.string(this.code)
+            w.string(this.err)
+        }
+
+        companion object {
+            fun read(r0: WireReader): PluginResult {
+                val m = PluginResult()
+                m.id = r0.uint()
+                m.value = r0.string()
+                m.code = r0.string()
+                m.err = r0.string()
+                return m
+            }
+        }
+    }
+
     /** Op changes one native view. */
     sealed interface Op
 
@@ -783,6 +852,9 @@ object Render {
             is Changed -> { w.uint(9); v.write(w) }
             is MeasureText -> { w.uint(10); v.write(w) }
             is TextSize -> { w.uint(11); v.write(w) }
+            is PluginCall -> { w.uint(12); v.write(w) }
+            is PluginAck -> { w.uint(13); v.write(w) }
+            is PluginResult -> { w.uint(14); v.write(w) }
         }
     }
 
@@ -799,6 +871,9 @@ object Render {
         9L -> Changed.read(r0)
         10L -> MeasureText.read(r0)
         11L -> TextSize.read(r0)
+        12L -> PluginCall.read(r0)
+        13L -> PluginAck.read(r0)
+        14L -> PluginResult.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

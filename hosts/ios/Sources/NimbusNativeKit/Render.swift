@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xec96bd45282b38c3
+    public static let schemaHash: UInt64 = 0xa95ccab54add04c6
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -865,6 +865,90 @@ public enum Render {
         }
     }
 
+    /// PluginCall asks a native plugin to run a method (synchronous host call).
+    /// The host answers at once with PluginAck and sends the outcome later as a
+    /// PluginResult with the same ID. Args and results are JSON.
+    public struct PluginCall: Equatable {
+        public var id: UInt64
+        public var plugin: String
+        public var method: String
+        public var args: String
+
+        public init(id: UInt64 = 0, plugin: String = "", method: String = "", args: String = "") {
+            self.id = id
+            self.plugin = plugin
+            self.method = method
+            self.args = args
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.id))
+            w.string(self.plugin)
+            w.string(self.method)
+            w.string(self.args)
+        }
+
+        public static func read(from r: inout WireReader) throws -> PluginCall {
+            var m = PluginCall()
+            m.id = try r.uint()
+            m.plugin = try r.string()
+            m.method = try r.string()
+            m.args = try r.string()
+            return m
+        }
+    }
+
+    /// PluginAck answers PluginCall: Err is empty when the call started.
+    public struct PluginAck: Equatable {
+        public var err: String
+
+        public init(err: String = "") {
+            self.err = err
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.string(self.err)
+        }
+
+        public static func read(from r: inout WireReader) throws -> PluginAck {
+            var m = PluginAck()
+            m.err = try r.string()
+            return m
+        }
+    }
+
+    /// PluginResult is a plugin call's outcome. A failure has a Code
+    /// ("unavailable", "cancelled", "denied", "not_found", "failed") and Err.
+    public struct PluginResult: Equatable {
+        public var id: UInt64
+        public var value: String
+        public var code: String
+        public var err: String
+
+        public init(id: UInt64 = 0, value: String = "", code: String = "", err: String = "") {
+            self.id = id
+            self.value = value
+            self.code = code
+            self.err = err
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.id))
+            w.string(self.value)
+            w.string(self.code)
+            w.string(self.err)
+        }
+
+        public static func read(from r: inout WireReader) throws -> PluginResult {
+            var m = PluginResult()
+            m.id = try r.uint()
+            m.value = try r.string()
+            m.code = try r.string()
+            m.err = try r.string()
+            return m
+        }
+    }
+
     /// Op changes one native view.
     public indirect enum Op: Equatable {
         case create(Create)
@@ -988,6 +1072,9 @@ public enum Render {
         case changed(Changed)
         case measureText(MeasureText)
         case textSize(TextSize)
+        case pluginCall(PluginCall)
+        case pluginAck(PluginAck)
+        case pluginResult(PluginResult)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
             switch v {
@@ -1026,6 +1113,15 @@ public enum Render {
             case .textSize(let x)?:
                 w.uint(11)
                 x.write(to: &w)
+            case .pluginCall(let x)?:
+                w.uint(12)
+                x.write(to: &w)
+            case .pluginAck(let x)?:
+                w.uint(13)
+                x.write(to: &w)
+            case .pluginResult(let x)?:
+                w.uint(14)
+                x.write(to: &w)
             }
         }
 
@@ -1055,6 +1151,12 @@ public enum Render {
                 return .measureText(try MeasureText.read(from: &r))
             case 11:
                 return .textSize(try TextSize.read(from: &r))
+            case 12:
+                return .pluginCall(try PluginCall.read(from: &r))
+            case 13:
+                return .pluginAck(try PluginAck.read(from: &r))
+            case 14:
+                return .pluginResult(try PluginResult.read(from: &r))
             default:
                 throw WireError.variant
             }

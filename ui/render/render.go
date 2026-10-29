@@ -315,3 +315,31 @@ type MeasureText struct {
 //
 //wire:message
 type TextSize struct{ W, H float32 }
+
+// PluginCall asks a native plugin to run a method (synchronous host call).
+// The host answers at once with PluginAck and sends the outcome later as a
+// PluginResult with the same ID. Args and results are JSON.
+//
+//wire:message
+type PluginCall struct {
+	ID     uint64
+	Plugin string
+	Method string
+	Args   string
+}
+
+// PluginAck answers PluginCall: Err is empty when the call started.
+//
+//wire:message
+type PluginAck struct{ Err string }
+
+// PluginResult is a plugin call's outcome. A failure has a Code
+// ("unavailable", "cancelled", "denied", "not_found", "failed") and Err.
+//
+//wire:message
+type PluginResult struct {
+	ID    uint64
+	Value string
+	Code  string
+	Err   string
+}
