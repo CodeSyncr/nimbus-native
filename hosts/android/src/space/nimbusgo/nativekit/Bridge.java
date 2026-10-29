@@ -13,7 +13,7 @@ public final class Bridge {
     }
 
     /** NN_ERR_* codes from nn.h. */
-    public static final int ERR_ABI = 1, ERR_STATE = 2, ERR_PANIC = 3, ERR_NO_HANDLER = 4, ERR_ARG = 5;
+    public static final int ERR_ABI = 1, ERR_STATE = 2, ERR_PANIC = 3, ERR_NO_HANDLER = 4, ERR_ARG = 5, ERR_SCHEMA = 6;
 
     static {
         System.loadLibrary("nimbusapp"); // runs JNI_OnLoad, which registers the natives below
@@ -29,9 +29,12 @@ public final class Bridge {
         listener = l;
     }
 
-    /** Boots the app's Go side. Call once, at launch. */
-    public static void start() {
-        check(nativeStart());
+    /**
+     * Boots the app's Go side. Call once, at launch, with the generated NimbusSchema.COMBINED; the
+     * runtime refuses to start (ERR_SCHEMA) if the Go side was generated from a different schema.
+     */
+    public static void start(long schema) {
+        check(nativeStart(schema));
     }
 
     /** Native → Go, asynchronous. */
@@ -66,7 +69,7 @@ public final class Bridge {
         if (rc != 0) throw new BridgeException(rc, null);
     }
 
-    private static native int nativeStart();
+    private static native int nativeStart(long schema);
     private static native int nativeSend(byte[] msg);
     private static native byte[] nativeDrain();
     private static native byte[] nativeCall(byte[] req);

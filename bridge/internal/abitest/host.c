@@ -168,8 +168,10 @@ static void soak(int n) {
 	burst(4, n / 4, &drains);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
 	char out[4096];
+	if (argc < 2) FAIL("usage: host <schema hash>");
+	uint64_t schema = strtoull(argv[1], NULL, 0);
 
 	// Before start: everything refuses politely.
 	if (nn_send((const uint8_t *)"x", 1) != NN_ERR_STATE) FAIL("send before start");
@@ -178,16 +180,18 @@ int main(void) {
 	if (call("echo:x", NULL, 0) != NN_ERR_STATE) FAIL("call before start");
 	printf("ok   refuses before start\n");
 
-	nn_host bad = {NN_ABI_VERSION + 1, (void *)0x5eed, on_wake};
+	nn_host bad = {NN_ABI_VERSION + 1, schema, (void *)0x5eed, on_wake};
 	if (nn_start(&bad) != NN_ERR_ABI) FAIL("wrong ABI accepted");
-	nn_host nowake = {NN_ABI_VERSION, NULL, NULL};
+	nn_host nowake = {NN_ABI_VERSION, schema, NULL, NULL};
 	if (nn_start(&nowake) != NN_ERR_ARG) FAIL("missing wake accepted");
 	if (nn_start(NULL) != NN_ERR_ARG) FAIL("NULL host accepted");
-	nn_host host = {NN_ABI_VERSION, (void *)0x5eed, on_wake};
+	nn_host stale = {NN_ABI_VERSION, schema ^ 1, (void *)0x5eed, on_wake};
+	if (nn_start(&stale) != NN_ERR_SCHEMA) FAIL("wrong schema accepted");
+	nn_host host = {NN_ABI_VERSION, schema, (void *)0x5eed, on_wake};
 	if (nn_start(&host) != NN_OK) FAIL("start");
 	if (nn_start(&host) != NN_ERR_STATE) FAIL("second start accepted");
 	if (nn_drain(NULL, NULL) != NN_ERR_ARG) FAIL("drain with NULL out accepted");
-	printf("ok   start: ABI check, argument checks, single start\n");
+	printf("ok   start: ABI check, schema check, argument checks, single start\n");
 
 	if (nn_drain(&p, &n) != NN_OK || p != NULL || n != 0) FAIL("empty drain");
 	if (call("echo:héllo wörld", out, sizeof out) != NN_OK || strcmp(out, "héllo wörld") != 0) FAIL("echo: %s", out);

@@ -9,9 +9,15 @@ import (
 	"sync"
 
 	"github.com/CodeSyncr/nimbus-native/bridge"
+	"github.com/CodeSyncr/nimbus-native/wire"
 )
 
+// TestSchema is registered so the host can check nn_start's schema guard;
+// abi_test.go passes the combined value to the host.
+const TestSchema = 0x5eed5eed
+
 func init() {
+	wire.Register("abitest", TestSchema)
 	bridge.OnCall(func(req []byte) []byte {
 		cmd, arg, _ := strings.Cut(string(req), ":")
 		switch cmd {

@@ -48,6 +48,12 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 		return "", err
 	}
 
+	// 0. Wire schemas → Go, Swift.
+	generated, err := e.Gen(a)
+	if err != nil {
+		return "", err
+	}
+
 	// 1. Go → static library. cgo compiles with Xcode's clang for the target.
 	e.step("go → libapp.a (ios/arm64, %s)", t.SDK)
 	lib := filepath.Join(obj, "libapp.a")
@@ -60,6 +66,7 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 	// 2. Swift host + app code, linked against the Go library.
 	e.step("swiftc → %s", a.Name)
 	sources := globs(filepath.Join(e.Repo, "hosts/ios/Sources/NimbusNativeKit/*.swift"), filepath.Join(a.Dir, "ios/*.swift"))
+	sources = append(sources, generated.SwiftFiles...)
 	if len(sources) == 0 {
 		return "", fmt.Errorf("no Swift sources in %s/ios", a.Dir)
 	}

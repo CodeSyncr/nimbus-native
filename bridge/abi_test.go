@@ -1,11 +1,14 @@
 package bridge
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/CodeSyncr/nimbus-native/wire"
 )
 
 // TestABI builds internal/abitest/app as a C archive, links it with the C
@@ -37,7 +40,7 @@ func TestABI(t *testing.T) {
 		t.Fatalf("link host: %v\n%s", err, out)
 	}
 
-	run := exec.Command(bin)
+	run := exec.Command(bin, fmt.Sprint(wire.Combine([]uint64{0x5eed5eed})))
 	out, err := run.CombinedOutput()
 	t.Logf("\n%s", out)
 	if err != nil || !strings.Contains(string(out), "PASS") {

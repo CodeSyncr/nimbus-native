@@ -1,6 +1,7 @@
 import UIKit
 
-/// Bridge checks, run at launch. Every line also goes to the console so
+/// Bridge and wire checks, run at launch. Everything crosses as generated
+/// Proto messages. Every line also goes to the console so
 /// `nimbus-native run ios` can read the result.
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
@@ -11,17 +12,17 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     private enum Stage { case ping, burst, soak(round: Int), done }
     private var stage = Stage.ping
     private var t0 = DispatchTime.now()
-    private var ticks = 0, pings = 0, burstNext = 0, burstTarget = 0, drainsBefore = 0
+    private var ticks = 0, pings: UInt32 = 0, burstNext: UInt32 = 0, drainsBefore: UInt64 = 0
     private var soakOK = false
-    private var soakMem: [(heap: Int, footprint: Int, goroutines: Int)] = []
+    private var soakMem: [(heap: UInt64, footprint: Int, goroutines: UInt32)] = []
 
-    private let pingCount = 1000, burstCount = 100_000, soakCalls = 100_000
+    private let pingCount: UInt32 = 1000, burstCount: UInt32 = 100_000, soakCalls = 100_000
 
     func application(_ app: UIApplication, didFinishLaunchingWithOptions opts: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         let vc = UIViewController()
         vc.view.backgroundColor = .systemBackground
         label.numberOfLines = 0
-        label.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        label.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
         label.translatesAutoresizingMaskIntoConstraints = false
         vc.view.addSubview(label)
         NSLayoutConstraint.activate([
@@ -33,77 +34,106 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         window!.rootViewController = vc
         window!.makeKeyAndVisible()
 
-        bridge.onReceive = { [weak self] in self?.received(String(decoding: $0, as: UTF8.self)) }
+        bridge.onReceive = { [weak self] data in
+            do {
+                self?.received(try Proto.Message.decode([UInt8](data)))
+            } catch {
+                self?.fail("undecodable message from Go: \(error)")
+            }
+        }
         do {
             try run()
         } catch {
-            log("FAIL: \(error)")
+            fail("\(error)")
         }
         return true
     }
 
     private func run() throws {
-        t0 = .now()
-        try bridge.start()
-        log("start: ok in \(fmt(ms(since: t0))) ms")
-        log("call: " + (try text("hello:Yash")))
-
-        let n = 10_000, b0 = DispatchTime.now()
-        for _ in 0..<n { _ = try bridge.call(Data("echo:x".utf8)) }
-        log("sync calls: \(n), avg \(fmt(us(since: b0) / Double(n))) µs")
-
         do {
-            _ = try bridge.call(Data("panic".utf8))
-            log("FAIL: panic not reported")
-        } catch let e as BridgeError where e.code == NN_ERR_PANIC {
-            let carriesStack = e.detail.contains("asked to panic") && e.detail.contains("goroutine")
-            log("panic: recovered, message + Go stack \(carriesStack ? "delivered" : "MISSING")")
+            try bridge.start(schema: NimbusSchema.combined ^ 1)
+            return fail("a stale schema was accepted")
+        } catch let e as BridgeError where e.code == NN_ERR_SCHEMA {
+            log("schema guard: stale hash refused")
         }
 
         t0 = .now()
-        try bridge.send(Data("ping:0".utf8))
+        try bridge.start()
+        log("start: ok in \(fmt(ms(since: t0))) ms, schema \(String(NimbusSchema.combined, radix: 16))")
+
+        guard case .greeting(let g) = try call(.hello(Proto.Hello(name: "Yash"))) else { return fail("no greeting") }
+        log("call: \(g.text) \(g.goVersion) on \(g.platform)")
+
+        let n = 10_000, b0 = DispatchTime.now()
+        let echo = Proto.Message.echo(Proto.Echo(text: "x"))
+        for _ in 0..<n { _ = try call(echo) }
+        log("typed sync calls: \(n), avg \(fmt(us(since: b0) / Double(n))) µs (encode + call + decode)")
+
+        do {
+            _ = try call(.crash(Proto.Crash(reason: "asked to panic")))
+            return fail("panic not reported")
+        } catch let e as BridgeError where e.code == NN_ERR_PANIC {
+            log("panic: recovered, message + Go stack \(e.detail.contains("asked to panic") && e.detail.contains("goroutine") ? "delivered" : "MISSING")")
+        }
+
+        var rows = 0
+        let s0 = DispatchTime.now()
+        for _ in 0..<20 {
+            guard case .snapshot(let s) = try call(.snapshotRequest(Proto.SnapshotRequest(rows: 1000))) else { return fail("no snapshot") }
+            rows += s.rows.count
+            if s.rows[2].subtitle == nil || s.rows[1].subtitle != nil || s.rows[999].attrs["city"] != "Pune" || s.rows[5].kind != .button {
+                return fail("snapshot fields wrong")
+            }
+        }
+        log("snapshot: \(rows) rows decoded, \(fmt(us(since: s0) / Double(rows))) µs/row (Go encode + copy + Swift decode)")
+
+        t0 = .now()
+        try send(.ping(Proto.Ping(seq: 0)))
     }
 
-    private func received(_ msg: String) {
-        if msg == "ready" { return log("go → native: ready") }
-        if msg.hasPrefix("tick:") { ticks += 1; log("go → native: \(msg) (goroutine)"); return maybePass() }
-
-        switch stage {
-        case .ping where msg.hasPrefix("pong:"):
+    private func received(_ m: Proto.Message) {
+        switch (stage, m) {
+        case (_, .ready(let r)):
+            log("go → native: ready (\(r.goVersion))")
+        case (_, .tick(let t)):
+            ticks += 1
+            log("go → native: tick \(t.n) (goroutine)")
+            maybePass()
+        case (.ping, .pong(let p)):
+            guard p.seq == pings else { return fail("pong \(p.seq), want \(pings)") }
             pings += 1
             if pings < pingCount {
-                try? bridge.send(Data("ping:\(pings)".utf8))
+                try? send(.ping(Proto.Ping(seq: pings)))
             } else {
-                log("ping-pong: \(pingCount) round trips, avg \(fmt(us(since: t0) / Double(pingCount))) µs")
+                log("ping-pong: \(pingCount) typed round trips, avg \(fmt(us(since: t0) / Double(pingCount))) µs")
                 startBurst(next: .burst)
             }
-        case .burst, .soak:
-            guard msg == "b:\(burstNext)" else { return fail("burst out of order: got \(msg), want b:\(burstNext)") }
+        case (.burst, .item(let it)), (.soak, .item(let it)):
+            guard it.index == burstNext else { return fail("burst out of order: \(it.index), want \(burstNext)") }
             burstNext += 1
-            if burstNext == burstTarget { burstDone() }
+            if burstNext == burstCount { burstDone() }
         default:
-            break
+            fail("unexpected message \(m)")
         }
     }
 
     private func startBurst(next: Stage) {
         stage = next
         burstNext = 0
-        burstTarget = burstCount
-        drainsBefore = stats(gc: false)[4]
+        drainsBefore = stats(gc: false).drains
         t0 = .now()
-        _ = try? bridge.call(Data("burst:\(burstCount)".utf8))
+        _ = try? call(.startBurst(Proto.StartBurst(count: burstCount)))
     }
 
     private func burstDone() {
-        let drains = stats(gc: false)[4] - drainsBefore
+        let drains = stats(gc: false).drains - drainsBefore
         switch stage {
         case .burst:
-            log("burst: \(burstCount) msgs in order, \(drains) drains (\(burstCount / max(drains, 1)) msgs/drain), \(fmt(us(since: t0) * 1000 / Double(burstCount))) ns/msg")
+            log("burst: \(burstCount) typed msgs in order, \(drains) drains, \(fmt(us(since: t0) * 1000 / Double(burstCount))) ns/msg")
             soakRound(1)
         case .soak(let round):
             let s = stats(gc: true)
-            soakMem.append((s[0], footprint(), s[1]))
+            soakMem.append((s.heap, footprint(), s.goroutines))
             if round == 1 { return soakRound(2) }
             finishSoak()
         default:
@@ -111,18 +141,19 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    // One soak round: 100k sync calls, then a 100k-message burst.
     private func soakRound(_ round: Int) {
-        for _ in 0..<soakCalls { _ = try? bridge.call(Data("echo:soak".utf8)) }
+        let echo = Proto.Message.echo(Proto.Echo(text: "soak"))
+        for _ in 0..<soakCalls { _ = try? call(echo) }
         startBurst(next: .soak(round: round))
     }
 
     private func finishSoak() {
         let (a, b) = (soakMem[0], soakMem[1])
         log("soak: 2 rounds × (\(soakCalls) calls + \(burstCount) msgs)")
-        log("  Go heap \(a.heap / 1024) → \(b.heap / 1024) KB, footprint \(a.footprint / 1024 / 1024) → \(b.footprint / 1024 / 1024) MB, goroutines \(a.goroutines) → \(b.goroutines)")
-        let leak = b.heap - a.heap > 512 * 1024 || b.footprint - a.footprint > 4 * 1024 * 1024 || b.goroutines > a.goroutines + 2
-        if leak { return fail("memory grew between soak rounds") }
+        log("  Go heap \(a.heap / 1024) → \(b.heap / 1024) KB, footprint \(a.footprint >> 20) → \(b.footprint >> 20) MB, goroutines \(a.goroutines) → \(b.goroutines)")
+        if Int(b.heap) - Int(a.heap) > 512 * 1024 || b.footprint - a.footprint > 4 << 20 || b.goroutines > a.goroutines + 2 {
+            return fail("memory grew between soak rounds")
+        }
         log("soak: no leak")
         soakOK = true
         stage = .done
@@ -130,16 +161,20 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     private func maybePass() {
-        if soakOK && ticks == 3 { log("NN-0B RESULT: PASS") }
+        if soakOK && ticks == 3 { log("NN-0C RESULT: PASS") }
     }
 
     // MARK: helpers
 
-    private func text(_ req: String) throws -> String { String(decoding: try bridge.call(Data(req.utf8)), as: UTF8.self) }
+    private func call(_ m: Proto.Message) throws -> Proto.Message {
+        try Proto.Message.decode([UInt8](try bridge.call(Data(m.encode()))))
+    }
 
-    /// heap, goroutines, sent, wakes, drains
-    private func stats(gc: Bool) -> [Int] {
-        ((try? text(gc ? "stats:gc" : "stats:")) ?? "").split(separator: " ").compactMap { Int($0) }
+    private func send(_ m: Proto.Message) throws { try bridge.send(Data(m.encode())) }
+
+    private func stats(gc: Bool) -> Proto.Stats {
+        if case .stats(let s)? = try? call(.statsRequest(Proto.StatsRequest(gc: gc))) { return s }
+        return Proto.Stats()
     }
 
     private func footprint() -> Int {
@@ -151,12 +186,15 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         return kr == KERN_SUCCESS ? Int(info.phys_footprint) : 0
     }
 
-    private func fail(_ s: String) { stage = .done; log("FAIL: " + s) }
+    private func fail(_ s: String) {
+        stage = .done
+        log("FAIL: " + s)
+    }
 
     private func log(_ s: String) {
         print("[hello] " + s)
         lines.append(s)
-        label.text = "Nimbus Native · bridge checks\n\n" + lines.joined(separator: "\n")
+        label.text = "Nimbus Native · bridge + wire checks\n\n" + lines.joined(separator: "\n")
     }
 
     private func us(since t: DispatchTime) -> Double { Double(DispatchTime.now().uptimeNanoseconds - t.uptimeNanoseconds) / 1_000 }

@@ -3,6 +3,7 @@
 // built.
 //
 //	nimbus-native doctor
+//	nimbus-native gen [app-dir]
 //	nimbus-native build ios|android [flags] [app-dir]
 //	nimbus-native run   ios|android [flags] [app-dir]
 package main
@@ -24,6 +25,22 @@ func main() {
 	switch cmd {
 	case "doctor":
 		if !toolchain.Detect(".").Doctor() {
+			os.Exit(1)
+		}
+	case "gen":
+		dir := "."
+		if len(os.Args) > 2 {
+			dir = os.Args[2]
+		}
+		app, err := toolchain.LoadApp(dir, "", "")
+		if err == nil {
+			var g *toolchain.Generated
+			if g, err = toolchain.Detect(app.Dir).Gen(app); err == nil {
+				fmt.Printf("schema %#016x\n", g.Combined)
+			}
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
 	case "build", "run":
@@ -94,6 +111,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   nimbus-native doctor
+  nimbus-native gen [app-dir]
   nimbus-native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
   nimbus-native run   ios|android [...same flags] [app-dir]`)
 	os.Exit(2)

@@ -51,6 +51,12 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 	}
 	host := filepath.Join(e.NDK, "toolchains/llvm/prebuilt", ndkHost())
 
+	// 0. Wire schemas → Go, Java.
+	generated, err := e.Gen(a)
+	if err != nil {
+		return "", err
+	}
+
 	// 1. Go → libnimbusapp.so for each ABI. Pages are 16 KB-aligned: Google
 	// Play requires it for apps targeting Android 15+.
 	libs := map[string]string{}
@@ -76,6 +82,7 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 	e.step("javac + d8 → classes.dex")
 	classes := filepath.Join(obj, "classes")
 	sources := globs(filepath.Join(e.Repo, "hosts/android/src/space/nimbusgo/nativekit/*.java"), filepath.Join(a.Dir, "android/*.java"))
+	sources = append(sources, generated.JavaFiles...)
 	if err := e.run(nil, e.Javac, append([]string{"--release", "11", "-nowarn", "-classpath", e.AndroidJar, "-d", classes}, sources...)...); err != nil {
 		return "", err
 	}

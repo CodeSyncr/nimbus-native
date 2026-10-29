@@ -17,10 +17,13 @@ public final class Bridge {
 
     private init() {}
 
-    /// Boots the app's Go side. Call once, at launch.
-    public func start() throws {
+    /// Boots the app's Go side. Call once, at launch. `schema` is the
+    /// generated `NimbusSchema.combined`; the runtime refuses to start
+    /// (NN_ERR_SCHEMA) if the Go side was generated from a different schema.
+    public func start(schema: UInt64 = NimbusSchema.combined) throws {
         var host = nn_host()
         host.abi = UInt32(NN_ABI_VERSION)
+        host.schema = schema
         host.ctx = Unmanaged.passUnretained(self).toOpaque()
         host.wake = { ctx in
             // A Go thread: Go's outbox just stopped being empty. Schedule one

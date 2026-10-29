@@ -50,9 +50,10 @@ static void throw_bridge(JNIEnv *env, jint code, uint8_t *detail, int32_t n) {
 	if (ex != NULL) (*env)->Throw(env, (jthrowable)ex);
 }
 
-static jint Bridge_start(JNIEnv *env, jclass cls) {
+static jint Bridge_start(JNIEnv *env, jclass cls, jlong schema) {
 	static nn_host host;
 	host.abi = NN_ABI_VERSION;
+	host.schema = (uint64_t)schema;
 	host.ctx = NULL;
 	host.wake = jni_wake;
 	return nn_start(&host);
@@ -112,7 +113,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	if (g_on_wake == NULL || g_exc_init == NULL) return JNI_ERR;
 
 	static const JNINativeMethod methods[] = {
-		{"nativeStart", "()I", (void *)Bridge_start},
+		{"nativeStart", "(J)I", (void *)Bridge_start},
 		{"nativeSend", "([B)I", (void *)Bridge_send},
 		{"nativeDrain", "()[B", (void *)Bridge_drain},
 		{"nativeCall", "([B)[B", (void *)Bridge_call},

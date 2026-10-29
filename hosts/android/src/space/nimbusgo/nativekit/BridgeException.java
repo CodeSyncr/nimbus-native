@@ -4,6 +4,8 @@ import java.nio.charset.StandardCharsets;
 
 /** A failed call into the Go runtime. For a recovered Go panic, the message holds the panic and Go stack. */
 public final class BridgeException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     /** NN_ERR_* code from nn.h. */
     public final int code;
 
@@ -20,6 +22,7 @@ public final class BridgeException extends RuntimeException {
             case Bridge.ERR_PANIC: what = "Go panicked"; break;
             case Bridge.ERR_NO_HANDLER: what = "no handler"; break;
             case Bridge.ERR_ARG: what = "bad argument"; break;
+            case Bridge.ERR_SCHEMA: what = "wire schema mismatch; regenerate with nimbus-native gen"; break;
             default: what = "error " + code;
         }
         if (detail == null || detail.length == 0) return "nimbus-native: " + what;

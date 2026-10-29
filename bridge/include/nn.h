@@ -29,7 +29,7 @@ extern "C" {
 
 // Bumped on any incompatible change to this header. nn_start refuses a host
 // built against a different version.
-#define NN_ABI_VERSION 2
+#define NN_ABI_VERSION 3
 
 // Result codes.
 #define NN_OK 0
@@ -38,6 +38,7 @@ extern "C" {
 #define NN_ERR_PANIC 3      // Go code panicked; the panic was recovered
 #define NN_ERR_NO_HANDLER 4 // the app registered no handler for this call
 #define NN_ERR_ARG 5        // a required argument was missing or invalid
+#define NN_ERR_SCHEMA 6     // host and runtime were generated from different wire schemas
 
 // Go → native: messages are waiting. Called once each time the outbox goes
 // from empty to non-empty, from any runtime thread. The host answers by
@@ -47,6 +48,7 @@ typedef void (*nn_wake_fn)(void *ctx);
 // What the host gives the runtime at start.
 typedef struct {
     uint32_t abi;     // must be NN_ABI_VERSION
+    uint64_t schema;  // combined wire schema hash (generated NimbusSchema); 0 if none
     void *ctx;        // passed back untouched to wake
     nn_wake_fn wake;  // required
 } nn_host;
