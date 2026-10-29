@@ -5,6 +5,8 @@
 - Fixes iOS projects made from the published module: the Swift package's
   C header was a symlink, which Go module zips leave out. v0.0.1 is
   retracted.
+- `nimbus native` ships in the Nimbus CLI from v1.16.0:
+  `go install github.com/CodeSyncr/nimbus/cmd/nimbus@latest`.
 
 ## 0.0.1: first beta (2026-10-30)
 
@@ -55,5 +57,3 @@ Native iOS and Android apps in Go, and the same app on the web.
 - No flex-wrap, animations or gestures yet.
 - Native plugins answer `unavailable` on the web.
 - On the web, each open tab keeps a small UI session on the server.
-- `nimbus native` needs a nimbus CLI release that includes it; until
-  then, run the toolchain with `go run …/cmd/nimbus-native@v0.0.2`.

@@ -13,8 +13,8 @@ backend included.
 > isn't yet.
 
 ```sh
-go run github.com/CodeSyncr/nimbus-native/cmd/nimbus-native@v0.0.2 new shop
-# or, with a nimbus CLI that has the native command: nimbus native new shop
+go install github.com/CodeSyncr/nimbus/cmd/nimbus@latest   # Nimbus v1.16.0 or later
+nimbus native new shop
 cd shop && go run .              # the server and the web app on :3333
 nimbus native run ios            # in another terminal; or open native/ios in Xcode
 ```
