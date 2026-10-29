@@ -4,9 +4,22 @@ Native iOS and Android apps written in Go — the app's code is compiled into
 the app and drives real native views (UIKit, Android Views). Nimbus is the
 server; Nimbus Native is the device.
 
-**Status: Phase 0c** — own toolchain, a batched C ABI bridge, and a typed
-wire format generated for Go, Swift and Java from one Go schema. Proven on
-the iOS simulator, the Android emulator and the desktop. No UI layer yet.
+**Status: Phase 0d** — apps are Go components rendered as real UIKit and
+Android views, laid out by a pure-Go flexbox engine, over our own
+toolchain, bridge and typed wire format.
+
+```go
+type Counter struct{}
+
+func (Counter) Render(c *ui.Ctx) *ui.Element {
+	n, setN := ui.State(c, 0)
+	return ui.Pressable(func() { setN(n + 1) }, ui.Style{Padding: ui.All(12)},
+		ui.Text(fmt.Sprintf("Tapped %d times", n), ui.Style{FontWeight: 600}),
+	)
+}
+
+func init() { ui.Mount(Counter{}) }
+```
 
 ## Layout
 
@@ -19,9 +32,16 @@ the iOS simulator, the Android emulator and the desktop. No UI layer yet.
 | `hosts/android/` | `space.nimbusgo.nativekit.Bridge` (Java) |
 | `wire/` | Wire format runtime (Go); `wire/schema` reads schemas, `wire/gen` generates Go, Swift, Java |
 | `hosts/*/…/Wire*` | Swift and Java wire runtimes |
+| `layout/` | Flexbox engine in pure Go; 62 fixtures match Chromium's layout; incremental |
+| `ui/` | Components, hooks (State, Reducer, Effect, Memo, Ref, Viewport), elements, keyed reconciler, UI loop |
+| `ui/render/` | The Go ↔ native renderer protocol (generated into both kits) |
+| `hosts/ios/…/Renderer.swift` | UIKit renderer and `NimbusViewController` |
+| `hosts/android/…/Renderer.java`, `NimbusView.java` | Android Views renderer and root view |
 | `toolchain/` | Builds apps with the platform tools directly — no gomobile, no Gradle; runs `gen` first |
 | `cmd/nimbus-native/` | CLI (becomes `nimbus native …`) |
-| `examples/hello/` | Phase 0a round-trip app |
+| `examples/hello/` | Bridge and wire checks |
+| `examples/gallery/` | Every primitive plus a 1,000-row list, with a built-in benchmark |
+| `examples/baseline/` | The same list in plain Android views, to calibrate emulator numbers |
 
 ## Try it
 
@@ -89,6 +109,33 @@ and reject the same bad inputs.
   waiting message in one buffer. A burst costs one thread hop, not one per
   message.
 - Hosts refer to Go values by integer `Handle`, never by pointer.
+
+## How a screen gets drawn
+
+1. A state change (or host event) is queued to the UI loop goroutine.
+2. Components whose props or state changed render again; the rest are kept.
+3. The keyed reconciler turns the new elements into ops — create, children
+   order, style, text, image, input — only for what changed.
+4. The flexbox engine lays out only changed subtrees, asking the host to
+   measure text (a synchronous host call, cached per text).
+5. Changed frames join the ops in one `render.Commit`, applied on the UI
+   thread in a single pass.
+
+## Phase 0d results
+
+| | iOS simulator | Android emulator* |
+|---|---|---|
+| First render, 1,000 rows (8,014 native views) | Go 21 ms + layout 128 ms; UIKit 457 ms | Go 422 ms + layout 1.4 s; apply 1 s |
+| Tap → screen (20 taps) | median **3.2 ms**, worst 5 ms | median 52 ms (frame-bound) |
+| Tap commit | 4 ops; Go 0.9 ms, layout 1.7 ms | 1 op; Go 1.7 ms, layout 3.8 ms |
+| Scroll through the list, 180 frames | **60 fps, 0 dropped** | 38 fps — plain Android views: 37 fps |
+| Typing → Go → greeting updates | ✓ | ✓ |
+| Layout of the 1,000-row screen, desktop | full 4.7 ms; one change 0.08 ms | |
+
+\* The emulator is the limit here: the same list built with plain Android
+views scrolls at the same rate. First render is slow because all 1,000 rows
+exist as native views and measure their text; a virtualized list (Phase 1)
+creates only the visible rows.
 
 ## Phase 0c results
 

@@ -240,7 +240,9 @@ func writeAPK(base, out string, deflated, stored map[string]string) error {
 func (a *App) androidManifest() string {
 	return `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="` + a.ID + `">
-    <application android:label="` + a.Name + `" android:extractNativeLibs="false" android:hasCode="true">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:label="` + a.Name + `" android:extractNativeLibs="false" android:hasCode="true"
+        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

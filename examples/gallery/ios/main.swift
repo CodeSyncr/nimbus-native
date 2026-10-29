@@ -22,6 +22,7 @@ final class Bench {
     private var commits = 0
     private var pressAt: CFTimeInterval = 0
     private var tapLatencies: [Double] = []
+    private var typing = false
     private var link: CADisplayLink?
     private var frameTimes: [CFTimeInterval] = []
 
@@ -32,6 +33,13 @@ final class Bench {
 
     private func committed(_ c: Render.Commit, _ applyMs: Double) {
         commits += 1
+        if typing {
+            typing = false
+            let greeting = (r.view(forTag: r.tag(forTestID: "greeting") ?? 0) as? UILabel)?.text ?? "?"
+            log("typed \"Yash\" → greeting: \(greeting)")
+            if greeting != "Hello, Yash 👋" { return log("FAIL: greeting did not follow the input") }
+            return scroll()
+        }
         if commits == 1 {
             let views = c.ops.filter { if case .create? = $0 { return true }; return false }.count
             log(String(format: "first render: %d native views, %d ops; Go build %.1f ms, layout %.1f ms (%d text measurements); UIKit apply %.1f ms",
@@ -53,7 +61,7 @@ final class Bench {
                 log(String(format: "tap → screen: 20 taps, median %.2f ms, worst %.2f ms", s[10], s[19]))
                 let label = (r.view(forTag: r.tag(forTestID: "counter") ?? 0)?.subviews.first as? UILabel)?.text ?? "?"
                 log("counter label now: \(label)")
-                scroll()
+                typeName()
             }
         }
     }
@@ -62,6 +70,14 @@ final class Bench {
         guard let tag = r.tag(forTestID: "counter") else { return log("FAIL: no counter") }
         pressAt = CACurrentMediaTime()
         r.press(tag: tag)
+    }
+
+    /// Types into the name field the way the keyboard does.
+    private func typeName() {
+        guard let f = r.view(forTag: r.tag(forTestID: "name") ?? 0) as? UITextField else { return log("FAIL: no name field") }
+        typing = true
+        f.text = "Yash"
+        f.sendActions(for: .editingChanged)
     }
 
     private func scroll() {
