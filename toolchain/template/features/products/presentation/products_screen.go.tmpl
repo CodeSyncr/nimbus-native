@@ -82,7 +82,7 @@ func (s ProductScreen) Render(c *ui.Ctx) *ui.Element {
 	if qty > 0 {
 		label = fmt.Sprintf("Add another (%d in cart)", qty)
 	}
-	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: th.SpaceL},
+	return ui.SafeArea(ui.Style{Grow: 1}, ui.Scroll(ui.Style{Grow: 1, Shrink: 1}, ui.View(ui.Style{Padding: ui.All(th.SpaceL), Gap: th.SpaceL},
 		ui.View(ui.Style{AlignItems: ui.AlignCenter}, tile(th, p.Emoji, 140)),
 		ui.View(ui.Style{Gap: th.SpaceS},
 			ui.Text(p.Name, ui.Style{FontSize: th.Title, FontWeight: 700}).TestID("product-name"),
@@ -92,7 +92,7 @@ func (s ProductScreen) Render(c *ui.Ctx) *ui.Element {
 		ui.C(widgets.Button{Label: label, OnPress: add}).TestID("add-to-cart"),
 		router.Link("/cart", ui.Style{AlignItems: ui.AlignCenter, Padding: ui.All(8)},
 			ui.Text("Go to cart", ui.Style{Color: th.Primary, FontWeight: 600})),
-	)
+	)))
 }
 
 // tile is a product's picture: its emoji on a soft square.

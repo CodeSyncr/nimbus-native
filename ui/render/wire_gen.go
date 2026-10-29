@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x9bd2b188a7064150
+const SchemaHash uint64 = 0x9f8e24ae5a72a614
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -579,6 +579,17 @@ func (m *Refresh) ReadWire(r *wire.Reader) {
 	m.Tag = uint32(r.UintMax(1<<32 - 1))
 }
 
+// AppendWire appends m's wire encoding to b.
+func (m *Reattach) AppendWire(b []byte) []byte {
+	b = wire.AppendString(b, m.Reason)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Reattach) ReadWire(r *wire.Reader) {
+	m.Reason = r.String()
+}
+
 func (*Create) isOp()    {}
 func (*Destroy) isOp()   {}
 func (*Children) isOp()  {}
@@ -730,6 +741,7 @@ func (*PluginAck) isMessage()    {}
 func (*PluginResult) isMessage() {}
 func (*Toggled) isMessage()      {}
 func (*Refresh) isMessage()      {}
+func (*Reattach) isMessage()     {}
 
 // AppendMessage appends a Message: its variant index (0 for nil), then the variant.
 func AppendMessage(b []byte, v Message) []byte {
@@ -768,6 +780,8 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 15))
 	case *Refresh:
 		return v.AppendWire(wire.AppendUint(b, 16))
+	case *Reattach:
+		return v.AppendWire(wire.AppendUint(b, 17))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -839,6 +853,10 @@ func ReadMessage(r *wire.Reader) Message {
 		return v
 	case 16:
 		v := new(Refresh)
+		v.ReadWire(r)
+		return v
+	case 17:
+		v := new(Reattach)
 		v.ReadWire(r)
 		return v
 	}

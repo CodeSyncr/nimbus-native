@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x9bd2b188a7064150
+    public static let schemaHash: UInt64 = 0x9f8e24ae5a72a614
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -1043,6 +1043,27 @@ public enum Render {
         }
     }
 
+    /// Reattach reports a new native view hierarchy for a runtime that is
+    /// already running (an Android activity created again): Go sends every
+    /// view again, and the UI carries on with its state.
+    public struct Reattach: Equatable {
+        public var reason: String
+
+        public init(reason: String = "") {
+            self.reason = reason
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.string(self.reason)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Reattach {
+            var m = Reattach()
+            m.reason = try r.string()
+            return m
+        }
+    }
+
     /// Op changes one native view.
     public indirect enum Op: Equatable {
         case create(Create)
@@ -1177,6 +1198,7 @@ public enum Render {
         case pluginResult(PluginResult)
         case toggled(Toggled)
         case refresh(Refresh)
+        case reattach(Reattach)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
             switch v {
@@ -1230,6 +1252,9 @@ public enum Render {
             case .refresh(let x)?:
                 w.uint(16)
                 x.write(to: &w)
+            case .reattach(let x)?:
+                w.uint(17)
+                x.write(to: &w)
             }
         }
 
@@ -1269,6 +1294,8 @@ public enum Render {
                 return .toggled(try Toggled.read(from: &r))
             case 16:
                 return .refresh(try Refresh.read(from: &r))
+            case 17:
+                return .reattach(try Reattach.read(from: &r))
             default:
                 throw WireError.variant
             }

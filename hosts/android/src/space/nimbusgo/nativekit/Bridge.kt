@@ -50,11 +50,22 @@ object Bridge {
     }
 
     /**
-     * Boots the app's Go side. Call once, at launch, with the generated NimbusSchema.COMBINED; the
-     * runtime refuses to start (ERR_SCHEMA) if the Go side was generated from a different schema.
+     * Boots the app's Go side with the generated NimbusSchema.COMBINED; the runtime refuses to start
+     * (ERR_SCHEMA) if the Go side was generated from a different schema. It starts once per process:
+     * later calls (an activity created again) return false and leave it running.
      */
     @JvmStatic
-    fun start(schema: Long) = check(nativeStart(schema))
+    fun start(schema: Long): Boolean {
+        synchronized(this) {
+            if (started) return false
+            check(nativeStart(schema))
+            started = true
+            return true
+        }
+    }
+
+    // The runtime lives as long as the process; a new activity reattaches to it.
+    @Volatile private var started = false
 
     /** Native → Go, asynchronous. */
     @JvmStatic

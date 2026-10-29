@@ -75,8 +75,10 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
         val d = density
         Bridge.setHostHandler { req -> answer(req, d) }
-        Bridge.start(schema)
+        val fresh = Bridge.start(schema)
         started = true
+        // A runtime already running drew into views that are gone: draw it all again here.
+        if (!fresh) Bridge.send(Render.encode(Render.Reattach(reason = "activity created again")))
     }
 
     // ---- viewport and events ----

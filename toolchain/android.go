@@ -153,7 +153,10 @@ func (e *Env) goAndroid(a *App, abi AndroidABI, out string) error {
 	if abi.GOARM != "" {
 		env = append(env, "GOARM="+abi.GOARM)
 	}
-	return e.goBuild(a.goDir(), env, "c-shared", out, "-extldflags=-Wl,-z,max-page-size=16384")
+	// -s -w: no symbol table or DWARF in the shipped library (panics still
+	// name their functions). Android's own strip step can't run on it
+	// without a pinned NDK.
+	return e.goBuild(a.goDir(), env, "c-shared", out, "-s", "-w", "-extldflags=-Wl,-z,max-page-size=16384")
 }
 
 // RunAndroid installs the APK on a connected device or emulator (booting
@@ -266,7 +269,8 @@ func (a *App) androidManifest() string {
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:label="` + a.Name + `" android:extractNativeLibs="false" android:hasCode="true"
         android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
-        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
+        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density|fontScale|layoutDirection|locale">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

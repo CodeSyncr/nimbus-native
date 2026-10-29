@@ -198,6 +198,8 @@ func (rt *runtime) receive(b []byte) {
 			}
 		case *render.Dismissed:
 			rt.dismissed(m.Tag)
+		case *render.Reattach:
+			rt.replay()
 		case *render.Toggled:
 			if in := rt.byTag[m.Tag]; in != nil {
 				in.sent.toggle.On = m.On // what the host shows; Go's answer is diffed against it

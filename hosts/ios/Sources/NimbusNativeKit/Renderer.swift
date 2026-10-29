@@ -94,8 +94,10 @@ public final class Renderer {
         }
         bridge.onHostCall = { try Renderer.answer($0) }
         do {
-            try bridge.start(schema: schema)
+            let fresh = try bridge.start(schema: schema)
             started = true
+            // A runtime already running drew into views that are gone: draw it all again here.
+            if !fresh { send(.reattach(Render.Reattach(reason: "view controller created again"))) }
         } catch {
             let label = UILabel(frame: container.bounds.insetBy(dx: 20, dy: 80))
             label.numberOfLines = 0

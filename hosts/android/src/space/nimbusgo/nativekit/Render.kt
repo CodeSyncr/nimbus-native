@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x9bd2b188a7064150uL.toLong()
+    val SCHEMA_HASH: Long = 0x9f8e24ae5a72a614uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -870,6 +870,23 @@ object Render {
         }
     }
 
+    /** Reattach reports a new native view hierarchy for a runtime that is already running (an Android activity created again): Go sends every view again, and the UI carries on with its state. */
+    data class Reattach(
+        var reason: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.string(this.reason)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Reattach {
+                val m = Reattach()
+                m.reason = r0.string()
+                return m
+            }
+        }
+    }
+
     /** Op changes one native view. */
     sealed interface Op
 
@@ -938,6 +955,7 @@ object Render {
             is PluginResult -> { w.uint(14); v.write(w) }
             is Toggled -> { w.uint(15); v.write(w) }
             is Refresh -> { w.uint(16); v.write(w) }
+            is Reattach -> { w.uint(17); v.write(w) }
         }
     }
 
@@ -959,6 +977,7 @@ object Render {
         14L -> PluginResult.read(r0)
         15L -> Toggled.read(r0)
         16L -> Refresh.read(r0)
+        17L -> Reattach.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

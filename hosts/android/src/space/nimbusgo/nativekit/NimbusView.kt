@@ -97,6 +97,13 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
         return maxOf(0, loc[1] + height - (windowH - imeBottom))
     }
 
+    // Activities declare configChanges (rotation, dark mode, size), so they come here instead
+    // of being created again: the viewport carries the change to Go.
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        post { sendViewport() }
+    }
+
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         requestApplyInsets()

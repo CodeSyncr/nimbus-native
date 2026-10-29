@@ -377,3 +377,10 @@ type Toggled struct {
 //
 //wire:message
 type Refresh struct{ Tag uint32 }
+
+// Reattach reports a new native view hierarchy for a runtime that is
+// already running (an Android activity created again): Go sends every
+// view again, and the UI carries on with its state.
+//
+//wire:message
+type Reattach struct{ Reason string }

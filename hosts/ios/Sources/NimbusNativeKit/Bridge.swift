@@ -28,7 +28,12 @@ public final class Bridge {
     /// Boots the app's Go side. Call once, at launch. `schema` is the
     /// generated `NimbusSchema.combined`; the runtime refuses to start
     /// (NN_ERR_SCHEMA) if the Go side was generated from a different schema.
-    public func start(schema: UInt64) throws {
+    private var started = false
+
+    /// Whether this start found the runtime already running (and left it so).
+    @discardableResult
+    public func start(schema: UInt64) throws -> Bool {
+        if started { return false } // a new view controller reattaches instead
         var host = nn_host()
         host.abi = UInt32(NN_ABI_VERSION)
         host.schema = schema
@@ -52,6 +57,8 @@ public final class Bridge {
         }
         let rc = nn_start(&host)
         if rc != NN_OK { throw BridgeError(code: rc, detail: "") }
+        started = true
+        return true
     }
 
     /// Delivers every message Go has queued, in order. Runs on main.
