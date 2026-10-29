@@ -14,6 +14,11 @@ package bridge
 static void nn_wake(const nn_host *h) {
 	h->wake(h->ctx);
 }
+
+static int32_t nn_host_call(const nn_host *h, const uint8_t *req, int32_t len, uint8_t **out, int32_t *out_len) {
+	if (h->call == NULL) return NN_ERR_NO_HANDLER;
+	return h->call(h->ctx, req, len, out, out_len);
+}
 */
 import "C"
 
@@ -87,6 +92,36 @@ func Send(msg []byte) error {
 		C.nn_wake(host)
 	}
 	return nil
+}
+
+// HostError is a failed CallHost: Code is an NN_ERR_* value from nn.h.
+type HostError struct{ Code int }
+
+func (e *HostError) Error() string { return fmt.Sprintf("bridge: host call failed (code %d)", e.Code) }
+
+// CallHost asks the host something only it can answer, synchronously — text
+// measurement during layout, later native modules. Safe from any goroutine.
+func CallHost(req []byte) ([]byte, error) {
+	if !started.Load() {
+		return nil, ErrNotStarted
+	}
+	var p *C.uint8_t
+	if len(req) > 0 {
+		p = (*C.uint8_t)(unsafe.Pointer(&req[0]))
+	}
+	var out *C.uint8_t
+	var outLen C.int32_t
+	rc := C.nn_host_call(host, p, C.int32_t(len(req)), &out, &outLen)
+	stats.hostCalls.Add(1)
+	var reply []byte
+	if out != nil {
+		reply = C.GoBytes(unsafe.Pointer(out), C.int(outLen))
+		C.free(unsafe.Pointer(out))
+	}
+	if rc != C.NN_OK {
+		return reply, &HostError{Code: int(rc)}
+	}
+	return reply, nil
 }
 
 //export nn_start

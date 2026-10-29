@@ -18,6 +18,9 @@
 //     nn_drain on the UI thread.
 //   - Go code never blocks the UI thread except inside nn_call, which the
 //     app keeps short.
+//   - The runtime calls the host's call() synchronously from its own
+//     threads (e.g. to measure text during layout). call must answer without
+//     waiting on the UI thread — the UI thread may itself be inside nn_call.
 #ifndef NIMBUS_NATIVE_H
 #define NIMBUS_NATIVE_H
 
@@ -29,7 +32,7 @@ extern "C" {
 
 // Bumped on any incompatible change to this header. nn_start refuses a host
 // built against a different version.
-#define NN_ABI_VERSION 3
+#define NN_ABI_VERSION 4
 
 // Result codes.
 #define NN_OK 0
@@ -45,12 +48,18 @@ extern "C" {
 // calling nn_drain on its UI thread.
 typedef void (*nn_wake_fn)(void *ctx);
 
+// Go → native, synchronous: a question only the host can answer (text
+// measurement, later native modules). The host allocates *out with malloc;
+// the runtime frees it. Returns NN_OK or an NN_ERR_* code.
+typedef int32_t (*nn_call_fn)(void *ctx, const uint8_t *req, int32_t len, uint8_t **out, int32_t *out_len);
+
 // What the host gives the runtime at start.
 typedef struct {
     uint32_t abi;     // must be NN_ABI_VERSION
     uint64_t schema;  // combined wire schema hash (generated NimbusSchema); 0 if none
     void *ctx;        // passed back untouched to wake
     nn_wake_fn wake;  // required
+    nn_call_fn call;  // optional; NULL means the host answers no calls
 } nn_host;
 
 #ifndef NN_NO_PROTOTYPES

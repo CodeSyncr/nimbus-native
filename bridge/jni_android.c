@@ -13,6 +13,7 @@ static JavaVM *g_vm;
 static jclass g_bridge;       // global refs, resolved on the loader thread:
 static jclass g_exception;    // FindClass on a Go thread can't see app classes
 static jmethodID g_on_wake;   // static void Bridge.onWake()
+static jmethodID g_on_call;   // static byte[] Bridge.onHostCall(byte[])
 static jmethodID g_exc_init;  // BridgeException(int, byte[])
 
 // Go calls wake from its own threads; attach them as daemons so they never
@@ -36,6 +37,28 @@ static void jni_wake(void *ctx) {
 	}
 }
 
+static int32_t jni_call(void *ctx, const uint8_t *req, int32_t len, uint8_t **out, int32_t *out_len) {
+	JNIEnv *env = env_for_thread();
+	if (env == NULL) return NN_ERR_STATE;
+	jbyteArray arr = (*env)->NewByteArray(env, len);
+	if (arr == NULL) { (*env)->ExceptionClear(env); return NN_ERR_ARG; }
+	if (len > 0) (*env)->SetByteArrayRegion(env, arr, 0, len, (const jbyte *)req);
+	jbyteArray reply = (jbyteArray)(*env)->CallStaticObjectMethod(env, g_bridge, g_on_call, arr);
+	(*env)->DeleteLocalRef(env, arr);
+	if ((*env)->ExceptionCheck(env)) {
+		(*env)->ExceptionDescribe(env);
+		(*env)->ExceptionClear(env);
+		return NN_ERR_PANIC;
+	}
+	if (reply == NULL) return NN_ERR_NO_HANDLER;
+	jsize n = (*env)->GetArrayLength(env, reply);
+	*out = malloc(n > 0 ? (size_t)n : 1);
+	if (n > 0) (*env)->GetByteArrayRegion(env, reply, 0, n, (jbyte *)*out);
+	*out_len = n;
+	(*env)->DeleteLocalRef(env, reply);
+	return NN_OK;
+}
+
 static jbyteArray to_java(JNIEnv *env, const uint8_t *p, int32_t n) {
 	jbyteArray arr = (*env)->NewByteArray(env, n);
 	if (arr != NULL && n > 0) (*env)->SetByteArrayRegion(env, arr, 0, n, (const jbyte *)p);
@@ -56,6 +79,7 @@ static jint Bridge_start(JNIEnv *env, jclass cls, jlong schema) {
 	host.schema = (uint64_t)schema;
 	host.ctx = NULL;
 	host.wake = jni_wake;
+	host.call = jni_call;
 	return nn_start(&host);
 }
 
@@ -109,8 +133,9 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	g_bridge = (*env)->NewGlobalRef(env, cls);
 	g_exception = (*env)->NewGlobalRef(env, exc);
 	g_on_wake = (*env)->GetStaticMethodID(env, cls, "onWake", "()V");
+	g_on_call = (*env)->GetStaticMethodID(env, cls, "onHostCall", "([B)[B");
 	g_exc_init = (*env)->GetMethodID(env, exc, "<init>", "(I[B)V");
-	if (g_on_wake == NULL || g_exc_init == NULL) return JNI_ERR;
+	if (g_on_wake == NULL || g_on_call == NULL || g_exc_init == NULL) return JNI_ERR;
 
 	static const JNINativeMethod methods[] = {
 		{"nativeStart", "(J)I", (void *)Bridge_start},

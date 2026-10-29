@@ -12,6 +12,14 @@ public final class Bridge {
         void onMessage(byte[] msg);
     }
 
+    /**
+     * Answers Go's synchronous questions (text measurement, native modules). Called on a Go thread,
+     * never the main thread: it must not wait on main. Return null for "no answer".
+     */
+    public interface HostHandler {
+        byte[] onCall(byte[] req);
+    }
+
     /** NN_ERR_* codes from nn.h. */
     public static final int ERR_ABI = 1, ERR_STATE = 2, ERR_PANIC = 3, ERR_NO_HANDLER = 4, ERR_ARG = 5, ERR_SCHEMA = 6;
 
@@ -22,11 +30,17 @@ public final class Bridge {
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static final Runnable drain = Bridge::drain;
     private static volatile Listener listener;
+    private static volatile HostHandler hostHandler;
 
     private Bridge() {}
 
     public static void setListener(Listener l) {
         listener = l;
+    }
+
+    /** Set before start. */
+    public static void setHostHandler(HostHandler h) {
+        hostHandler = h;
     }
 
     /**
@@ -51,6 +65,12 @@ public final class Bridge {
     // empty. One post per batch, however many messages it holds.
     static void onWake() {
         main.post(drain);
+    }
+
+    // Called by the runtime, from a Go thread.
+    static byte[] onHostCall(byte[] req) {
+        HostHandler h = hostHandler;
+        return h == null ? null : h.onCall(req);
     }
 
     private static void drain() {

@@ -46,6 +46,15 @@ static void on_wake(void *ctx) {
 	pthread_mutex_unlock(&mu);
 }
 
+// Answers runtime calls by reversing the request.
+static int32_t on_call(void *ctx, const uint8_t *req, int32_t len, uint8_t **out, int32_t *out_len) {
+	if (ctx != (void *)0x5eed) return NN_ERR_ARG;
+	*out = malloc(len > 0 ? (size_t)len : 1);
+	for (int32_t i = 0; i < len; i++) (*out)[i] = req[len - 1 - i];
+	*out_len = len;
+	return NN_OK;
+}
+
 // Waits for a wake (up to 5 s), then drains. Calls fn for each message.
 // Returns the number of messages delivered.
 typedef void (*msg_fn)(const uint8_t *p, int32_t n, void *arg);
@@ -180,14 +189,14 @@ int main(int argc, char **argv) {
 	if (call("echo:x", NULL, 0) != NN_ERR_STATE) FAIL("call before start");
 	printf("ok   refuses before start\n");
 
-	nn_host bad = {NN_ABI_VERSION + 1, schema, (void *)0x5eed, on_wake};
+	nn_host bad = {NN_ABI_VERSION + 1, schema, (void *)0x5eed, on_wake, on_call};
 	if (nn_start(&bad) != NN_ERR_ABI) FAIL("wrong ABI accepted");
-	nn_host nowake = {NN_ABI_VERSION, schema, NULL, NULL};
+	nn_host nowake = {NN_ABI_VERSION, schema, NULL, NULL, NULL};
 	if (nn_start(&nowake) != NN_ERR_ARG) FAIL("missing wake accepted");
 	if (nn_start(NULL) != NN_ERR_ARG) FAIL("NULL host accepted");
-	nn_host stale = {NN_ABI_VERSION, schema ^ 1, (void *)0x5eed, on_wake};
+	nn_host stale = {NN_ABI_VERSION, schema ^ 1, (void *)0x5eed, on_wake, on_call};
 	if (nn_start(&stale) != NN_ERR_SCHEMA) FAIL("wrong schema accepted");
-	nn_host host = {NN_ABI_VERSION, schema, (void *)0x5eed, on_wake};
+	nn_host host = {NN_ABI_VERSION, schema, (void *)0x5eed, on_wake, on_call};
 	if (nn_start(&host) != NN_OK) FAIL("start");
 	if (nn_start(&host) != NN_ERR_STATE) FAIL("second start accepted");
 	if (nn_drain(NULL, NULL) != NN_ERR_ARG) FAIL("drain with NULL out accepted");
@@ -202,6 +211,13 @@ int main(int argc, char **argv) {
 	if (strstr(out, "asked to panic") == NULL || strstr(out, "goroutine") == NULL) FAIL("panic text lacks message or stack");
 	if (call("echo:alive", out, sizeof out) != NN_OK || strcmp(out, "alive") != 0) FAIL("runtime dead after panic");
 	printf("ok   panic recovered with message and Go stack; runtime still alive\n");
+
+	if (call("hostcall:nimbus", out, sizeof out) != NN_OK || strcmp(out, "submin") != 0) FAIL("host call: %s", out);
+	{
+		double h0 = now_us();
+		for (int i = 0; i < 100000; i++) call("hostcall:x", NULL, 0);
+		printf("ok   host call (Go → native inside native → Go): avg %.3f µs round trip\n", (now_us() - h0) / 100000);
+	}
 
 	// Ordering and batching: 8 goroutines × 25k messages each.
 	int drains;

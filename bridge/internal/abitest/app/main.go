@@ -25,6 +25,13 @@ func init() {
 			return []byte(arg)
 		case "panic":
 			panic("asked to panic")
+		case "hostcall":
+			// Go → host → Go, all inside one nn_call from the host's thread.
+			reply, err := bridge.CallHost([]byte(arg))
+			if err != nil {
+				return []byte("error: " + err.Error())
+			}
+			return reply
 		case "burst":
 			// burst:<goroutines>:<each> — every goroutine sends "<g>:<i>" in order.
 			gs, each, _ := strings.Cut(arg, ":")

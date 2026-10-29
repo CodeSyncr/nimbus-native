@@ -15,6 +15,11 @@ public final class Bridge {
     /// Every message Go sends, delivered on the main thread in order.
     public var onReceive: ((Data) -> Void)?
 
+    /// Answers Go's synchronous questions (text measurement, native modules).
+    /// Called on a Go thread, never the main thread: it must not wait on main.
+    /// Set it before start.
+    public var onHostCall: ((Data) throws -> Data)?
+
     private init() {}
 
     /// Boots the app's Go side. Call once, at launch. `schema` is the
@@ -30,6 +35,17 @@ public final class Bridge {
             // drain on main; everything sent before it runs rides along.
             let bridge = Unmanaged<Bridge>.fromOpaque(ctx!).takeUnretainedValue()
             DispatchQueue.main.async { bridge.drain() }
+        }
+        host.call = { ctx, req, len, out, outLen in
+            let bridge = Unmanaged<Bridge>.fromOpaque(ctx!).takeUnretainedValue()
+            guard let handler = bridge.onHostCall else { return NN_ERR_NO_HANDLER }
+            let request = (req != nil && len > 0) ? Data(bytes: req!, count: Int(len)) : Data()
+            guard let reply = try? handler(request) else { return NN_ERR_ARG }
+            let p = malloc(max(reply.count, 1))!.assumingMemoryBound(to: UInt8.self)
+            reply.copyBytes(to: p, count: reply.count)
+            out!.pointee = p
+            outLen!.pointee = Int32(reply.count)
+            return NN_OK
         }
         let rc = nn_start(&host)
         if rc != NN_OK { throw BridgeError(code: rc, detail: "") }
