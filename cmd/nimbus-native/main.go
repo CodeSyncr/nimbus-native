@@ -35,7 +35,14 @@ func main() {
 		if len(os.Args) > 2 {
 			dir = os.Args[2]
 		}
-		app, err := toolchain.LoadApp(dir, "", "")
+		var app *toolchain.App
+		var err error
+		if toolchain.IsProject(dir) {
+			id, _ := toolchain.AndroidProjectID(dir) // the generated Kotlin's package
+			app, err = toolchain.LoadProject(dir, "app/mobile", id)
+		} else {
+			app, err = toolchain.LoadApp(dir, "", "")
+		}
 		if err == nil {
 			var g *toolchain.Generated
 			if g, err = toolchain.Detect(app.Dir).Gen(app); err == nil {

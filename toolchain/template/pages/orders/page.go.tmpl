@@ -1,0 +1,12 @@
+// Package orders is the page at /orders.
+package orders
+
+import (
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/orders/presentation"
+)
+
+type Page struct{}
+
+func (Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrdersScreen{}) }

@@ -1,0 +1,12 @@
+// Package account is the page at /account.
+package account
+
+import (
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/account/presentation"
+)
+
+type Page struct{}
+
+func (Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.AccountScreen{}) }

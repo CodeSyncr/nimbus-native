@@ -22,11 +22,15 @@ type Generated struct {
 	KotlinFiles []string // compile into the Android app
 }
 
-// Gen regenerates every wire schema the app links from its own code (directories whose Go
+// Gen regenerates the folder routes (pages/routes_gen.go, when the app has
+// pages/) and every wire schema the app links from its own code (directories whose Go
 // files carry //wire: directives), writing wire_gen.go next to each, and
 // host code under build/gen. The combined hash covers every schema package
 // the app links, including ones from its dependencies.
 func (e *Env) Gen(a *App) (*Generated, error) {
+	if err := e.GenRoutes(a.root()); err != nil {
+		return nil, err
+	}
 	dirs, err := linkedPackageDirs(a.Dir)
 	if err != nil {
 		return nil, err

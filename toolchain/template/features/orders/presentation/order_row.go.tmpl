@@ -3,6 +3,7 @@ package presentation
 import (
 	"fmt"
 
+	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/core/utils"
@@ -14,10 +15,10 @@ import (
 type OrderRow struct{ O domain.Order }
 
 func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
-	th, nav := ui.UseTheme(c), ui.Navigation(c)
+	th := ui.UseTheme(c)
 	o := r.O
 	fg, bg := statusColors(th, o.Status)
-	return ui.Pressable(func() { nav.Push(fmt.Sprintf("Order #%d", o.ID), OrderScreen{ID: o.ID}) },
+	return ui.Pressable(func() { router.Push(c, fmt.Sprintf("/orders/%d", o.ID)) },
 		ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: th.SpaceM, Padding: ui.XY(th.SpaceL, 14),
 			Background: th.Surface, Margin: ui.Edges{Bottom: 1}},
 		ui.View(ui.Style{Width: ui.Pt(40), Height: ui.Pt(40), Radius: 20, Background: th.Primary, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter},

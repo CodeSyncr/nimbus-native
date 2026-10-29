@@ -1,0 +1,18 @@
+// Package order is the page at /orders/:id; the _id folder is the parameter.
+package order
+
+import (
+	"fmt"
+
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/orders/presentation"
+)
+
+type Page struct {
+	ID int `param:"id"`
+}
+
+func (p Page) Title() string { return fmt.Sprintf("Order #%d", p.ID) }
+
+func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrderScreen{ID: p.ID}) }

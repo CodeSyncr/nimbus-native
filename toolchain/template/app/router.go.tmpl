@@ -1,22 +1,24 @@
 package app
 
 import (
-	"github.com/CodeSyncr/nimbus-native/ui"
+	"github.com/CodeSyncr/nimbus-native/router"
 
-	account "__MODULE__/features/account/presentation"
-	orders "__MODULE__/features/orders/presentation"
+	"__MODULE__/pages"
 )
 
-// Route is a top-level destination.
-type Route struct {
-	Title  string
-	Icon   string // an SF Symbol on iOS; Android shows the title
-	Screen ui.Component
+// The app's URLs come from the folders in pages/: pages/orders/_id/page.go
+// is /orders/:id. `nimbus native gen` (run by every build) writes the table,
+// pages/routes_gen.go. Screens navigate by path: router.Push(c, "/orders/42").
+func init() { router.Register(pages.Routes) }
+
+// Tab is a top-level destination: a page shown in its own navigation stack.
+type Tab struct {
+	Path string
+	Icon string // an SF Symbol on iOS; Android shows the title
 }
 
-// Routes are the app's tabs, in order. Screens deeper in a tab are pushed
-// with ui.Navigation(c).Push.
-var Routes = []Route{
-	{Title: "Orders", Icon: "list.bullet", Screen: orders.OrdersScreen{}},
-	{Title: "Account", Icon: "person.crop.circle", Screen: account.AccountScreen{}},
+// Tabs are the app's tabs, in order.
+var Tabs = []Tab{
+	{Path: "/orders", Icon: "list.bullet"},
+	{Path: "/account", Icon: "person.crop.circle"},
 }

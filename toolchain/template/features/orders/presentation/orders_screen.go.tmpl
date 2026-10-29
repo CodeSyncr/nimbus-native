@@ -12,7 +12,8 @@ import (
 	"__MODULE__/shared/widgets"
 )
 
-// OrdersScreen lists the server's orders. Tapping one opens it; "New" places one.
+// OrdersScreen lists the server's orders (the page at /orders). Tapping
+// one opens /orders/:id; "New" places one.
 type OrdersScreen struct{}
 
 func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
@@ -40,7 +41,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 	return ui.SafeArea(ui.Style{Grow: 1}, header, body)
 }
 
-// OrderScreen shows one order, fetched by id.
+// OrderScreen shows one order, fetched by id (the page at /orders/:id).
 type OrderScreen struct{ ID int }
 
 func (s OrderScreen) Render(c *ui.Ctx) *ui.Element {

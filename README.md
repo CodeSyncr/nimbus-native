@@ -43,7 +43,7 @@ format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
 navigation, tabs, modals, safe areas, forms, theming and dark mode, a
 typed client for Nimbus servers with data-loading hooks, `nimbus native new`
-projects that open in Xcode and Android Studio. Next: folder routing, the
+projects that open in Xcode and Android Studio, folder routing. Next: the
 same UI on the web, then device builds and signing.
 
 ## Layout
@@ -70,6 +70,7 @@ same UI on the web, then device builds and signing.
 | `examples/baseline/` | The same list in plain Android views, to calibrate emulator numbers |
 | `examples/fullstack/` | A Nimbus server and app sharing one contract (its own module) |
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
+| `router/` | Path → page matching and `router.Push`; the table comes from `pages/` (`toolchain/routes.go`) |
 
 ## Start a project
 
@@ -88,8 +89,9 @@ shop/
   main.go                  the Nimbus server: mounts each feature's routes
   app/
     app.go                 the root component (tabs, stacks)
-    router.go              the top-level routes
+    router.go              registers pages/ and picks the tabs
     mobile/main.go         the phone app's package main
+  pages/                   folder routing: orders/_id/page.go is /orders/:id
   core/                    constants, theme, utils
   shared/                  widgets and services any feature uses
   features/orders/
@@ -108,6 +110,45 @@ writes the generated Swift or Kotlin. It also keeps the project's copy of the
 host kit at the version `go.mod` requires (after an upgrade, the first build
 updates it and asks you to build again), and refuses to build a phone app
 that imports Nimbus or any `server` package: that code stays on the server.
+
+## Folder routing
+
+Optional: a project with a `pages/` folder gets its URLs from it.
+
+```
+pages/orders/page.go             /orders
+pages/orders/new/page.go         /orders/new    (beats :id)
+pages/orders/_id/page.go         /orders/:id
+pages/orders/_id/items/_item/    /orders/:id/items/:item
+```
+
+Each `page.go` declares a `Page` component; parameters fill fields tagged
+`param` (string, int or int64; a value that doesn't parse matches nothing),
+and an optional `Title()` names the screen:
+
+```go
+package order // pages/orders/_id
+
+type Page struct {
+	ID int `param:"id"`
+}
+
+func (p Page) Title() string                  { return fmt.Sprintf("Order #%d", p.ID) }
+func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrderScreen{ID: p.ID}) }
+```
+
+Every build regenerates `pages/routes_gen.go`, a static table: no reflection
+or scanning at run time, and a missing or mistyped parameter field fails the
+build with the folder named. Register it once, then navigate by path; the
+page is pushed onto the screen's native stack:
+
+```go
+router.Register(pages.Routes)   // app/router.go
+router.Push(c, "/orders/42")    // any screen
+```
+
+Go skips `_`-prefixed folders in `./...` patterns, so `go vet ./...` passes
+over parameter pages; they are compiled through the table the app imports.
 
 ## Try the examples
 

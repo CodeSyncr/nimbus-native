@@ -1,24 +1,35 @@
 // Package app is the root of the __NAME__ UI: the component every platform
-// mounts. It holds no screens of its own; those live in features.
+// mounts. Screens live in features; pages/ gives them URLs.
 package app
 
-import "github.com/CodeSyncr/nimbus-native/ui"
+import (
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+)
 
-// App is the root component: a tab per top-level route, each with its own
+// App is the root component: a tab per entry in Tabs, each with its own
 // navigation stack.
 type App struct{}
 
 func (App) Render(c *ui.Ctx) *ui.Element {
-	tabs := make([]ui.Tab, len(Routes))
-	for i, r := range Routes {
-		tabs[i] = ui.Tab{Title: r.Title, Icon: r.Icon, Screen: tab{r}}
+	tabs := make([]ui.Tab, 0, len(Tabs))
+	for _, t := range Tabs {
+		page, _, ok := router.Match(t.Path)
+		if !ok {
+			continue // no page folder for this path
+		}
+		title := router.TitleOf(page, t.Path)
+		tabs = append(tabs, ui.Tab{Title: title, Icon: t.Icon, Screen: stack{title, page}})
 	}
 	return ui.Tabs(ui.Flex(1), tabs...)
 }
 
-// tab is one route's navigation stack.
-type tab struct{ r Route }
+// stack is one tab's navigation stack.
+type stack struct {
+	title string
+	root  ui.Component
+}
 
-func (t tab) Render(c *ui.Ctx) *ui.Element {
-	return ui.Stack(t.r.Title, t.r.Screen, ui.Flex(1))
+func (s stack) Render(c *ui.Ctx) *ui.Element {
+	return ui.Stack(s.title, s.root, ui.Flex(1))
 }

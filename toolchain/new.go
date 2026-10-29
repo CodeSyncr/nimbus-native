@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-//go:embed template
+//go:embed all:template
 var projectTemplate embed.FS
 
 // NewProject describes a project for New to create.
@@ -144,6 +144,11 @@ func (e *Env) New(p NewProject) error {
 		}
 	}
 
+	// The pages package is only the generated table: it must exist before
+	// go mod tidy looks for the packages the app imports.
+	if err := e.GenRoutes(p.Dir); err != nil {
+		return err
+	}
 	e.step("go mod tidy")
 	if err := e.runIn(p.Dir, nil, "go", "mod", "tidy"); err != nil {
 		return err
