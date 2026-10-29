@@ -7,12 +7,15 @@
 #include "nn.h"
 
 #define BRIDGE_CLASS "space/nimbusgo/nativekit/Bridge"
+#define EXCEPTION_CLASS "space/nimbusgo/nativekit/BridgeException"
 
 static JavaVM *g_vm;
-static jclass g_bridge;          // global ref, resolved on the loader thread
-static jmethodID g_on_receive;   // static void onReceive(byte[])
+static jclass g_bridge;       // global refs, resolved on the loader thread:
+static jclass g_exception;    // FindClass on a Go thread can't see app classes
+static jmethodID g_on_wake;   // static void Bridge.onWake()
+static jmethodID g_exc_init;  // BridgeException(int, byte[])
 
-// Go calls back from its own threads; attach them as daemons so they never
+// Go calls wake from its own threads; attach them as daemons so they never
 // need detaching and never keep the VM alive.
 static JNIEnv *env_for_thread(void) {
 	JNIEnv *env = NULL;
@@ -23,25 +26,35 @@ static JNIEnv *env_for_thread(void) {
 	return env;
 }
 
-static void jni_receive(void *ctx, const uint8_t *data, int32_t len) {
+static void jni_wake(void *ctx) {
 	JNIEnv *env = env_for_thread();
 	if (env == NULL) return;
-	jbyteArray arr = (*env)->NewByteArray(env, len);
-	if (arr == NULL) { (*env)->ExceptionClear(env); return; }
-	if (len > 0) (*env)->SetByteArrayRegion(env, arr, 0, len, (const jbyte *)data);
-	(*env)->CallStaticVoidMethod(env, g_bridge, g_on_receive, arr);
+	(*env)->CallStaticVoidMethod(env, g_bridge, g_on_wake);
 	if ((*env)->ExceptionCheck(env)) {
 		(*env)->ExceptionDescribe(env);
 		(*env)->ExceptionClear(env);
 	}
-	(*env)->DeleteLocalRef(env, arr);
+}
+
+static jbyteArray to_java(JNIEnv *env, const uint8_t *p, int32_t n) {
+	jbyteArray arr = (*env)->NewByteArray(env, n);
+	if (arr != NULL && n > 0) (*env)->SetByteArrayRegion(env, arr, 0, n, (const jbyte *)p);
+	return arr;
+}
+
+// Throws BridgeException(code, detail). Takes ownership of detail.
+static void throw_bridge(JNIEnv *env, jint code, uint8_t *detail, int32_t n) {
+	jbyteArray d = detail != NULL ? to_java(env, detail, n) : NULL;
+	if (detail != NULL) nn_free(detail);
+	jobject ex = (*env)->NewObject(env, g_exception, g_exc_init, code, d);
+	if (ex != NULL) (*env)->Throw(env, (jthrowable)ex);
 }
 
 static jint Bridge_start(JNIEnv *env, jclass cls) {
 	static nn_host host;
 	host.abi = NN_ABI_VERSION;
 	host.ctx = NULL;
-	host.receive = jni_receive;
+	host.wake = jni_wake;
 	return nn_start(&host);
 }
 
@@ -53,6 +66,20 @@ static jint Bridge_send(JNIEnv *env, jclass cls, jbyteArray msg) {
 	return rc;
 }
 
+static jbyteArray Bridge_drain(JNIEnv *env, jclass cls) {
+	uint8_t *out = NULL;
+	int32_t n = 0;
+	jint rc = nn_drain(&out, &n);
+	if (rc != NN_OK) {
+		throw_bridge(env, rc, out, n);
+		return NULL;
+	}
+	if (out == NULL) return NULL;
+	jbyteArray arr = to_java(env, out, n);
+	nn_free(out);
+	return arr;
+}
+
 static jbyteArray Bridge_call(JNIEnv *env, jclass cls, jbyteArray req) {
 	jsize n = (*env)->GetArrayLength(env, req);
 	jbyte *p = (*env)->GetByteArrayElements(env, req, NULL);
@@ -62,15 +89,10 @@ static jbyteArray Bridge_call(JNIEnv *env, jclass cls, jbyteArray req) {
 	(*env)->ReleaseByteArrayElements(env, req, p, JNI_ABORT);
 
 	if (rc != NN_OK) {
-		char msg[64];
-		snprintf(msg, sizeof msg, "nimbus-native: call failed (code %d)", rc);
-		jclass ex = (*env)->FindClass(env, "java/lang/IllegalStateException");
-		if (out != NULL) nn_free(out); // panic text is already in logcat
-		(*env)->ThrowNew(env, ex, msg);
+		throw_bridge(env, rc, out, out_len); // panic text and Go stack travel with the exception
 		return NULL;
 	}
-	jbyteArray arr = (*env)->NewByteArray(env, out_len);
-	if (arr != NULL && out_len > 0) (*env)->SetByteArrayRegion(env, arr, 0, out_len, (const jbyte *)out);
+	jbyteArray arr = to_java(env, out, out_len);
 	if (out != NULL) nn_free(out);
 	return arr;
 }
@@ -81,17 +103,22 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 	if ((*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
 
 	jclass cls = (*env)->FindClass(env, BRIDGE_CLASS);
-	if (cls == NULL) return JNI_ERR;
+	jclass exc = (*env)->FindClass(env, EXCEPTION_CLASS);
+	if (cls == NULL || exc == NULL) return JNI_ERR;
 	g_bridge = (*env)->NewGlobalRef(env, cls);
-	g_on_receive = (*env)->GetStaticMethodID(env, cls, "onReceive", "([B)V");
-	if (g_on_receive == NULL) return JNI_ERR;
+	g_exception = (*env)->NewGlobalRef(env, exc);
+	g_on_wake = (*env)->GetStaticMethodID(env, cls, "onWake", "()V");
+	g_exc_init = (*env)->GetMethodID(env, exc, "<init>", "(I[B)V");
+	if (g_on_wake == NULL || g_exc_init == NULL) return JNI_ERR;
 
 	static const JNINativeMethod methods[] = {
 		{"nativeStart", "()I", (void *)Bridge_start},
 		{"nativeSend", "([B)I", (void *)Bridge_send},
+		{"nativeDrain", "()[B", (void *)Bridge_drain},
 		{"nativeCall", "([B)[B", (void *)Bridge_call},
 	};
 	if ((*env)->RegisterNatives(env, cls, methods, sizeof methods / sizeof methods[0]) != JNI_OK) return JNI_ERR;
 	(*env)->DeleteLocalRef(env, cls);
+	(*env)->DeleteLocalRef(env, exc);
 	return JNI_VERSION_1_6;
 }

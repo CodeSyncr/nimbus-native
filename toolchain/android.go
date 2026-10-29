@@ -137,7 +137,7 @@ func (e *Env) RunAndroid(a *App, apk string) error {
 		return err
 	}
 	e.step("install %s", filepath.Base(apk))
-	if err := e.run(nil, adb, "install", "-r", "-t", apk); err != nil {
+	if err := e.run(nil, adb, "install", "-r", "-t", "--no-incremental", apk); err != nil {
 		return err
 	}
 	_ = exec.Command(adb, "logcat", "-c").Run()

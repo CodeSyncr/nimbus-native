@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // App is the project being built. For now its layout is fixed:
@@ -33,7 +34,7 @@ func LoadApp(dir, name, id string) (*App, error) {
 	}
 	base := filepath.Base(abs)
 	if name == "" {
-		name = strings.ToUpper(base[:1]) + base[1:]
+		name = identifier(base)
 	}
 	if id == "" {
 		id = "space.nimbusgo." + idPart.ReplaceAllString(strings.ToLower(base), "")
@@ -44,6 +45,29 @@ func LoadApp(dir, name, id string) (*App, error) {
 // BuildDir is where build output for a platform goes.
 func (a *App) BuildDir(platform string) string {
 	return filepath.Join(a.Dir, "build", platform)
+}
+
+// identifier turns a directory name into an app name that is also a valid
+// Swift module and executable name: "my-app" → "MyApp".
+func identifier(s string) string {
+	var b strings.Builder
+	upper := true
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' && b.Len() > 0:
+			if upper {
+				r = unicode.ToUpper(r)
+			}
+			b.WriteRune(r)
+			upper = false
+		default:
+			upper = true
+		}
+	}
+	if b.Len() == 0 {
+		return "App"
+	}
+	return b.String()
 }
 
 func globs(patterns ...string) []string {

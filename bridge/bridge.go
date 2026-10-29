@@ -11,13 +11,14 @@ package bridge
 #include <stdlib.h>
 #include "nn.h"
 
-static void nn_deliver(const nn_host *h, const uint8_t *data, int32_t len) {
-	h->receive(h->ctx, data, len);
+static void nn_wake(const nn_host *h) {
+	h->wake(h->ctx);
 }
 */
 import "C"
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -29,6 +30,10 @@ import (
 // ABIVersion is the nn.h version this runtime speaks.
 const ABIVersion = C.NN_ABI_VERSION
 
+// An outbox that grew past this is dropped after a drain instead of kept for
+// reuse, so one burst doesn't pin its memory forever.
+const keepOutbox = 1 << 20
+
 var (
 	onStart   []func()
 	onMessage func([]byte)
@@ -37,7 +42,11 @@ var (
 	host    *C.nn_host // C-allocated copy of what the host gave nn_start
 	started atomic.Bool
 	inbox   = make(chan []byte, 1024)
-	sendMu  sync.Mutex
+
+	outMu  sync.Mutex
+	outbox []byte // frames waiting for nn_drain: [u32 LE length][bytes]...
+
+	stats counters
 )
 
 // ErrNotStarted is returned by Send before the host has called nn_start.
@@ -52,30 +61,36 @@ func OnStart(fn func()) { onStart = append(onStart, fn) }
 func OnMessage(fn func(msg []byte)) { onMessage = fn }
 
 // OnCall sets the handler for synchronous calls from the host. It runs on the
-// host's calling thread, so keep it fast.
+// host's calling thread — usually the UI thread — so keep it fast.
 func OnCall(fn func(req []byte) []byte) { onCall = fn }
 
-// Send delivers msg to the host. It is safe from any goroutine; the host
-// receives messages in the order Send returns. msg is only borrowed for the
-// duration of the call.
+// Send queues msg for the host. It is safe from any goroutine and never
+// blocks on the host: messages are batched and the host drains them on its
+// UI thread, in the order Send returned. msg is copied.
 func Send(msg []byte) error {
 	if !started.Load() {
 		return ErrNotStarted
 	}
-	var p *C.uint8_t
-	if len(msg) > 0 {
-		p = (*C.uint8_t)(unsafe.Pointer(&msg[0]))
+	outMu.Lock()
+	wasEmpty := len(outbox) == 0
+	outbox = binary.LittleEndian.AppendUint32(outbox, uint32(len(msg)))
+	outbox = append(outbox, msg...)
+	outMu.Unlock()
+	stats.sent.Add(1)
+
+	// Only the empty → non-empty transition wakes the host; everything sent
+	// before it drains rides along in the same batch.
+	if wasEmpty {
+		stats.wakes.Add(1)
+		C.nn_wake(host)
 	}
-	sendMu.Lock()
-	defer sendMu.Unlock()
-	C.nn_deliver(host, p, C.int32_t(len(msg)))
 	return nil
 }
 
 //export nn_start
 func nn_start(h *C.nn_host) C.int32_t {
-	if h == nil || h.receive == nil {
-		return C.NN_ERR_STATE
+	if h == nil || h.wake == nil {
+		return C.NN_ERR_ARG
 	}
 	if h.abi != C.NN_ABI_VERSION {
 		return C.NN_ERR_ABI
@@ -98,7 +113,30 @@ func nn_send(data *C.uint8_t, n C.int32_t) C.int32_t {
 	if !started.Load() {
 		return C.NN_ERR_STATE
 	}
+	stats.received.Add(1)
 	inbox <- copyIn(data, n)
+	return C.NN_OK
+}
+
+//export nn_drain
+func nn_drain(out **C.uint8_t, outLen *C.int32_t) C.int32_t {
+	if out == nil || outLen == nil {
+		return C.NN_ERR_ARG
+	}
+	if !started.Load() {
+		return C.NN_ERR_STATE
+	}
+	outMu.Lock()
+	if len(outbox) > 0 {
+		stats.drains.Add(1)
+	}
+	copyOut(outbox, out, outLen) // one memcpy into C memory
+	if cap(outbox) > keepOutbox {
+		outbox = nil
+	} else {
+		outbox = outbox[:0]
+	}
+	outMu.Unlock()
 	return C.NN_OK
 }
 
@@ -110,8 +148,10 @@ func nn_call(data *C.uint8_t, n C.int32_t, out **C.uint8_t, outLen *C.int32_t) (
 	if onCall == nil {
 		return C.NN_ERR_NO_HANDLER
 	}
+	stats.calls.Add(1)
 	defer func() {
 		if r := recover(); r != nil {
+			stats.panics.Add(1)
 			msg := fmt.Sprintf("panic: %v\n\n%s", r, debug.Stack())
 			Logf("%s", msg)
 			copyOut([]byte(msg), out, outLen)
@@ -138,6 +178,7 @@ func dispatch() {
 func guard(what string, fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
+			stats.panics.Add(1)
 			Logf("panic in %s handler: %v\n\n%s", what, r, debug.Stack())
 		}
 	}()

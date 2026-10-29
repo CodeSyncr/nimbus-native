@@ -22,14 +22,31 @@ public final class Bridge {
         var host = nn_host()
         host.abi = UInt32(NN_ABI_VERSION)
         host.ctx = Unmanaged.passUnretained(self).toOpaque()
-        host.receive = { ctx, data, len in
-            // Any Go thread: copy now (the buffer is borrowed), deliver on main.
+        host.wake = { ctx in
+            // A Go thread: Go's outbox just stopped being empty. Schedule one
+            // drain on main; everything sent before it runs rides along.
             let bridge = Unmanaged<Bridge>.fromOpaque(ctx!).takeUnretainedValue()
-            let msg = (data != nil && len > 0) ? Data(bytes: data!, count: Int(len)) : Data()
-            DispatchQueue.main.async { bridge.onReceive?(msg) }
+            DispatchQueue.main.async { bridge.drain() }
         }
         let rc = nn_start(&host)
         if rc != NN_OK { throw BridgeError(code: rc, detail: "") }
+    }
+
+    /// Delivers every message Go has queued, in order. Runs on main.
+    private func drain() {
+        var out: UnsafeMutablePointer<UInt8>? = nil
+        var len: Int32 = 0
+        guard nn_drain(&out, &len) == NN_OK, let out else { return }
+        defer { nn_free(out) }
+        var off = 0
+        let end = Int(len)
+        while end - off >= 4 {
+            let n = Int(UInt32(out[off]) | UInt32(out[off + 1]) << 8 | UInt32(out[off + 2]) << 16 | UInt32(out[off + 3]) << 24)
+            off += 4
+            guard n <= end - off else { return }
+            onReceive?(Data(bytes: out + off, count: n))
+            off += n
+        }
     }
 
     /// Native → Go, asynchronous.
