@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xa95ccab54add04c6uL.toLong()
+    val SCHEMA_HASH: Long = 0x8421a4ec545bd939uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -19,6 +19,7 @@ object Render {
         const val STACK: Int = 7
         const val TABS: Int = 8
         const val MODAL: Int = 9
+        const val SWITCH: Int = 10
     }
 
     /** Align is horizontal text alignment. */
@@ -294,6 +295,7 @@ object Render {
         var color: Long = 0L,
         var secure: Boolean = false,
         var keyboard: Int = 0,
+        var multiline: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -303,6 +305,7 @@ object Render {
             w.uint(this.color)
             w.bool(this.secure)
             w.uint(this.keyboard.toLong())
+            w.bool(this.multiline)
         }
 
         companion object {
@@ -315,6 +318,7 @@ object Render {
                 m.color = r0.uintMax(4294967295L)
                 m.secure = r0.bool()
                 m.keyboard = r0.uintMax(255L).toInt()
+                m.multiline = r0.bool()
                 return m
             }
         }
@@ -445,6 +449,8 @@ object Render {
         var h: Float = 0f,
         var horizontal: Boolean = false,
         var report: Boolean = false,
+        var refreshable: Boolean = false,
+        var refreshing: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -452,6 +458,8 @@ object Render {
             w.f32(this.h)
             w.bool(this.horizontal)
             w.bool(this.report)
+            w.bool(this.refreshable)
+            w.bool(this.refreshing)
         }
 
         companion object {
@@ -462,6 +470,34 @@ object Render {
                 m.h = r0.f32()
                 m.horizontal = r0.bool()
                 m.report = r0.bool()
+                m.refreshable = r0.bool()
+                m.refreshing = r0.bool()
+                return m
+            }
+        }
+    }
+
+    /** Switch sets a toggle's state. */
+    data class Switch(
+        var tag: Long = 0L,
+        var on: Boolean = false,
+        var enabled: Boolean = false,
+        var tint: Long = 0L,
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.bool(this.on)
+            w.bool(this.enabled)
+            w.uint(this.tint)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Switch {
+                val m = Switch()
+                m.tag = r0.uintMax(4294967295L)
+                m.on = r0.bool()
+                m.enabled = r0.bool()
+                m.tint = r0.uintMax(4294967295L)
                 return m
             }
         }
@@ -497,6 +533,7 @@ object Render {
         var safeRight: Float = 0f,
         var platform: String = "",
         var dark: Boolean = false,
+        var keyboard: Float = 0f,
     ) : Message {
         fun write(w: WireWriter) {
             w.f32(this.w)
@@ -508,6 +545,7 @@ object Render {
             w.f32(this.safeRight)
             w.string(this.platform)
             w.bool(this.dark)
+            w.f32(this.keyboard)
         }
 
         companion object {
@@ -522,6 +560,7 @@ object Render {
                 m.safeRight = r0.f32()
                 m.platform = r0.string()
                 m.dark = r0.bool()
+                m.keyboard = r0.f32()
                 return m
             }
         }
@@ -791,6 +830,43 @@ object Render {
         }
     }
 
+    /** Toggled reports that the user flipped a switch. */
+    data class Toggled(
+        var tag: Long = 0L,
+        var on: Boolean = false,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.bool(this.on)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Toggled {
+                val m = Toggled()
+                m.tag = r0.uintMax(4294967295L)
+                m.on = r0.bool()
+                return m
+            }
+        }
+    }
+
+    /** Refresh reports that the user pulled a refreshable scroll view. */
+    data class Refresh(
+        var tag: Long = 0L,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Refresh {
+                val m = Refresh()
+                m.tag = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Op changes one native view. */
     sealed interface Op
 
@@ -811,7 +887,8 @@ object Render {
             is Chrome -> { w.uint(12); v.write(w) }
             is Present -> { w.uint(13); v.write(w) }
             is Scroll -> { w.uint(14); v.write(w) }
-            is Spinner -> { w.uint(15); v.write(w) }
+            is Switch -> { w.uint(15); v.write(w) }
+            is Spinner -> { w.uint(16); v.write(w) }
         }
     }
 
@@ -831,7 +908,8 @@ object Render {
         12L -> Chrome.read(r0)
         13L -> Present.read(r0)
         14L -> Scroll.read(r0)
-        15L -> Spinner.read(r0)
+        15L -> Switch.read(r0)
+        16L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 
@@ -855,6 +933,8 @@ object Render {
             is PluginCall -> { w.uint(12); v.write(w) }
             is PluginAck -> { w.uint(13); v.write(w) }
             is PluginResult -> { w.uint(14); v.write(w) }
+            is Toggled -> { w.uint(15); v.write(w) }
+            is Refresh -> { w.uint(16); v.write(w) }
         }
     }
 
@@ -874,6 +954,8 @@ object Render {
         12L -> PluginCall.read(r0)
         13L -> PluginAck.read(r0)
         14L -> PluginResult.read(r0)
+        15L -> Toggled.read(r0)
+        16L -> Refresh.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

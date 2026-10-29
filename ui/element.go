@@ -27,6 +27,11 @@ type Element struct {
 	testID      string
 	onPress     func()
 	onChange    func(string)
+	multiline   bool
+	on          bool       // a Switch's state
+	onToggle    func(bool) // a Switch's handler; nil disables it
+	onRefresh   func()     // pull to refresh on a Scroll or List
+	refreshing  bool
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec
@@ -85,6 +90,15 @@ func TextInput(value string, onChange func(string), s Style) *Element {
 // Spinner is the platform's activity indicator.
 func Spinner(s Style) *Element { return &Element{kind: render.KindSpinner, style: s} }
 
+// Switch is the platform's on/off toggle, colored with the theme's Primary
+// (or s.Color). onChange gets the new state; pass nil to disable it.
+//
+//	notify, setNotify := ui.State(c, true)
+//	ui.Switch(notify, setNotify, ui.Style{})
+func Switch(on bool, onChange func(bool), s Style) *Element {
+	return &Element{kind: render.KindSwitch, style: s, on: on, onToggle: onChange}
+}
+
 // Key identifies an element among its siblings, so the runtime can keep its
 // native view and state when the list changes order.
 func (e *Element) Key(k string) *Element { e.key = k; return e }
@@ -103,6 +117,19 @@ func (e *Element) Fit(f render.Fit) *Element { e.fit = f; return e }
 
 // Horizontal makes a Scroll scroll sideways.
 func (e *Element) Horizontal() *Element { e.horizontal = true; return e }
+
+// Multiline lets a TextInput wrap and take new lines; it is three lines
+// tall unless its style sets a height.
+func (e *Element) Multiline() *Element { e.multiline = true; return e }
+
+// OnRefresh adds pull to refresh to a Scroll or List: pulling calls
+// onRefresh, and the indicator shows while refreshing is true. With a query:
+//
+//	ui.List(n, row, ui.Flex(1)).OnRefresh(q.Loading, q.Refetch)
+func (e *Element) OnRefresh(refreshing bool, onRefresh func()) *Element {
+	e.refreshing, e.onRefresh = refreshing, onRefresh
+	return e
+}
 
 // Label is the accessibility label screen readers speak. On a component, it
 // labels what the component renders.

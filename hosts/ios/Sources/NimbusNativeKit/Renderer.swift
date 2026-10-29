@@ -22,6 +22,21 @@ open class NimbusViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         renderer.start()
+        // The keyboard covers part of the screen: tell Go how much, so SafeArea pads clear of it.
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(keyboardChanged(_:)), name: UIResponder.keyboardWillChangeFrameNotification, object: nil)
+        center.addObserver(self, selector: #selector(keyboardChanged(_:)), name: UIResponder.keyboardWillHideNotification, object: nil)
+    }
+
+    @objc private func keyboardChanged(_ n: Notification) {
+        var overlap: CGFloat = 0
+        if n.name != UIResponder.keyboardWillHideNotification,
+           let end = (n.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            let kb = view.convert(end, from: nil)
+            overlap = max(0, view.bounds.maxY - kb.minY)
+        }
+        renderer.keyboard = overlap
+        renderer.sendViewport()
     }
 
     open override func viewDidLayoutSubviews() {
@@ -63,6 +78,8 @@ public final class Renderer {
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
     private var lastViewport: Render.Viewport?
+    /// How far the keyboard covers the container's bottom (NimbusViewController keeps it current).
+    public var keyboard: CGFloat = 0
     private var started = false
     private let schema: UInt64
 
@@ -94,7 +111,8 @@ public final class Renderer {
         let v = Render.Viewport(w: Float(size.width), h: Float(size.height), scale: Float(container.traitCollection.displayScale),
                                 safeTop: Float(inset.top), safeBottom: Float(inset.bottom),
                                 safeLeft: Float(inset.left), safeRight: Float(inset.right),
-                                platform: "ios", dark: container.traitCollection.userInterfaceStyle == .dark)
+                                platform: "ios", dark: container.traitCollection.userInterfaceStyle == .dark,
+                                keyboard: Float(keyboard))
         if v != lastViewport, size.width > 0 {
             lastViewport = v
             send(.viewport(v))
@@ -127,6 +145,30 @@ public final class Renderer {
         guard let s = stacks.first else { return false }
         s.nav.popViewController(animated: true)
         return true
+    }
+
+    /// Types into an input as the user would, replacing its text (for tests and demos).
+    public func type(tag: UInt32, text: String) {
+        (views[tag] as? NNInput)?.userTyped(text)
+    }
+
+    /// Pull to refresh on a scroll view: a UIRefreshControl that reports pulls.
+    private func refresh(_ s: UIScrollView, tag: UInt32, _ o: Render.Scroll) {
+        guard o.refreshable else {
+            s.refreshControl = nil
+            return
+        }
+        let rc = s.refreshControl ?? {
+            let rc = UIRefreshControl()
+            rc.addAction(UIAction { [weak self] _ in self?.send(.refresh(Render.Refresh(tag: tag))) }, for: .valueChanged)
+            s.refreshControl = rc
+            return rc
+        }()
+        if o.refreshing, !rc.isRefreshing {
+            rc.beginRefreshing()
+        } else if !o.refreshing, rc.isRefreshing {
+            rc.endRefreshing()
+        }
     }
 
     /// The tag of the view with this test ID, if it is on screen.
@@ -173,15 +215,22 @@ public final class Renderer {
             case .box(let o): box(o)
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
             case .image(let o): (views[o.tag] as? NNImageView)?.load(o)
-            case .input(let o): (views[o.tag] as? NNTextField)?.apply(o)
+            case .input(let o): (views[o.tag] as? NNInput)?.apply(o)
             case .scroll(let o):
                 if let s = views[o.tag] as? UIScrollView {
                     s.contentSize = CGSize(width: CGFloat(o.w), height: CGFloat(o.h))
                     s.alwaysBounceVertical = !o.horizontal
                     s.alwaysBounceHorizontal = o.horizontal
                     s.delegate = o.report ? scrollReporter : nil
+                    refresh(s, tag: o.tag, o)
                 }
             case .spinner(let o): (views[o.tag] as? UIActivityIndicatorView)?.color = color(o.color) ?? .gray
+            case .switch(let o):
+                if let sw = views[o.tag] as? UISwitch {
+                    if sw.isOn != o.on { sw.setOn(o.on, animated: sw.window != nil) }
+                    sw.isEnabled = o.enabled
+                    sw.onTintColor = color(o.tint)
+                }
             case .screen(let o): screen(o.tag).title = o.title
             case .tabItem(let o):
                 tab(o.tag).tabBarItem = UITabBarItem(title: o.title, image: o.icon.isEmpty ? nil : UIImage(systemName: o.icon), tag: 0)
@@ -218,11 +267,14 @@ public final class Renderer {
             v = p
         case .scroll: v = UIScrollView()
         case .input:
-            let f = NNTextField()
-            f.addAction(UIAction { [weak self, weak f] _ in
-                self?.send(.changed(Render.Changed(tag: o.tag, text: f?.text ?? "")))
-            }, for: .editingChanged)
-            v = f
+            v = NNInput { [weak self] text in self?.send(.changed(Render.Changed(tag: o.tag, text: text))) }
+        case .switch:
+            let sw = UISwitch()
+            sw.addAction(UIAction { [weak self, weak sw] _ in
+                guard let sw else { return }
+                self?.send(.toggled(Render.Toggled(tag: o.tag, on: sw.isOn)))
+            }, for: .valueChanged)
+            v = sw
         case .spinner:
             let s = UIActivityIndicatorView(style: .medium)
             s.startAnimating()
@@ -383,24 +435,103 @@ final class NNPressable: UIControl {
 
 /// A text field with room around the text (the runtime measures inputs with
 /// 10 pt of padding).
-final class NNTextField: UITextField {
-    private let pad = UIEdgeInsets(top: 10, left: 10, bottom: 10, right: 10)
-    override func textRect(forBounds b: CGRect) -> CGRect { b.inset(by: pad) }
-    override func editingRect(forBounds b: CGRect) -> CGRect { b.inset(by: pad) }
-    override func placeholderRect(forBounds b: CGRect) -> CGRect { b.inset(by: pad) }
+/// A text input: a UITextField, or a UITextView once Go asks for several
+/// lines. Border, background and corners are on this view either way.
+final class NNInput: UIView, UITextViewDelegate {
+    private let pad: CGFloat = 10
+    private let onChange: (String) -> Void
+    private lazy var field: UITextField = {
+        let f = UITextField()
+        f.addAction(UIAction { [weak self, weak f] _ in self?.onChange(f?.text ?? "") }, for: .editingChanged)
+        return f
+    }()
+    private var area: UITextView?
+    private let hint = UILabel() // the text view's placeholder
+    private var multiline = false
+
+    init(onChange: @escaping (String) -> Void) {
+        self.onChange = onChange
+        super.init(frame: .zero)
+        addSubview(field)
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    var text: String {
+        multiline ? area?.text ?? "" : field.text ?? ""
+    }
 
     func apply(_ o: Render.Input) {
-        if text != o.value { text = o.value }
-        placeholder = o.placeholder.isEmpty ? nil : o.placeholder
-        font = Renderer.font(o.font)
-        textColor = color(o.color) ?? .label
-        isSecureTextEntry = o.secure
-        switch o.keyboard {
-        case .number: keyboardType = .decimalPad
-        case .email: keyboardType = .emailAddress
-        case .url: keyboardType = .URL
-        default: keyboardType = .default
+        if o.multiline != multiline { switchMode(o.multiline) }
+        let font = Renderer.font(o.font), ink = color(o.color) ?? .label
+        if let area {
+            if area.text != o.value { area.text = o.value }
+            area.font = font
+            area.textColor = ink
+            hint.text = o.placeholder
+            hint.font = font
+            hint.isHidden = !o.value.isEmpty
+        } else {
+            if field.text != o.value { field.text = o.value }
+            field.placeholder = o.placeholder.isEmpty ? nil : o.placeholder
+            field.font = font
+            field.textColor = ink
+            field.isSecureTextEntry = o.secure
         }
+        let type: UIKeyboardType
+        switch o.keyboard {
+        case .number: type = .decimalPad
+        case .email: type = .emailAddress
+        case .url: type = .URL
+        default: type = .default
+        }
+        field.keyboardType = type
+        area?.keyboardType = type
+    }
+
+    private func switchMode(_ multi: Bool) {
+        multiline = multi
+        if multi {
+            field.removeFromSuperview()
+            let a = UITextView()
+            a.backgroundColor = .clear
+            a.textContainerInset = UIEdgeInsets(top: pad, left: pad - 5, bottom: pad, right: pad - 5)
+            a.delegate = self
+            hint.textColor = .placeholderText
+            hint.numberOfLines = 1
+            addSubview(a)
+            addSubview(hint)
+            area = a
+        } else {
+            area?.removeFromSuperview()
+            hint.removeFromSuperview()
+            area = nil
+            addSubview(field)
+        }
+        setNeedsLayout()
+    }
+
+    func textViewDidChange(_ t: UITextView) {
+        hint.isHidden = !t.text.isEmpty
+        onChange(t.text)
+    }
+
+    /// What the renderer's type(tag:text:) does: set the text and report it.
+    func userTyped(_ s: String) {
+        if let area {
+            area.text = s
+            textViewDidChange(area)
+        } else {
+            field.text = s
+            field.sendActions(for: .editingChanged)
+        }
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        field.frame = bounds.insetBy(dx: pad, dy: 0)
+        area?.frame = bounds
+        hint.frame = CGRect(x: pad, y: pad, width: bounds.width - 2 * pad, height: hint.font.lineHeight)
     }
 }
 

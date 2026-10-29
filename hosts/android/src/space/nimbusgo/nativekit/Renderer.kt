@@ -63,6 +63,7 @@ class Renderer internal constructor(private val root: NimbusView) {
 
     internal fun start(schema: Long) {
         Plugins.context = ctx.applicationContext
+        Plugins.activity = ctx as? android.app.Activity
         Bridge.setListener { bytes ->
             val m = try {
                 Render.decode(bytes)
@@ -80,12 +81,12 @@ class Renderer internal constructor(private val root: NimbusView) {
 
     // ---- viewport and events ----
 
-    internal fun sendViewport(wPx: Int, hPx: Int, top: Int, bottom: Int, left: Int, right: Int, dark: Boolean) {
+    internal fun sendViewport(wPx: Int, hPx: Int, top: Int, bottom: Int, left: Int, right: Int, dark: Boolean, keyboardPx: Int = 0) {
         if (!started || wPx == 0) return
         val v = Render.Viewport(
             w = wPx / density, h = hPx / density, scale = density,
             safeTop = top / density, safeBottom = bottom / density, safeLeft = left / density, safeRight = right / density,
-            platform = "android", dark = dark,
+            platform = "android", dark = dark, keyboard = keyboardPx / density,
         )
         if (v == lastViewport) return
         lastViewport = v
@@ -98,6 +99,9 @@ class Renderer internal constructor(private val root: NimbusView) {
     /** Tells Go the user went back in a stack. */
     internal fun popped(tag: Int, depth: Int) =
         Bridge.send(Render.encode(Render.Popped(tag = tag.toLong(), depth = depth.toLong())))
+
+    /** Tells Go the user pulled a scroll view to refresh. */
+    internal fun refreshPulled(tag: Int) = Bridge.send(Render.encode(Render.Refresh(tag = tag.toLong())))
 
     /** Tells Go the user picked a tab. */
     internal fun selectedTab(tag: Int, index: Int) =
@@ -168,9 +172,11 @@ class Renderer internal constructor(private val root: NimbusView) {
                 is Render.Text -> (views[op.tag.toInt()] as? TextView)?.let { text(it, op) }
                 is Render.Image -> (views[op.tag.toInt()] as? NNImage)?.load(op)
                 is Render.Input -> (views[op.tag.toInt()] as? NNInput)?.apply(op, density)
-                is Render.Scroll -> (views[op.tag.toInt()] as? NNScroll)?.setContent(
-                    (op.w * density).roundToInt(), (op.h * density).roundToInt(), op.horizontal, op.report,
-                )
+                is Render.Scroll -> (views[op.tag.toInt()] as? NNScroll)?.let {
+                    it.setContent((op.w * density).roundToInt(), (op.h * density).roundToInt(), op.horizontal, op.report)
+                    it.setRefresh(op.refreshable, op.refreshing, argb(if (chrome.accent != 0L) chrome.accent else 0x2563ebffL))
+                }
+                is Render.Switch -> (views[op.tag.toInt()] as? NNSwitch)?.apply(op)
                 is Render.Spinner -> (views[op.tag.toInt()] as? ProgressBar)?.let {
                     if (op.color != 0L) it.indeterminateTintList = ColorStateList.valueOf(argb(op.color))
                 }
@@ -217,6 +223,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.TABS -> NNTabs(ctx, this, tag)
             Render.Kind.MODAL -> NNModal(ctx, this, tag)
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
+            Render.Kind.SWITCH -> NNSwitch(ctx, tag)
             else -> NNGroup(ctx, this)
         }
         v.id = tag
@@ -362,6 +369,8 @@ class Renderer internal constructor(private val root: NimbusView) {
     private class NNInput(c: Context, tag: Int, density: Float) : EditText(c) {
         private var applying = false
 
+        private var multiline = false
+
         init {
             isSingleLine = true
             background = null
@@ -396,7 +405,37 @@ class Renderer internal constructor(private val root: NimbusView) {
                 else -> InputType.TYPE_CLASS_TEXT
             }
             if (o.secure) type = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+            if (o.multiline) type = type or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             if (inputType != type) inputType = type
+            if (o.multiline != multiline) {
+                multiline = o.multiline
+                isSingleLine = !multiline
+                gravity = if (multiline) Gravity.TOP or Gravity.START else Gravity.CENTER_VERTICAL or Gravity.START
+            }
+        }
+    }
+
+    /** An on/off switch; reports the user's flips, not the renderer's. */
+    private class NNSwitch(c: Context, tag: Int) : android.widget.Switch(c) {
+        private var applying = false
+
+        init {
+            setOnCheckedChangeListener { _, on ->
+                if (!applying) Bridge.send(Render.encode(Render.Toggled(tag = tag.toLong(), on = on)))
+            }
+        }
+
+        fun apply(o: Render.Switch) {
+            applying = true
+            if (isChecked != o.on) isChecked = o.on
+            applying = false
+            isEnabled = o.enabled
+            if (o.tint != 0L) {
+                val on = argb(o.tint)
+                val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+                thumbTintList = ColorStateList(states, intArrayOf(on, 0xfff5f5f5.toInt()))
+                trackTintList = ColorStateList(states, intArrayOf((on and 0x00ffffff) or 0x80000000.toInt(), 0x40000000))
+            }
         }
     }
 

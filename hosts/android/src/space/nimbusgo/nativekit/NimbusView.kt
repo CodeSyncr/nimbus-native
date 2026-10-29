@@ -19,6 +19,7 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
     private var insetBottom = 0
     private var insetLeft = 0
     private var insetRight = 0
+    private var imeBottom = 0 // the keyboard's height from the window's bottom
 
     init {
         setBackgroundColor(0xfff9fafb.toInt())
@@ -28,6 +29,12 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
             insetBottom = insets.systemWindowInsetBottom
             insetLeft = insets.systemWindowInsetLeft
             insetRight = insets.systemWindowInsetRight
+            imeBottom = 0
+            if (android.os.Build.VERSION.SDK_INT >= 30) {
+                // The keyboard is its own inset; the bars' bottom inset is the navigation bar.
+                imeBottom = insets.getInsets(android.view.WindowInsets.Type.ime()).bottom
+                insetBottom = insets.getInsets(android.view.WindowInsets.Type.systemBars()).bottom
+            }
             sendViewport()
             insets
         }
@@ -77,7 +84,17 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
 
     private fun sendViewport() {
         val dark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-        renderer.sendViewport(width, height, insetTop, insetBottom, insetLeft, insetRight, dark)
+        renderer.sendViewport(width, height, insetTop, insetBottom, insetLeft, insetRight, dark, keyboardOverlap())
+    }
+
+    /** How far the keyboard covers this view's bottom. When the window already shrank for it
+     *  (adjustResize), this view ends above the keyboard and the overlap is 0. */
+    private fun keyboardOverlap(): Int {
+        if (imeBottom == 0) return 0
+        val loc = IntArray(2)
+        getLocationInWindow(loc)
+        val windowH = super.getRootView().height
+        return maxOf(0, loc[1] + height - (windowH - imeBottom))
     }
 
     override fun onAttachedToWindow() {

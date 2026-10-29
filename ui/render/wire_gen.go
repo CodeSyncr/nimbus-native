@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xa95ccab54add04c6
+const SchemaHash uint64 = 0x8421a4ec545bd939
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -206,6 +206,7 @@ func (m *Input) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Color))
 	b = wire.AppendBool(b, m.Secure)
 	b = wire.AppendUint(b, uint64(m.Keyboard))
+	b = wire.AppendBool(b, m.Multiline)
 	return b
 }
 
@@ -218,6 +219,7 @@ func (m *Input) ReadWire(r *wire.Reader) {
 	m.Color = uint32(r.UintMax(1<<32 - 1))
 	m.Secure = r.Bool()
 	m.Keyboard = Keyboard(r.UintMax(1<<8 - 1))
+	m.Multiline = r.Bool()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -304,6 +306,8 @@ func (m *Scroll) AppendWire(b []byte) []byte {
 	b = wire.AppendFloat32(b, m.H)
 	b = wire.AppendBool(b, m.Horizontal)
 	b = wire.AppendBool(b, m.Report)
+	b = wire.AppendBool(b, m.Refreshable)
+	b = wire.AppendBool(b, m.Refreshing)
 	return b
 }
 
@@ -314,6 +318,25 @@ func (m *Scroll) ReadWire(r *wire.Reader) {
 	m.H = r.Float32()
 	m.Horizontal = r.Bool()
 	m.Report = r.Bool()
+	m.Refreshable = r.Bool()
+	m.Refreshing = r.Bool()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Switch) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendBool(b, m.On)
+	b = wire.AppendBool(b, m.Enabled)
+	b = wire.AppendUint(b, uint64(m.Tint))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Switch) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.On = r.Bool()
+	m.Enabled = r.Bool()
+	m.Tint = uint32(r.UintMax(1<<32 - 1))
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -340,6 +363,7 @@ func (m *Viewport) AppendWire(b []byte) []byte {
 	b = wire.AppendFloat32(b, m.SafeRight)
 	b = wire.AppendString(b, m.Platform)
 	b = wire.AppendBool(b, m.Dark)
+	b = wire.AppendFloat32(b, m.Keyboard)
 	return b
 }
 
@@ -354,6 +378,7 @@ func (m *Viewport) ReadWire(r *wire.Reader) {
 	m.SafeRight = r.Float32()
 	m.Platform = r.String()
 	m.Dark = r.Bool()
+	m.Keyboard = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -528,6 +553,30 @@ func (m *PluginResult) ReadWire(r *wire.Reader) {
 	m.Err = r.String()
 }
 
+// AppendWire appends m's wire encoding to b.
+func (m *Toggled) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	b = wire.AppendBool(b, m.On)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Toggled) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+	m.On = r.Bool()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Refresh) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Refresh) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
+}
+
 func (*Create) isOp()    {}
 func (*Destroy) isOp()   {}
 func (*Children) isOp()  {}
@@ -542,6 +591,7 @@ func (*TabSelect) isOp() {}
 func (*Chrome) isOp()    {}
 func (*Present) isOp()   {}
 func (*Scroll) isOp()    {}
+func (*Switch) isOp()    {}
 func (*Spinner) isOp()   {}
 
 // AppendOp appends a Op: its variant index (0 for nil), then the variant.
@@ -577,8 +627,10 @@ func AppendOp(b []byte, v Op) []byte {
 		return v.AppendWire(wire.AppendUint(b, 13))
 	case *Scroll:
 		return v.AppendWire(wire.AppendUint(b, 14))
-	case *Spinner:
+	case *Switch:
 		return v.AppendWire(wire.AppendUint(b, 15))
+	case *Spinner:
+		return v.AppendWire(wire.AppendUint(b, 16))
 	}
 	panic(fmt.Sprintf("render: %T is not a Op variant", v))
 }
@@ -645,6 +697,10 @@ func ReadOp(r *wire.Reader) Op {
 		v.ReadWire(r)
 		return v
 	case 15:
+		v := new(Switch)
+		v.ReadWire(r)
+		return v
+	case 16:
 		v := new(Spinner)
 		v.ReadWire(r)
 		return v
@@ -670,6 +726,8 @@ func (*TextSize) isMessage()     {}
 func (*PluginCall) isMessage()   {}
 func (*PluginAck) isMessage()    {}
 func (*PluginResult) isMessage() {}
+func (*Toggled) isMessage()      {}
+func (*Refresh) isMessage()      {}
 
 // AppendMessage appends a Message: its variant index (0 for nil), then the variant.
 func AppendMessage(b []byte, v Message) []byte {
@@ -704,6 +762,10 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 13))
 	case *PluginResult:
 		return v.AppendWire(wire.AppendUint(b, 14))
+	case *Toggled:
+		return v.AppendWire(wire.AppendUint(b, 15))
+	case *Refresh:
+		return v.AppendWire(wire.AppendUint(b, 16))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -767,6 +829,14 @@ func ReadMessage(r *wire.Reader) Message {
 		return v
 	case 14:
 		v := new(PluginResult)
+		v.ReadWire(r)
+		return v
+	case 15:
+		v := new(Toggled)
+		v.ReadWire(r)
+		return v
+	case 16:
+		v := new(Refresh)
 		v.ReadWire(r)
 		return v
 	}

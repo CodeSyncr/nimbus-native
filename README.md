@@ -44,7 +44,9 @@ hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
 navigation, tabs, modals, safe areas, forms, theming and dark mode, a
 typed client for Nimbus servers with data-loading hooks, `nimbus native new`
 projects that open in Xcode and Android Studio, folder routing, native
-plugins (secure storage, app info, links, key-value storage).
+plugins (secure storage, app info, links, key-value storage), switches,
+multiline inputs, pull to refresh, keyboard avoidance and native dialogs.
+Not yet: flex-wrap, animations and gestures.
 
 ## Layout
 
@@ -72,7 +74,7 @@ plugins (secure storage, app info, links, key-value storage).
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
 | `router/` | Path → page matching and `router.Push`; the table comes from `pages/` (`toolchain/routes.go`) |
 | `plugin/` | Calls native code: `plugin.Call` to a Swift/Kotlin plugin (`hosts/*/Plugins.*`) |
-| `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, and `storage` (a key-value file) |
+| `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, `dialog`, and `storage` (a key-value file) |
 
 ## Start a project
 
@@ -151,6 +153,22 @@ router.Push(c, "/orders/42")    // any screen
 
 Go skips `_`-prefixed folders in `./...` patterns, so `go vet ./...` passes
 over parameter pages; they are compiled through the table the app imports.
+
+## Controls and dialogs
+
+```go
+ui.Switch(on, setOn, ui.Style{})                                   // UISwitch / Switch, theme-tinted
+ui.TextInput(note, setNote, box).Multiline()                       // or FieldOptions{Multiline: true}
+ui.List(n, row, ui.Flex(1)).OnRefresh(q.Loading, q.Refetch)        // pull to refresh (Scroll too)
+
+ok, _ := dialog.Confirm(ctx, "Delete order?", "This can't be undone.", "Delete", true)
+i, _ := dialog.Choose(ctx, "Share via", "Mail", "Messages")        // action sheet; -1 if cancelled
+dialog.Toast(ctx, "Saved")
+day, ok, _ := dialog.PickDate(ctx, dialog.Date, time.Now())        // Date, Time or DateTime
+```
+
+`SafeArea` keeps clear of the on-screen keyboard: its bottom padding grows
+by however much of the keyboard reaches below it.
 
 ## Plugins: calling native code
 

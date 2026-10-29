@@ -266,7 +266,7 @@ func (a *App) androidManifest() string {
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:label="` + a.Name + `" android:extractNativeLibs="false" android:hasCode="true"
         android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".MainActivity" android:exported="true" android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

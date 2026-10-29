@@ -122,6 +122,7 @@ type ViewportInfo struct {
 	SafeTop, SafeBottom, SafeLeft, SafeRight float32
 	Platform                                 string // "ios" | "android"
 	Dark                                     bool
+	Keyboard                                 float32 // how far the keyboard covers the root's bottom
 }
 
 func depsEqual(a, b []any) bool {

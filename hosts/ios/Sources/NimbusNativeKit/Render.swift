@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xa95ccab54add04c6
+    public static let schemaHash: UInt64 = 0x8421a4ec545bd939
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -19,6 +19,7 @@ public enum Render {
         public static let stack = Kind(rawValue: 7)
         public static let tabs = Kind(rawValue: 8)
         public static let modal = Kind(rawValue: 9)
+        public static let `switch` = Kind(rawValue: 10)
     }
 
     /// Align is horizontal text alignment.
@@ -347,8 +348,9 @@ public enum Render {
         public var color: UInt32
         public var secure: Bool
         public var keyboard: Keyboard
+        public var multiline: Bool
 
-        public init(tag: UInt32 = 0, value: String = "", placeholder: String = "", font: Font = Font(), color: UInt32 = 0, secure: Bool = false, keyboard: Keyboard = Keyboard(rawValue: 0)) {
+        public init(tag: UInt32 = 0, value: String = "", placeholder: String = "", font: Font = Font(), color: UInt32 = 0, secure: Bool = false, keyboard: Keyboard = Keyboard(rawValue: 0), multiline: Bool = false) {
             self.tag = tag
             self.value = value
             self.placeholder = placeholder
@@ -356,6 +358,7 @@ public enum Render {
             self.color = color
             self.secure = secure
             self.keyboard = keyboard
+            self.multiline = multiline
         }
 
         public func write(to w: inout WireWriter) {
@@ -366,6 +369,7 @@ public enum Render {
             w.uint(UInt64(self.color))
             w.bool(self.secure)
             w.uint(UInt64(self.keyboard.rawValue))
+            w.bool(self.multiline)
         }
 
         public static func read(from r: inout WireReader) throws -> Input {
@@ -377,6 +381,7 @@ public enum Render {
             m.color = UInt32(try r.uint(max: 4294967295))
             m.secure = try r.bool()
             m.keyboard = Keyboard(rawValue: UInt8(try r.uint(max: 255)))
+            m.multiline = try r.bool()
             return m
         }
     }
@@ -532,13 +537,17 @@ public enum Render {
         public var h: Float
         public var horizontal: Bool
         public var report: Bool
+        public var refreshable: Bool
+        public var refreshing: Bool
 
-        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false, report: Bool = false) {
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false, report: Bool = false, refreshable: Bool = false, refreshing: Bool = false) {
             self.tag = tag
             self.w = w
             self.h = h
             self.horizontal = horizontal
             self.report = report
+            self.refreshable = refreshable
+            self.refreshing = refreshing
         }
 
         public func write(to w: inout WireWriter) {
@@ -547,6 +556,8 @@ public enum Render {
             w.float32(self.h)
             w.bool(self.horizontal)
             w.bool(self.report)
+            w.bool(self.refreshable)
+            w.bool(self.refreshing)
         }
 
         public static func read(from r: inout WireReader) throws -> Scroll {
@@ -556,6 +567,39 @@ public enum Render {
             m.h = try r.float32()
             m.horizontal = try r.bool()
             m.report = try r.bool()
+            m.refreshable = try r.bool()
+            m.refreshing = try r.bool()
+            return m
+        }
+    }
+
+    /// Switch sets a toggle's state.
+    public struct Switch: Equatable {
+        public var tag: UInt32
+        public var on: Bool
+        public var enabled: Bool
+        public var tint: UInt32
+
+        public init(tag: UInt32 = 0, on: Bool = false, enabled: Bool = false, tint: UInt32 = 0) {
+            self.tag = tag
+            self.on = on
+            self.enabled = enabled
+            self.tint = tint
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.bool(self.on)
+            w.bool(self.enabled)
+            w.uint(UInt64(self.tint))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Switch {
+            var m = Switch()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.on = try r.bool()
+            m.enabled = try r.bool()
+            m.tint = UInt32(try r.uint(max: 4294967295))
             return m
         }
     }
@@ -594,8 +638,9 @@ public enum Render {
         public var safeRight: Float
         public var platform: String
         public var dark: Bool
+        public var keyboard: Float
 
-        public init(w: Float = 0, h: Float = 0, scale: Float = 0, safeTop: Float = 0, safeBottom: Float = 0, safeLeft: Float = 0, safeRight: Float = 0, platform: String = "", dark: Bool = false) {
+        public init(w: Float = 0, h: Float = 0, scale: Float = 0, safeTop: Float = 0, safeBottom: Float = 0, safeLeft: Float = 0, safeRight: Float = 0, platform: String = "", dark: Bool = false, keyboard: Float = 0) {
             self.w = w
             self.h = h
             self.scale = scale
@@ -605,6 +650,7 @@ public enum Render {
             self.safeRight = safeRight
             self.platform = platform
             self.dark = dark
+            self.keyboard = keyboard
         }
 
         public func write(to w: inout WireWriter) {
@@ -617,6 +663,7 @@ public enum Render {
             w.float32(self.safeRight)
             w.string(self.platform)
             w.bool(self.dark)
+            w.float32(self.keyboard)
         }
 
         public static func read(from r: inout WireReader) throws -> Viewport {
@@ -630,6 +677,7 @@ public enum Render {
             m.safeRight = try r.float32()
             m.platform = try r.string()
             m.dark = try r.bool()
+            m.keyboard = try r.float32()
             return m
         }
     }
@@ -949,6 +997,48 @@ public enum Render {
         }
     }
 
+    /// Toggled reports that the user flipped a switch.
+    public struct Toggled: Equatable {
+        public var tag: UInt32
+        public var on: Bool
+
+        public init(tag: UInt32 = 0, on: Bool = false) {
+            self.tag = tag
+            self.on = on
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.bool(self.on)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Toggled {
+            var m = Toggled()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.on = try r.bool()
+            return m
+        }
+    }
+
+    /// Refresh reports that the user pulled a refreshable scroll view.
+    public struct Refresh: Equatable {
+        public var tag: UInt32
+
+        public init(tag: UInt32 = 0) {
+            self.tag = tag
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Refresh {
+            var m = Refresh()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Op changes one native view.
     public indirect enum Op: Equatable {
         case create(Create)
@@ -965,6 +1055,7 @@ public enum Render {
         case chrome(Chrome)
         case present(Present)
         case scroll(Scroll)
+        case `switch`(Switch)
         case spinner(Spinner)
 
         public static func write(_ v: Op?, to w: inout WireWriter) {
@@ -1013,8 +1104,11 @@ public enum Render {
             case .scroll(let x)?:
                 w.uint(14)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .switch(let x)?:
                 w.uint(15)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(16)
                 x.write(to: &w)
             }
         }
@@ -1052,6 +1146,8 @@ public enum Render {
             case 14:
                 return .scroll(try Scroll.read(from: &r))
             case 15:
+                return .switch(try Switch.read(from: &r))
+            case 16:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -1075,6 +1171,8 @@ public enum Render {
         case pluginCall(PluginCall)
         case pluginAck(PluginAck)
         case pluginResult(PluginResult)
+        case toggled(Toggled)
+        case refresh(Refresh)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
             switch v {
@@ -1122,6 +1220,12 @@ public enum Render {
             case .pluginResult(let x)?:
                 w.uint(14)
                 x.write(to: &w)
+            case .toggled(let x)?:
+                w.uint(15)
+                x.write(to: &w)
+            case .refresh(let x)?:
+                w.uint(16)
+                x.write(to: &w)
             }
         }
 
@@ -1157,6 +1261,10 @@ public enum Render {
                 return .pluginAck(try PluginAck.read(from: &r))
             case 14:
                 return .pluginResult(try PluginResult.read(from: &r))
+            case 15:
+                return .toggled(try Toggled.read(from: &r))
+            case 16:
+                return .refresh(try Refresh.read(from: &r))
             default:
                 throw WireError.variant
             }

@@ -155,6 +155,7 @@ type FieldOptions struct {
 	Placeholder string
 	Keyboard    render.Keyboard
 	Secure      bool
+	Multiline   bool  // several lines, three tall unless Style sets a height
 	Style       Style // for the input box
 }
 
@@ -178,6 +179,9 @@ func (t textField) Render(c *Ctx) *Element {
 	in := TextInput(f.Value, f.OnChange, box).Placeholder(o.Placeholder).Keyboard(o.Keyboard).TestID("field-" + f.Name)
 	if o.Secure {
 		in.Secure()
+	}
+	if o.Multiline {
+		in.Multiline()
 	}
 	var label, msg *Element
 	if o.Label != "" {

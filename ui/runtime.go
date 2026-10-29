@@ -80,6 +80,7 @@ type runtime struct {
 	modalKey     int
 	lists        map[*instance]bool // mounted Lists
 	rechild      map[*instance]bool // Lists and Stacks whose children must render again
+	toggled      map[*instance]bool // Switches the user flipped, to check against Go's answer
 	seq          uint64
 	measures     uint32
 
@@ -92,7 +93,7 @@ type runtime struct {
 
 func newRuntime(root Component) *runtime {
 	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
-		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, queries: map[string]*queryEntry{}}
+		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, toggled: map[*instance]bool{}, queries: map[string]*queryEntry{}}
 }
 
 // do runs f on the UI loop. Safe from any goroutine, including the loop.
@@ -149,7 +150,7 @@ func (rt *runtime) receive(b []byte) {
 		switch m := m.(type) {
 		case *render.Viewport:
 			rt.viewport = ViewportInfo{W: m.W, H: m.H, Scale: m.Scale, SafeTop: m.SafeTop, SafeBottom: m.SafeBottom,
-				SafeLeft: m.SafeLeft, SafeRight: m.SafeRight, Platform: m.Platform, Dark: m.Dark}
+				SafeLeft: m.SafeLeft, SafeRight: m.SafeRight, Platform: m.Platform, Dark: m.Dark, Keyboard: m.Keyboard}
 			rt.haveViewport, rt.dirty, rt.forceAll = true, true, true
 		case *render.Press:
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onPress != nil {
@@ -177,6 +178,23 @@ func (rt *runtime) receive(b []byte) {
 			}
 		case *render.Dismissed:
 			rt.dismissed(m.Tag)
+		case *render.Toggled:
+			if in := rt.byTag[m.Tag]; in != nil {
+				in.sent.toggle.On = m.On // what the host shows; Go's answer is diffed against it
+				if in.el.onToggle != nil {
+					in.el.onToggle(m.On)
+				}
+				rt.toggled[in] = true
+				rt.dirty = true
+			}
+		case *render.Refresh:
+			if in := rt.byTag[m.Tag]; in != nil {
+				in.sent.scroll.Refreshing = true // the host is spinning until Go says otherwise
+				if in.el.onRefresh != nil {
+					in.el.onRefresh()
+				}
+				rt.dirty = true
+			}
 		}
 	})
 }
@@ -214,6 +232,7 @@ type sentProps struct {
 	input  render.Input
 	scroll render.Scroll
 	spin   render.Spinner
+	toggle render.Switch
 	frame  render.Frame
 }
 
@@ -235,6 +254,16 @@ func (rt *runtime) commit() {
 			rt.children(in)
 		}
 		delete(rt.rechild, in)
+	}
+	// A flipped switch whose handler kept the old state goes back.
+	for in := range rt.toggled {
+		if !in.unmounted && in.sent.toggle.On != in.el.on {
+			sw := in.sent.toggle
+			sw.On = in.el.on
+			in.sent.toggle = sw
+			rt.op(&sw)
+		}
+		delete(rt.toggled, in)
 	}
 	c := &render.Commit{}
 	host := hostRoot(rt.rootInst)
@@ -311,6 +340,8 @@ func (rt *runtime) mount(el *Element, parent *instance) *instance {
 		in.node.Measure = rt.inputMeasure(in)
 	case render.KindSpinner:
 		in.node.Measure = rt.spinnerMeasure
+	case render.KindSwitch:
+		in.node.Measure = rt.switchMeasure
 	}
 	rt.props(in, true)
 	rt.children(in)
@@ -539,9 +570,9 @@ func (rt *runtime) props(in *instance, first bool) {
 		}
 	case render.KindInput:
 		inp := render.Input{Tag: in.tag, Value: el.text, Placeholder: el.placeholder, Font: font,
-			Color: uint32(textColor), Secure: el.secure, Keyboard: el.keyboard}
+			Color: uint32(textColor), Secure: el.secure, Keyboard: el.keyboard, Multiline: el.multiline}
 		if first || inp != in.sent.input {
-			if inp.Font != in.sent.input.Font {
+			if inp.Font != in.sent.input.Font || inp.Multiline != in.sent.input.Multiline {
 				in.measured = nil
 				in.node.MarkDirty()
 			}
@@ -558,6 +589,16 @@ func (rt *runtime) props(in *instance, first bool) {
 			in.sent.spin = sp
 			rt.op(&sp)
 		}
+	case render.KindSwitch:
+		tint := s.Color
+		if tint == 0 {
+			tint = theme.Primary
+		}
+		sw := render.Switch{Tag: in.tag, On: el.on, Enabled: el.onToggle != nil, Tint: uint32(tint)}
+		if first || sw != in.sent.toggle {
+			in.sent.toggle = sw
+			rt.op(&sw)
+		}
 	}
 }
 
@@ -570,7 +611,8 @@ func (rt *runtime) emitFrames(in *instance) {
 		rt.op(&f)
 	}
 	if in.el.kind == render.KindScroll {
-		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil}
+		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil,
+			Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing}
 		if sc != in.sent.scroll {
 			in.sent.scroll = sc
 			rt.op(&sc)
@@ -621,8 +663,19 @@ func (rt *runtime) inputMeasure(in *instance) layout.MeasureFunc {
 		if wm != layout.Undefined {
 			width = w
 		}
+		if in.sent.input.Multiline {
+			return width, 3*sz.H + 2*fieldPadding
+		}
 		return width, sz.H + 2*fieldPadding
 	}
+}
+
+// switchMeasure is the platform toggle's own size.
+func (rt *runtime) switchMeasure(w float32, wm layout.Mode, h float32, hm layout.Mode) (float32, float32) {
+	if rt.viewport.Platform == "android" {
+		return 52, 32
+	}
+	return 51, 31
 }
 
 const fieldPadding = 10

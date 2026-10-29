@@ -91,10 +91,20 @@ object Plugins {
     lateinit var context: Context
         internal set
 
+    private var activityRef: java.lang.ref.WeakReference<android.app.Activity>? = null
+
+    /** The activity showing the app, for plugins that show UI (dialogs); null when it is gone. */
+    var activity: android.app.Activity?
+        get() = activityRef?.get()?.takeUnless { it.isFinishing }
+        internal set(a) {
+            activityRef = a?.let { java.lang.ref.WeakReference(it) }
+        }
+
     init {
         handlers["secureStorage"] = Handler(SecureStorage::handle)
         handlers["app"] = Handler(AppInfo::handle)
         handlers["linking"] = Handler(Linking::handle)
+        handlers["dialog"] = Handler(Dialogs::handle)
     }
 
     /** Makes [name] callable from Go, replacing any plugin of that name. */
@@ -212,5 +222,79 @@ internal object Linking {
             "canOpen" -> call.resolve(intent.resolveActivity(Plugins.context.packageManager) != null)
             else -> Plugins.unknownMethod(call)
         }
+    }
+}
+
+/** dialog: alerts, action sheets, toasts and date pickers, over the current activity. */
+internal object Dialogs {
+    fun handle(call: PluginCall) {
+        if (call.method == "toast") {
+            android.widget.Toast.makeText(Plugins.context, call.string("message") ?: "", android.widget.Toast.LENGTH_SHORT).show()
+            return call.resolve()
+        }
+        val a = Plugins.activity ?: return call.reject(Plugins.UNAVAILABLE, "no activity to show a dialog in")
+        when (call.method) {
+            "show" -> show(call, a)
+            "date" -> date(call, a)
+            else -> Plugins.unknownMethod(call)
+        }
+    }
+
+    private fun show(call: PluginCall, a: android.app.Activity) {
+        val buttons = call.args.optJSONArray("buttons")
+        val labels = (0 until (buttons?.length() ?: 0)).map { buttons!!.getJSONObject(it) }
+        val b = android.app.AlertDialog.Builder(a)
+        call.string("title")?.takeIf { it.isNotEmpty() }?.let(b::setTitle)
+        call.string("message")?.takeIf { it.isNotEmpty() }?.let(b::setMessage)
+        val cancel = labels.indexOfFirst { it.optString("style") == "cancel" }
+        val others = labels.indices.filter { it != cancel }
+        if (call.args.optBoolean("sheet") || others.size > 2) {
+            // A list: every choice but cancel, which stays a button.
+            b.setItems(others.map { labels[it].optString("label") }.toTypedArray()) { _, which -> call.resolve(others[which]) }
+        } else {
+            // Up to two choices: the last is the positive button, the other neutral.
+            others.lastOrNull()?.let { i -> b.setPositiveButton(labels[i].optString("label")) { _, _ -> call.resolve(i) } }
+            if (others.size == 2) {
+                val i = others[0]
+                b.setNeutralButton(labels[i].optString("label")) { _, _ -> call.resolve(i) }
+            }
+        }
+        if (cancel >= 0) b.setNegativeButton(labels[cancel].optString("label")) { _, _ -> call.resolve(cancel) }
+        b.setOnCancelListener { call.reject(Plugins.CANCELLED, "dismissed") } // Back or a tap outside
+        val dialog = b.create()
+        dialog.setOnShowListener {
+            labels.forEachIndexed { i, l ->
+                if (l.optString("style") == "destructive") {
+                    val which = when (i) {
+                        others.lastOrNull() -> android.content.DialogInterface.BUTTON_POSITIVE
+                        cancel -> android.content.DialogInterface.BUTTON_NEGATIVE
+                        else -> android.content.DialogInterface.BUTTON_NEUTRAL
+                    }
+                    dialog.getButton(which)?.setTextColor(0xffdc2626.toInt())
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun date(call: PluginCall, a: android.app.Activity) {
+        val cal = java.util.Calendar.getInstance()
+        if (call.args.has("initial")) cal.timeInMillis = call.args.optLong("initial")
+        val mode = call.string("mode") ?: "date"
+        val cancelled = { call.reject(Plugins.CANCELLED, "cancelled") }
+        val pickTime = {
+            android.app.TimePickerDialog(a, { _, h, m ->
+                cal.set(java.util.Calendar.HOUR_OF_DAY, h)
+                cal.set(java.util.Calendar.MINUTE, m)
+                call.resolve(cal.timeInMillis)
+            }, cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE),
+                android.text.format.DateFormat.is24HourFormat(a)).apply { setOnCancelListener { cancelled() } }.show()
+        }
+        if (mode == "time") return pickTime()
+        android.app.DatePickerDialog(a, { _, y, mo, d ->
+            cal.set(y, mo, d)
+            if (mode == "datetime") pickTime() else call.resolve(cal.timeInMillis)
+        }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH), cal.get(java.util.Calendar.DAY_OF_MONTH))
+            .apply { setOnCancelListener { cancelled() } }.show()
     }
 }

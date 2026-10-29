@@ -53,9 +53,8 @@ final class Check {
     private func text(_ id: String) -> String? { (r.view(forTag: r.tag(forTestID: id) ?? 0) as? UILabel)?.text }
     private func press(_ id: String) { if let t = r.tag(forTestID: id) { r.press(tag: t) } else { log("FAIL: no \(id)") } }
     private func type(_ id: String, _ s: String) {
-        guard let f = r.view(forTag: r.tag(forTestID: id) ?? 0) as? UITextField else { return log("FAIL: no \(id)") }
-        f.text = s
-        f.sendActions(for: .editingChanged)
+        guard let t = r.tag(forTestID: id) else { return log("FAIL: no \(id)") }
+        r.type(tag: t, text: s)
     }
     private func after(_ s: Double, _ f: @escaping () -> Void) { DispatchQueue.main.asyncAfter(deadline: .now() + s, execute: f) }
     private func waitFor(_ what: String, _ cond: @escaping () -> Bool, tries: Int = 100, _ then: @escaping () -> Void) {

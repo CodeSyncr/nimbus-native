@@ -85,10 +85,9 @@ final class Bench {
 
     /// Types into the name field the way the keyboard does.
     private func typeName() {
-        guard let f = r.view(forTag: r.tag(forTestID: "name") ?? 0) as? UITextField else { return log("FAIL: no name field") }
+        guard let t = r.tag(forTestID: "name") else { return log("FAIL: no name field") }
         typing = true
-        f.text = "Yash"
-        f.sendActions(for: .editingChanged)
+        r.type(tag: t, text: "Yash")
     }
 
     private func scroll() {
@@ -209,9 +208,8 @@ final class Bench {
 
     /// Types into a text field the way the keyboard does.
     private func type(_ testID: String, _ text: String) {
-        guard let f = r.view(forTag: r.tag(forTestID: testID) ?? 0) as? UITextField else { return log("FAIL: no \(testID)") }
-        f.text = text
-        f.sendActions(for: .editingChanged)
+        guard let t = r.tag(forTestID: testID) else { return log("FAIL: no \(testID)") }
+        r.type(tag: t, text: text)
     }
 
     private func log(_ s: String) { print("[gallery] " + s) }

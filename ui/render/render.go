@@ -28,6 +28,8 @@ const (
 	// KindModal is a view presented over everything (a sheet on iOS). It is
 	// not placed by a Children op: Present shows it, Destroy dismisses it.
 	KindModal
+	// KindSwitch is an on/off toggle: UISwitch, Android's Switch.
+	KindSwitch
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -165,6 +167,7 @@ type Input struct {
 	Color       uint32
 	Secure      bool
 	Keyboard    Keyboard
+	Multiline   bool // wraps and grows with Return making new lines
 }
 
 // Screen sets a stack screen's title. Tag is the screen's root view, a
@@ -224,6 +227,20 @@ type Scroll struct {
 	W, H       float32
 	Horizontal bool
 	Report     bool
+	// Refreshable shows pull to refresh; pulling sends Refresh. Refreshing
+	// keeps the indicator showing until Go clears it.
+	Refreshable bool
+	Refreshing  bool
+}
+
+// Switch sets a toggle's state.
+//
+//wire:variant Op
+type Switch struct {
+	Tag     uint32
+	On      bool
+	Enabled bool
+	Tint    uint32 // the on color; 0 is the platform's
 }
 
 //wire:variant Op
@@ -243,6 +260,9 @@ type Viewport struct {
 	SafeLeft, SafeRight float32
 	Platform            string // "ios" | "android"
 	Dark                bool
+	// Keyboard is how far the on-screen keyboard covers the root view from
+	// its bottom edge; 0 when hidden or when the window already shrank.
+	Keyboard float32
 }
 
 // Press reports a tap on a pressable.
@@ -343,3 +363,16 @@ type PluginResult struct {
 	Code  string
 	Err   string
 }
+
+// Toggled reports that the user flipped a switch.
+//
+//wire:message
+type Toggled struct {
+	Tag uint32
+	On  bool
+}
+
+// Refresh reports that the user pulled a refreshable scroll view.
+//
+//wire:message
+type Refresh struct{ Tag uint32 }

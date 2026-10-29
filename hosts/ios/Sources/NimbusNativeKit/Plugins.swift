@@ -68,6 +68,7 @@ public enum Plugins {
         "secureStorage": SecureStorage.handle,
         "app": AppInfo.handle,
         "linking": Linking.handle,
+        "dialog": Dialogs.handle,
     ]
 
     /// Makes `name` callable from Go, replacing any plugin of that name.
@@ -161,6 +162,142 @@ enum Linking {
             call.resolve(UIApplication.shared.canOpenURL(url))
         default:
             Plugins.unknownMethod(call)
+        }
+    }
+}
+
+/// dialog: alerts, action sheets, toasts and date pickers, shown over
+/// whatever is on screen.
+enum Dialogs {
+    static func handle(_ call: PluginCall) {
+        guard let top = topController() else { return call.reject(Plugins.unavailable, "no window to show a dialog in") }
+        switch call.method {
+        case "show": show(call, from: top)
+        case "toast": toast(call.string("message") ?? "", in: top.view.window ?? top.view)
+        case "date": date(call, from: top)
+        default: Plugins.unknownMethod(call)
+        }
+        if call.method == "toast" { call.resolve() }
+    }
+
+    static func topController() -> UIViewController? {
+        let window = UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.windows.first { $0.isKeyWindow } }.first
+        var top = window?.rootViewController
+        while let presented = top?.presentedViewController, !presented.isBeingDismissed { top = presented }
+        return top
+    }
+
+    private static func show(_ call: PluginCall, from top: UIViewController) {
+        let sheet = call.args["sheet"] as? Bool ?? false
+        let a = UIAlertController(title: call.string("title"), message: call.string("message"),
+                                  preferredStyle: sheet ? .actionSheet : .alert)
+        let buttons = call.args["buttons"] as? [[String: Any]] ?? [["label": "OK"]]
+        for (i, b) in buttons.enumerated() {
+            let style: UIAlertAction.Style
+            switch b["style"] as? String {
+            case "cancel": style = .cancel
+            case "destructive": style = .destructive
+            default: style = .default
+            }
+            a.addAction(UIAlertAction(title: b["label"] as? String ?? "", style: style) { _ in call.resolve(i) })
+        }
+        if let pop = a.popoverPresentationController { // iPad sheets point somewhere
+            pop.sourceView = top.view
+            pop.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.maxY - 40, width: 0, height: 0)
+        }
+        top.present(a, animated: true)
+    }
+
+    private static func toast(_ message: String, in host: UIView) {
+        let label = PaddedLabel()
+        label.text = message
+        label.numberOfLines = 0
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 15, weight: .medium)
+        label.backgroundColor = UIColor(white: 0.1, alpha: 0.9)
+        label.layer.cornerRadius = 12
+        label.clipsToBounds = true
+        label.textAlignment = .center
+        let maxW = host.bounds.width - 48
+        let size = label.sizeThatFits(CGSize(width: maxW, height: .greatestFiniteMagnitude))
+        label.frame = CGRect(x: (host.bounds.width - size.width) / 2, y: host.bounds.height - host.safeAreaInsets.bottom - size.height - 24,
+                             width: size.width, height: size.height)
+        label.alpha = 0
+        host.addSubview(label)
+        UIView.animate(withDuration: 0.2) { label.alpha = 1 }
+        UIView.animate(withDuration: 0.3, delay: 2.2, options: []) { label.alpha = 0 } completion: { _ in label.removeFromSuperview() }
+    }
+
+    private final class PaddedLabel: UILabel {
+        let inset = UIEdgeInsets(top: 10, left: 16, bottom: 10, right: 16)
+        override func drawText(in rect: CGRect) { super.drawText(in: rect.inset(by: inset)) }
+        override func sizeThatFits(_ size: CGSize) -> CGSize {
+            let s = super.sizeThatFits(CGSize(width: size.width - inset.left - inset.right, height: size.height))
+            return CGSize(width: s.width + inset.left + inset.right, height: s.height + inset.top + inset.bottom)
+        }
+    }
+
+    private static func date(_ call: PluginCall, from top: UIViewController) {
+        let picker = UIDatePicker()
+        switch call.string("mode") {
+        case "time": picker.datePickerMode = .time
+        case "datetime": picker.datePickerMode = .dateAndTime
+        default: picker.datePickerMode = .date
+        }
+        picker.preferredDatePickerStyle = .wheels
+        if let ms = call.args["initial"] as? Double { picker.date = Date(timeIntervalSince1970: ms / 1000) }
+        let vc = DatePickerController(picker: picker) { date in
+            if let date { call.resolve(Int64(date.timeIntervalSince1970 * 1000)) } else { call.reject(Plugins.cancelled, "cancelled") }
+        }
+        top.present(vc, animated: true)
+    }
+
+    /// A small sheet with a wheel picker and Cancel / Done.
+    private final class DatePickerController: UIViewController, UIAdaptivePresentationControllerDelegate {
+        private let picker: UIDatePicker
+        private var done: ((Date?) -> Void)?
+
+        init(picker: UIDatePicker, done: @escaping (Date?) -> Void) {
+            self.picker = picker
+            self.done = done
+            super.init(nibName: nil, bundle: nil)
+            modalPresentationStyle = .pageSheet
+            if let sheet = sheetPresentationController { sheet.detents = [.medium()] }
+            presentationController?.delegate = self
+        }
+
+        required init?(coder: NSCoder) { fatalError("not used") }
+
+        override func viewDidLoad() {
+            super.viewDidLoad()
+            view.backgroundColor = .systemBackground
+            let bar = UIToolbar()
+            bar.items = [
+                UIBarButtonItem(systemItem: .cancel, primaryAction: UIAction { [weak self] _ in self?.finish(nil) }),
+                UIBarButtonItem(systemItem: .flexibleSpace),
+                UIBarButtonItem(systemItem: .done, primaryAction: UIAction { [weak self] _ in self?.finish(self?.picker.date) }),
+            ]
+            let stack = UIStackView(arrangedSubviews: [bar, picker])
+            stack.axis = .vertical
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+                stack.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                stack.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            ])
+        }
+
+        private func finish(_ date: Date?) {
+            done?(date)
+            done = nil
+            dismiss(animated: true)
+        }
+
+        func presentationControllerDidDismiss(_ p: UIPresentationController) {
+            done?(nil) // swiped away
+            done = nil
         }
     }
 }
