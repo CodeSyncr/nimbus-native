@@ -41,7 +41,7 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
 format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
-navigation, tabs, safe areas. Next: modals, forms, theming, a typed client for
+navigation, tabs, modals, safe areas. Next: forms, theming, a typed client for
 Nimbus servers, device builds and signing, then the web.
 
 ## Layout
@@ -206,6 +206,12 @@ is `UITabBarController` on iOS (SF Symbol icons) and a bottom bar on
 Android; every tab stays mounted; `ui.TabsOf(c).Select(i)` switches from
 Go and a user's tap is reported back. `ui.SafeArea` pads clear of the
 status bar, home indicator and tab bar.
+
+Modals: `ui.Modals(c).Present(title, screen)` shows a page sheet on iOS
+(swipe down to close) and a full-screen layer on Android (back to close);
+each has its own stack and title bar, so `Navigation` works inside it.
+`ui.Modals(c).Dismiss()` closes it from Go, and a user's close is reported
+back.
 
 | Gallery: tap a row → detail | iOS simulator | Android emulator |
 |---|---|---|

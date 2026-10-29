@@ -25,6 +25,9 @@ const (
 	// KindTabs is a tab bar: its children are the tabs' root views, one
 	// shown at a time above the native tab bar.
 	KindTabs
+	// KindModal is a view presented over everything (a sheet on iOS). It is
+	// not placed by a Children op: Present shows it, Destroy dismisses it.
+	KindModal
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -191,6 +194,12 @@ type TabSelect struct {
 	Index uint32
 }
 
+// Present shows a KindModal view over the app, with the platform's
+// transition.
+//
+//wire:variant Op
+type Present struct{ Tag uint32 }
+
 // Scroll sets a scroll view's content size. With Report, the host sends
 // Scrolled whenever the view scrolls (lists need it to know what to show).
 //
@@ -244,6 +253,11 @@ type Popped struct {
 	Tag   uint32
 	Depth uint32
 }
+
+// Dismissed reports that the user closed a modal (swipe down, back button).
+//
+//wire:message
+type Dismissed struct{ Tag uint32 }
 
 // Selected reports that the user picked the tab at Index.
 //

@@ -112,8 +112,26 @@ class Renderer internal constructor(private val root: NimbusView) {
      * nowhere to go back to, so the Activity can finish.
      */
     fun back(): Boolean {
+        // The top modal first: pop its stack, else close it.
+        root.topModal?.let { m ->
+            val inModal = views.values.filterIsInstance<NNStack>().firstOrNull { it.depth > 1 && isInside(it, m) }
+            if (inModal != null) return inModal.goBack()
+            val tag = views.entries.first { it.value === m }.key
+            root.dismiss(m)
+            Bridge.send(Render.encode(Render.Dismissed(tag = tag.toLong())))
+            return true
+        }
         val stack = views.values.filterIsInstance<NNStack>().lastOrNull { it.isShown && it.depth > 1 }
         return stack?.goBack() ?: false
+    }
+
+    private fun isInside(v: View, ancestor: View): Boolean {
+        var p = v.parent
+        while (p != null) {
+            if (p === ancestor) return true
+            p = p.parent
+        }
+        return false
     }
 
     /** The tag of the view with this test ID, or 0. */
@@ -161,6 +179,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                     (v?.parent as? NNTabs)?.setItem(v, op.title)
                 }
                 is Render.TabSelect -> (views[op.tag.toInt()] as? NNTabs)?.select(op.index.toInt())
+                is Render.Present -> (views[op.tag.toInt()] as? NNModal)?.let(root::present)
                 null -> {}
             }
         }
@@ -190,6 +209,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.INPUT -> NNInput(ctx, tag, density)
             Render.Kind.STACK -> NNStack(ctx, this, tag)
             Render.Kind.TABS -> NNTabs(ctx, this, tag)
+            Render.Kind.MODAL -> NNModal(ctx, this, tag)
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
             else -> NNGroup(ctx, this)
         }
@@ -206,6 +226,10 @@ class Renderer internal constructor(private val root: NimbusView) {
         for (tag in o.tags) {
             val v = views.remove(tag.toInt())
             frames.remove(tag.toInt())
+            if (v is NNModal) {
+                if (!v.leaving) root.dismiss(v) // slides away, then goes
+                continue
+            }
             val parent = v?.parent as? ViewGroup ?: continue
             if (parent in gone || contentOwner(parent) in gone) continue
             if (parent is NNStack && parent.isLeaving(v)) continue

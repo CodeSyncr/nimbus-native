@@ -182,9 +182,37 @@ class MainActivity : Activity() {
             main.postDelayed({
                 val back = account?.isShown == false && r.viewForTag(r.tagForTestID("list"))?.isShown == true
                 log("Go selected Orders: orders list showing again: $back")
-                log(if (okSoFar && showing && back) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
+                modalTest(okSoFar && showing && back)
             }, 800)
         }, 800)
+    }
+
+    /** Opens the New order modal, closes it with back as a user does, then opens it and closes it from Go. */
+    private fun modalTest(okSoFar: Boolean) {
+        val open = r.tagForTestID("new-order")
+        if (open == 0) return log("FAIL: no button")
+        r.press(open)
+        main.postDelayed({
+            val form = r.viewForTag(r.tagForTestID("new-order-form"))?.isShown == true
+            log("modal: presented, form showing: $form")
+            main.postDelayed({
+            @Suppress("DEPRECATION")
+            onBackPressed() // closes the modal: its stack has one screen
+            main.postDelayed({
+                val backed = r.tagForTestID("new-order-form") == 0
+                log("modal: closed with back, Go dropped it: $backed")
+                r.press(open)
+                main.postDelayed({
+                    r.press(r.tagForTestID("place-order"))
+                    main.postDelayed({
+                        val closed = r.tagForTestID("new-order-form") == 0
+                        log("modal: Go dismissed it: $closed")
+                        log(if (okSoFar && form && backed && closed) "NN-P1 RESULT: PASS" else "NN-P1 RESULT: CHECK (see numbers above)")
+                    }, 1000)
+                }, 1000)
+            }, 1000)
+            }, 1500)
+        }, 1000)
     }
 
     private fun log(s: String) {

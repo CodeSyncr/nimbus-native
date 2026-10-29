@@ -85,6 +85,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 	taps, setTaps := ui.State(c, 0)
 	name, setName := ui.State(c, "")
 	list := ui.Memo(c, orders, ui.Once)
+	modals := ui.Modals(c)
 
 	greeting := "Type your name above"
 	if name != "" {
@@ -109,7 +110,13 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 				ui.TextInput(name, setName, ui.Flex(1).With(ui.Style{BorderWidth: 1, BorderColor: line, Radius: 10, FontSize: 15})).
 					Placeholder("Your name").TestID("name"),
 			),
-			ui.Text(greeting, ui.Style{FontSize: 15, Color: ink}).TestID("greeting"),
+			ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween, AlignItems: ui.AlignCenter},
+				ui.Text(greeting, ui.Style{FontSize: 15, Color: ink}).TestID("greeting"),
+				ui.Pressable(func() { modals.Present("New order", NewOrder{}) },
+					ui.Style{BorderWidth: 1, BorderColor: accent, Radius: 10, Padding: ui.XY(12, 6)},
+					ui.Text("+ New order", ui.Style{Color: accent, FontWeight: 600, FontSize: 14}),
+				).TestID("new-order"),
+			),
 		),
 		ui.List(len(list), func(i int) *ui.Element { return ui.C(OrderRow{list[i]}) }, ui.Flex(1)).
 			ItemKey(func(i int) string { return fmt.Sprint(list[i].id) }).TestID("list"),
@@ -140,6 +147,23 @@ func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
 			ui.Text(o.status, ui.Style{FontSize: 12, FontWeight: 600, Color: ink}),
 		),
 	).TestID(fmt.Sprintf("row-%d", o.id))
+}
+
+// NewOrder is the modal the "+ New order" button presents.
+type NewOrder struct{}
+
+func (NewOrder) Render(c *ui.Ctx) *ui.Element {
+	customer, setCustomer := ui.State(c, "")
+	modals := ui.Modals(c)
+	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(20), Gap: 12, Background: surface},
+		ui.Text("Who is this order for?", ui.Style{FontSize: 17, FontWeight: 600, Color: ink}).TestID("new-order-form"),
+		ui.TextInput(customer, setCustomer, ui.Style{BorderWidth: 1, BorderColor: line, Radius: 10, FontSize: 15}).
+			Placeholder("Customer name"),
+		ui.Pressable(func() { modals.Dismiss() },
+			ui.Style{Background: accent, Radius: 12, Padding: ui.XY(16, 14), AlignItems: ui.AlignCenter},
+			ui.Text("Place order", ui.Style{Color: ui.RGB(255, 255, 255), FontWeight: 600}),
+		).TestID("place-order"),
+	)
 }
 
 // OrderDetail is the screen a row opens.

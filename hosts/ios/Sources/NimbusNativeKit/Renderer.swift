@@ -45,6 +45,7 @@ public final class Renderer {
 
     private var screens: [UInt32: NNScreenController] = [:]
     private var tabControllers: [UInt32: NNTabController] = [:]
+    private var modals: [UInt32: NNModalController] = [:]
 
     private var views: [UInt32: UIView] = [:]
     private lazy var scrollReporter = ScrollReporter(renderer: self)
@@ -116,6 +117,12 @@ public final class Renderer {
                 let gone = Set(o.tags.compactMap { views[$0] }.map(ObjectIdentifier.init))
                 for t in o.tags {
                     let v = views.removeValue(forKey: t)
+                    if let m = modals.removeValue(forKey: t) {
+                        // Its controller keeps the views while it animates away.
+                        if m.presentingViewController != nil { m.dismiss(animated: true) }
+                        views.removeValue(forKey: t)
+                        continue
+                    }
                     let isScreen = screens.removeValue(forKey: t) != nil || tabControllers.removeValue(forKey: t) != nil
                     if let v, !isScreen, !(v.superview.map { gone.contains(ObjectIdentifier($0)) } ?? false) {
                         v.removeFromSuperview()
@@ -140,6 +147,11 @@ public final class Renderer {
             case .tabItem(let o):
                 tab(o.tag).tabBarItem = UITabBarItem(title: o.title, image: o.icon.isEmpty ? nil : UIImage(systemName: o.icon), tag: 0)
             case .tabSelect(let o): (views[o.tag] as? NNTabsView)?.select(Int(o.index))
+            case .present(let o):
+                if let m = modals[o.tag], m.presentingViewController == nil, var top = viewController {
+                    while let p = top.presentedViewController { top = p }
+                    top.present(m, animated: true)
+                }
             }
         }
         if c.root != 0, let v = views[c.root] {
@@ -177,6 +189,9 @@ public final class Renderer {
             v = s
         case .stack: v = NNStackView(renderer: self, tag: o.tag)
         case .tabs: v = NNTabsView(renderer: self, tag: o.tag)
+        case .modal:
+            v = UIView()
+            modals[o.tag] = NNModalController(renderer: self, tag: o.tag, content: v)
         default: v = UIView()
         }
         v.tag = Int(o.tag)
@@ -517,5 +532,44 @@ final class NNTabController: UIViewController {
             reportedBottom = bottom
             tabs?.reportSize(size, bottom: bottom)
         }
+    }
+}
+
+/// A modal: a page sheet holding a Go-rendered tree. Swiping it down tells Go;
+/// Go dismissing it animates it away.
+final class NNModalController: UIViewController, UIAdaptivePresentationControllerDelegate {
+    private weak var renderer: Renderer?
+    private let modalTag: UInt32
+    private let content: UIView
+    private var reported = CGSize.zero
+
+    init(renderer: Renderer, tag: UInt32, content: UIView) {
+        self.renderer = renderer
+        modalTag = tag
+        self.content = content
+        super.init(nibName: nil, bundle: nil)
+        modalPresentationStyle = .pageSheet
+    }
+
+    required init?(coder: NSCoder) { fatalError("not used") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        view.addSubview(content)
+        presentationController?.delegate = self
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let size = view.bounds.size
+        if size != reported, size.width > 0 {
+            reported = size
+            renderer?.send(.resized(Render.Resized(tag: modalTag, w: Float(size.width), h: Float(size.height))))
+        }
+    }
+
+    func presentationControllerDidDismiss(_ p: UIPresentationController) {
+        renderer?.send(.dismissed(Render.Dismissed(tag: modalTag)))
     }
 }

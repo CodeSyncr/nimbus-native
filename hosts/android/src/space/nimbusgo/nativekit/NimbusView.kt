@@ -14,6 +14,7 @@ import android.view.ViewGroup
 class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
     val renderer = Renderer(this)
     private var rootView: View? = null
+    private val modals = mutableListOf<NNModal>()
     private var insetTop = 0
     private var insetBottom = 0
     private var insetLeft = 0
@@ -43,6 +44,22 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
         }
     }
 
+    internal fun present(m: NNModal) {
+        if (m in modals) return
+        (m.parent as? ViewGroup)?.removeView(m)
+        modals.add(m)
+        addView(m) // above the app and earlier modals
+        m.slideIn()
+    }
+
+    internal fun dismiss(m: NNModal) {
+        modals.remove(m)
+        m.slideOut { removeView(m) }
+    }
+
+    /** The modal on top, if any. */
+    internal val topModal: NNModal? get() = modals.lastOrNull()
+
     private fun sendViewport() {
         val dark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
         renderer.sendViewport(width, height, insetTop, insetBottom, insetLeft, insetRight, dark)
@@ -59,17 +76,27 @@ class NimbusView(c: Context, schema: Long) : ViewGroup(c) {
     }
 
     override fun onMeasure(wSpec: Int, hSpec: Int) {
+        val w = MeasureSpec.getSize(wSpec)
+        val h = MeasureSpec.getSize(hSpec)
         rootView?.let {
             val f = renderer.frameOf(it)
             it.measure(exactly(f[2]), exactly(f[3]))
         }
-        setMeasuredDimension(MeasureSpec.getSize(wSpec), MeasureSpec.getSize(hSpec))
+        for (i in 0 until childCount) {
+            val c = getChildAt(i)
+            if (c is NNModal) c.measure(exactly(w), exactly(h)) // modals fill the screen
+        }
+        setMeasuredDimension(w, h)
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         rootView?.let {
             val f = renderer.frameOf(it)
             it.layout(f[0], f[1], f[0] + f[2], f[1] + f[3])
+        }
+        for (i in 0 until childCount) {
+            val c = getChildAt(i)
+            if (c is NNModal) c.layout(0, 0, r - l, b - t)
         }
     }
 }

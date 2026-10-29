@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x852b5ebd2df9df76uL.toLong()
+    val SCHEMA_HASH: Long = 0x55619a6c7a7d7c21uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -18,6 +18,7 @@ object Render {
         const val SPINNER: Int = 6
         const val STACK: Int = 7
         const val TABS: Int = 8
+        const val MODAL: Int = 9
     }
 
     /** Align is horizontal text alignment. */
@@ -382,6 +383,23 @@ object Render {
         }
     }
 
+    /** Present shows a KindModal view over the app, with the platform's transition. */
+    data class Present(
+        var tag: Long = 0L,
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Present {
+                val m = Present()
+                m.tag = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Scroll sets a scroll view's content size. With Report, the host sends Scrolled whenever the view scrolls (lists need it to know what to show). */
     data class Scroll(
         var tag: Long = 0L,
@@ -537,6 +555,23 @@ object Render {
         }
     }
 
+    /** Dismissed reports that the user closed a modal (swipe down, back button). */
+    data class Dismissed(
+        var tag: Long = 0L,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Dismissed {
+                val m = Dismissed()
+                m.tag = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Selected reports that the user picked the tab at Index. */
     data class Selected(
         var tag: Long = 0L,
@@ -666,8 +701,9 @@ object Render {
             is Screen -> { w.uint(9); v.write(w) }
             is TabItem -> { w.uint(10); v.write(w) }
             is TabSelect -> { w.uint(11); v.write(w) }
-            is Scroll -> { w.uint(12); v.write(w) }
-            is Spinner -> { w.uint(13); v.write(w) }
+            is Present -> { w.uint(12); v.write(w) }
+            is Scroll -> { w.uint(13); v.write(w) }
+            is Spinner -> { w.uint(14); v.write(w) }
         }
     }
 
@@ -684,8 +720,9 @@ object Render {
         9L -> Screen.read(r0)
         10L -> TabItem.read(r0)
         11L -> TabSelect.read(r0)
-        12L -> Scroll.read(r0)
-        13L -> Spinner.read(r0)
+        12L -> Present.read(r0)
+        13L -> Scroll.read(r0)
+        14L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 
@@ -700,11 +737,12 @@ object Render {
             is Press -> { w.uint(3); v.write(w) }
             is Scrolled -> { w.uint(4); v.write(w) }
             is Popped -> { w.uint(5); v.write(w) }
-            is Selected -> { w.uint(6); v.write(w) }
-            is Resized -> { w.uint(7); v.write(w) }
-            is Changed -> { w.uint(8); v.write(w) }
-            is MeasureText -> { w.uint(9); v.write(w) }
-            is TextSize -> { w.uint(10); v.write(w) }
+            is Dismissed -> { w.uint(6); v.write(w) }
+            is Selected -> { w.uint(7); v.write(w) }
+            is Resized -> { w.uint(8); v.write(w) }
+            is Changed -> { w.uint(9); v.write(w) }
+            is MeasureText -> { w.uint(10); v.write(w) }
+            is TextSize -> { w.uint(11); v.write(w) }
         }
     }
 
@@ -715,11 +753,12 @@ object Render {
         3L -> Press.read(r0)
         4L -> Scrolled.read(r0)
         5L -> Popped.read(r0)
-        6L -> Selected.read(r0)
-        7L -> Resized.read(r0)
-        8L -> Changed.read(r0)
-        9L -> MeasureText.read(r0)
-        10L -> TextSize.read(r0)
+        6L -> Dismissed.read(r0)
+        7L -> Selected.read(r0)
+        8L -> Resized.read(r0)
+        9L -> Changed.read(r0)
+        10L -> MeasureText.read(r0)
+        11L -> TextSize.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

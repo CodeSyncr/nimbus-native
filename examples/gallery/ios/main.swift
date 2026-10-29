@@ -159,7 +159,38 @@ final class Bench {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [self] in
                 log("Go selected Orders: tab bar now on tab \(tabs.bar.selectedIndex)")
                 let ok = okSoFar && account == "Asha Rao" && tabs.bar.selectedIndex == 0
-                log(ok ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
+                modalTest(ok)
+            }
+        }
+    }
+
+    /// Opens the New order sheet, swipes it away as a user does, then opens it
+    /// again and closes it from Go.
+    private func modalTest(_ okSoFar: Bool) {
+        guard let open = r.tag(forTestID: "new-order"), let host = r.viewController else { return log("FAIL: no button") }
+        r.press(tag: open)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+            let form = r.tag(forTestID: "new-order-form") != nil
+            guard let sheet = host.presentedViewController else { return log("FAIL: nothing presented") }
+            log("modal: sheet presented, form showing: \(form)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [self] in
+            // What a swipe down does: UIKit dismisses, then tells the delegate.
+            let pc = sheet.presentationController
+            sheet.dismiss(animated: true) { if let pc { pc.delegate?.presentationControllerDidDismiss?(pc) } }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                let swiped = r.tag(forTestID: "new-order-form") == nil
+                log("modal: swiped away, Go dropped it: \(swiped)")
+                r.press(tag: open)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                    guard let place = r.tag(forTestID: "place-order") else { return log("FAIL: reopen") }
+                    r.press(tag: place)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [self] in
+                        let closed = host.presentedViewController == nil
+                        log("modal: Go dismissed it, sheet gone: \(closed)")
+                        log(okSoFar && form && swiped && closed ? "NN-P1 RESULT: PASS" : "NN-P1 RESULT: CHECK (see numbers above)")
+                    }
+                }
+            }
             }
         }
     }

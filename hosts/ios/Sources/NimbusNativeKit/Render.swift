@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x852b5ebd2df9df76
+    public static let schemaHash: UInt64 = 0x55619a6c7a7d7c21
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -18,6 +18,7 @@ public enum Render {
         public static let spinner = Kind(rawValue: 6)
         public static let stack = Kind(rawValue: 7)
         public static let tabs = Kind(rawValue: 8)
+        public static let modal = Kind(rawValue: 9)
     }
 
     /// Align is horizontal text alignment.
@@ -455,6 +456,26 @@ public enum Render {
         }
     }
 
+    /// Present shows a KindModal view over the app, with the platform's
+    /// transition.
+    public struct Present: Equatable {
+        public var tag: UInt32
+
+        public init(tag: UInt32 = 0) {
+            self.tag = tag
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Present {
+            var m = Present()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Scroll sets a scroll view's content size. With Report, the host sends
     /// Scrolled whenever the view scrolls (lists need it to know what to show).
     public struct Scroll: Equatable {
@@ -644,6 +665,25 @@ public enum Render {
         }
     }
 
+    /// Dismissed reports that the user closed a modal (swipe down, back button).
+    public struct Dismissed: Equatable {
+        public var tag: UInt32
+
+        public init(tag: UInt32 = 0) {
+            self.tag = tag
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Dismissed {
+            var m = Dismissed()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Selected reports that the user picked the tab at Index.
     public struct Selected: Equatable {
         public var tag: UInt32
@@ -790,6 +830,7 @@ public enum Render {
         case screen(Screen)
         case tabItem(TabItem)
         case tabSelect(TabSelect)
+        case present(Present)
         case scroll(Scroll)
         case spinner(Spinner)
 
@@ -830,11 +871,14 @@ public enum Render {
             case .tabSelect(let x)?:
                 w.uint(11)
                 x.write(to: &w)
-            case .scroll(let x)?:
+            case .present(let x)?:
                 w.uint(12)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .scroll(let x)?:
                 w.uint(13)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(14)
                 x.write(to: &w)
             }
         }
@@ -866,8 +910,10 @@ public enum Render {
             case 11:
                 return .tabSelect(try TabSelect.read(from: &r))
             case 12:
-                return .scroll(try Scroll.read(from: &r))
+                return .present(try Present.read(from: &r))
             case 13:
+                return .scroll(try Scroll.read(from: &r))
+            case 14:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -882,6 +928,7 @@ public enum Render {
         case press(Press)
         case scrolled(Scrolled)
         case popped(Popped)
+        case dismissed(Dismissed)
         case selected(Selected)
         case resized(Resized)
         case changed(Changed)
@@ -907,20 +954,23 @@ public enum Render {
             case .popped(let x)?:
                 w.uint(5)
                 x.write(to: &w)
-            case .selected(let x)?:
+            case .dismissed(let x)?:
                 w.uint(6)
                 x.write(to: &w)
-            case .resized(let x)?:
+            case .selected(let x)?:
                 w.uint(7)
                 x.write(to: &w)
-            case .changed(let x)?:
+            case .resized(let x)?:
                 w.uint(8)
                 x.write(to: &w)
-            case .measureText(let x)?:
+            case .changed(let x)?:
                 w.uint(9)
                 x.write(to: &w)
-            case .textSize(let x)?:
+            case .measureText(let x)?:
                 w.uint(10)
+                x.write(to: &w)
+            case .textSize(let x)?:
+                w.uint(11)
                 x.write(to: &w)
             }
         }
@@ -940,14 +990,16 @@ public enum Render {
             case 5:
                 return .popped(try Popped.read(from: &r))
             case 6:
-                return .selected(try Selected.read(from: &r))
+                return .dismissed(try Dismissed.read(from: &r))
             case 7:
-                return .resized(try Resized.read(from: &r))
+                return .selected(try Selected.read(from: &r))
             case 8:
-                return .changed(try Changed.read(from: &r))
+                return .resized(try Resized.read(from: &r))
             case 9:
-                return .measureText(try MeasureText.read(from: &r))
+                return .changed(try Changed.read(from: &r))
             case 10:
+                return .measureText(try MeasureText.read(from: &r))
+            case 11:
                 return .textSize(try TextSize.read(from: &r))
             default:
                 throw WireError.variant

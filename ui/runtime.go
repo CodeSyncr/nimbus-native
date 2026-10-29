@@ -69,6 +69,8 @@ type runtime struct {
 	ops          []render.Op
 	destroyed    []uint32
 	effects      []*hookSlot
+	modals       []*modal // open modals, bottom first
+	modalKey     int
 	lists        map[*instance]bool // mounted Lists
 	rechild      map[*instance]bool // Lists and Stacks whose children must render again
 	seq          uint64
@@ -153,9 +155,11 @@ func (rt *runtime) receive(b []byte) {
 				rt.selected(in, int(m.Index))
 			}
 		case *render.Resized:
-			if in := rt.byTag[m.Tag]; in != nil {
+			if in := rt.byTag[m.Tag]; in != nil && !rt.modalResized(in, m.W, m.H) {
 				rt.resized(in, m.W, m.H, m.Bottom)
 			}
+		case *render.Dismissed:
+			rt.dismissed(m.Tag)
 		}
 	})
 }
@@ -206,6 +210,7 @@ func (rt *runtime) commit() {
 	t0 := time.Now()
 	rt.dirty, rt.measures = false, 0
 	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root), nil)
+	rt.reconcileModals()
 	rt.forceAll = false
 	for in := range rt.rechild {
 		if !in.unmounted {
@@ -226,6 +231,7 @@ func (rt *runtime) commit() {
 		}
 		rt.emitFrames(host)
 	}
+	rt.layoutModals()
 	t2 := time.Now()
 	if len(rt.destroyed) > 0 {
 		rt.ops = append(rt.ops, &render.Destroy{Tags: rt.destroyed})
