@@ -66,7 +66,7 @@ func TestProjectIDs(t *testing.T) {
 	root := t.TempDir()
 	r := strings.NewReplacer("__ID__", "com.example.shop", "__NAME__", "Shop", "__MODULE__", "shop")
 	for _, name := range []string{"native/ios/Runner.xcodeproj/project.pbxproj", "native/android/app/build.gradle.kts"} {
-		b, err := fs.ReadFile(projectTemplate, "template/"+name)
+		b, err := fs.ReadFile(projectTemplate, "template/common/"+name)
 		if err != nil {
 			t.Fatal(err)
 		}

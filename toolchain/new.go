@@ -22,11 +22,17 @@ type NewProject struct {
 	Module string // Go module path, e.g. "shop"
 	ID     string // bundle id / application id, e.g. "space.nimbusgo.shop"
 
+	// Template is the starting app: "counter" (the default) or "shop".
+	Template string
+
 	// The nimbus-native the project requires: a version, or a local
 	// checkout (Replace) for working on nimbus-native itself.
 	Version string
 	Replace string
 }
+
+// Templates are the apps New can start from.
+var Templates = []string{"counter", "shop"}
 
 // NewProjectFor fills in a project's names from its directory, and the
 // nimbus-native version from this toolchain's own build: the project gets
@@ -95,34 +101,18 @@ func (e *Env) New(p NewProject) error {
 	r := strings.NewReplacer("__NAME__", p.Name, "__MODULE__", p.Module, "__ID__", p.ID,
 		"__IDPATH__", idPath, "__NATIVE_VERSION__", p.Version)
 
-	e.step("create %s", p.Dir)
-	err := fs.WalkDir(projectTemplate, "template", func(name string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	if p.Template == "" {
+		p.Template = "counter"
+	}
+	if !contains(Templates, p.Template) {
+		return fmt.Errorf("no template %q (one of %s)", p.Template, strings.Join(Templates, ", "))
+	}
+	e.step("create %s (%s)", p.Dir, p.Template)
+	// The native projects and module files every app has, then the app's own.
+	for _, root := range []string{"template/common", "template/" + p.Template} {
+		if err := writeTemplate(root, p.Dir, r); err != nil {
 			return err
 		}
-		b, err := projectTemplate.ReadFile(name)
-		if err != nil {
-			return err
-		}
-		if path.Ext(name) != ".jar" {
-			b = []byte(r.Replace(string(b)))
-		}
-		rel := r.Replace(strings.TrimSuffix(strings.TrimPrefix(name, "template/"), ".tmpl"))
-		if rel == "gitignore" {
-			rel = ".gitignore" // stored without the dot so it doesn't apply to this repo
-		}
-		out := filepath.Join(p.Dir, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-			return err
-		}
-		mode := os.FileMode(0o644)
-		if path.Base(name) == "gradlew" {
-			mode = 0o755
-		}
-		return os.WriteFile(out, b, mode)
-	})
-	if err != nil {
-		return err
 	}
 	if p.Replace != "" {
 		f, err := os.OpenFile(filepath.Join(p.Dir, "go.mod"), os.O_APPEND|os.O_WRONLY, 0)
@@ -176,3 +166,33 @@ func (e *Env) New(p NewProject) error {
 
 // IOSGeneratedSwift is where a project's generated Swift lives.
 const IOSGeneratedSwift = "native/ios/Runner/Generated/NimbusGenerated.swift"
+
+// writeTemplate writes the files under root (in the embedded templates) to
+// dir, filling in the project's names.
+func writeTemplate(root, dir string, r *strings.Replacer) error {
+	return fs.WalkDir(projectTemplate, root, func(name string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		b, err := projectTemplate.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		if path.Ext(name) != ".jar" {
+			b = []byte(r.Replace(string(b)))
+		}
+		rel := r.Replace(strings.TrimSuffix(strings.TrimPrefix(name, root+"/"), ".tmpl"))
+		if rel == "gitignore" {
+			rel = ".gitignore" // stored without the dot so it doesn't apply to this repo
+		}
+		out := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
+		mode := os.FileMode(0o644)
+		if path.Base(name) == "gradlew" {
+			mode = 0o755
+		}
+		return os.WriteFile(out, b, mode)
+	})
+}

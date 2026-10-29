@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -37,11 +38,11 @@ func main() {
 			dir = os.Args[2]
 		}
 		var app *toolchain.App
-		var err error
-		if toolchain.IsProject(dir) {
+		err := inModule(dir)
+		if err == nil && toolchain.IsProject(dir) {
 			id, _ := toolchain.AndroidProjectID(dir) // the generated Kotlin's package
 			app, err = toolchain.LoadProject(dir, "app/mobile", id)
-		} else {
+		} else if err == nil {
 			app, err = toolchain.LoadApp(dir, "", "")
 		}
 		if err == nil {
@@ -101,6 +102,9 @@ func buildOrRun(cmd, platform string, args []string) error {
 		dir = fs.Arg(0)
 	}
 
+	if err := inModule(dir); err != nil {
+		return err
+	}
 	if toolchain.IsProject(dir) {
 		return buildOrRunProject(cmd, platform, dir, *device, strings.Split(*abis, ","), *verbose)
 	}
@@ -196,15 +200,17 @@ func newProject(args []string) error {
 	name := fs.String("name", "", "app name (default: from the directory)")
 	module := fs.String("module", "", "Go module path (default: the directory name)")
 	id := fs.String("id", "", "bundle / application id (default: space.nimbusgo.<dir>)")
+	template := fs.String("template", "counter", "the app to start from: "+strings.Join(toolchain.Templates, " or "))
 	verbose := fs.Bool("v", false, "print every tool invocation")
-	_ = fs.Parse(args)
+	_ = fs.Parse(reorder(args))
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: nimbus native new [-name N] [-module M] [-id ID] <dir>")
+		return fmt.Errorf("usage: nimbus native new [-template counter|shop] [-name N] [-module M] [-id ID] <dir>")
 	}
 	p, err := toolchain.NewProjectFor(fs.Arg(0), *name, *module, *id)
 	if err != nil {
 		return err
 	}
+	p.Template = *template
 	env := toolchain.Detect(".")
 	env.Verbose = *verbose
 	if err := env.New(p); err != nil {
@@ -290,6 +296,9 @@ func dev(platform string, args []string) error {
 	if fs.NArg() > 0 {
 		dir = fs.Arg(0)
 	}
+	if err := inModule(dir); err != nil {
+		return err
+	}
 	var app *toolchain.App
 	var err error
 	if toolchain.IsProject(dir) {
@@ -317,7 +326,7 @@ func dev(platform string, args []string) error {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  nimbus native new <dir>                              a project with native/ios and native/android
+  nimbus native new [-template counter|shop] <dir>    a project with native/ios and native/android
   nimbus native doctor
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device] [-abi list] [-name N] [-id ID] [-v] [app-dir]
@@ -325,4 +334,38 @@ func usage() {
   nimbus native dev   ios|android [-port N] [app-dir]   run on this machine, reload on save
   nimbus native lib   ios|android [flags] [project-dir]   the Go side of a project build (Xcode and Gradle run it)`)
 	os.Exit(2)
+}
+
+// reorder puts flags before the arguments, so `new shop -template shop`
+// works as well as `new -template shop shop`.
+func reorder(args []string) []string {
+	var flags, rest []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if strings.HasPrefix(a, "-") {
+			flags = append(flags, a)
+			if !strings.Contains(a, "=") && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !boolFlag(a) {
+				flags = append(flags, args[i+1])
+				i++
+			}
+			continue
+		}
+		rest = append(rest, a)
+	}
+	return append(flags, rest...)
+}
+
+func boolFlag(a string) bool { return a == "-v" || a == "--v" || a == "-device" || a == "--device" }
+
+// inModule refuses to go on outside a Go module, with what to do instead.
+func inModule(dir string) error {
+	cmd := exec.Command("go", "env", "GOMOD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if gomod := strings.TrimSpace(string(out)); err == nil && gomod != "" && gomod != os.DevNull {
+		return nil
+	}
+	abs, _ := filepath.Abs(dir)
+	return fmt.Errorf("%s is not a Nimbus Native project (no go.mod here or above).\n"+
+		"  cd into a project made by `nimbus native new`, or make one:  nimbus native new myapp && cd myapp", abs)
 }

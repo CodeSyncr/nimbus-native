@@ -1,0 +1,33 @@
+// The __NAME__ server: a Nimbus app. It serves the same app to browsers
+// (with package web), and is where your API goes as the app grows: add a
+// feature's routes from its server package, as `nimbus native new --template
+// shop` shows.
+//
+//	go run .
+package main
+
+import (
+	"log"
+
+	"github.com/CodeSyncr/nimbus"
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus-native/web"
+
+	_ "__MODULE__/app" // registers the pages
+	"__MODULE__/core/constants"
+)
+
+func main() {
+	app := nimbus.New()
+
+	// The app's pages (pages/), rendered here for browsers and search engines.
+	site := web.Handler(web.Options{SiteName: constants.AppName})
+	app.Router.Fallback(func(c *nhttp.Context) error {
+		site.ServeHTTP(c.Response, c.Request)
+		return nil
+	})
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}

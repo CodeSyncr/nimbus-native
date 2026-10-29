@@ -1,0 +1,47 @@
+// Package data is the counter's state: one Store the whole app shares (one
+// per browser tab on the web), saved on the device between launches.
+package data
+
+import (
+	"context"
+
+	"github.com/CodeSyncr/nimbus-native/plugins/storage"
+	"github.com/CodeSyncr/nimbus-native/ui"
+)
+
+// Counter is the count and how far each tap moves it.
+type Counter struct {
+	Count int `json:"count"`
+	Step  int `json:"step"`
+}
+
+// Store is the counter every screen sees.
+var Store = ui.NewStore(func() Counter { return Counter{Step: 1} })
+
+// Steps are the step sizes to pick from.
+var Steps = []int{1, 5, 10}
+
+// Add moves the count by n steps (negative goes down; never below zero).
+func (c Counter) Add(n int) Counter {
+	c.Count += n * c.Step
+	if c.Count < 0 {
+		c.Count = 0
+	}
+	return c
+}
+
+const key = "counter"
+
+// Load reads the saved counter, if there is one. Call it from an effect.
+func Load(ctx context.Context, c *ui.Ctx) {
+	var saved Counter
+	if ok, err := storage.Get(ctx, key, &saved); ok && err == nil && saved.Step > 0 {
+		Store.Update(c, func(Counter) Counter { return saved })
+	}
+}
+
+// Save keeps the counter for the next launch (not on the web, where the
+// server has no device storage).
+func Save(c Counter) {
+	go storage.Set(context.Background(), key, c)
+}

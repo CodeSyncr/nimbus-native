@@ -95,36 +95,41 @@ Not yet: flex-wrap, animations and gestures, plugins on the web.
 ```sh
 nimbus native new shop
 cd shop
-go run .                        # the Nimbus server, on :3333
+go run .                        # the Nimbus server and the web app, on :3333
 nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
 nimbus native run android       # or open native/android in Android Studio
 ```
 
 A project is one Go module, laid out by feature:
 
-The generated app is a small shop that runs on iOS, Android and the web:
-a catalog, a cart, sign-in (demo account `demo@shop.dev` / `password`),
-checkout and the user's orders, served by its own Nimbus server.
+The generated app is a counter, ready to grow: one polished screen (a
+goal with a progress bar, steps, the count saved between launches, light
+and dark themes) on iOS, Android and the web. For a bigger starting point,
+`nimbus native new -template shop shop` makes a small shop instead: a
+catalog, a cart, sign-in (demo account `demo@shop.dev` / `password`),
+checkout and orders, served by its own API.
+
+A project is one Go module, laid out by feature:
 
 ```
-shop/
-  main.go                  the Nimbus server: each feature's API, and the pages for browsers
+counter/
+  main.go                  the Nimbus server: the app's pages for browsers (and your API)
   app/
-    app.go                 the root component (tabs, stacks)
-    router.go              registers pages/ and picks the tabs
+    app.go                 the root component; installs the theme
     mobile/main.go         the phone app's package main
-  pages/                   folder routing: orders/_id/page.go is /orders/:id
-  core/                    constants, theme, utils
-  shared/                  widgets and services any feature uses
-  features/<auth|products|cart|orders|account>/
-    domain/                types and api.Endpoints: the contract
-    data/                  calls the endpoints (the cart: a ui.Store)
-    presentation/          screens and components
-    server/                handlers and validation (server only)
+  core/                    constants, theme
+  features/counter/
+    data/                  the counter's state (a ui.Store), saved on the device
+    presentation/          the screen
+  pages/page.go            the page at "/" (folder routing: pages/settings/ is /settings)
   native/
     ios/                   Xcode project (Runner + the NimbusNativeKit package)
     android/               Gradle project (app + the nimbusnativekit module)
 ```
+
+The shop adds `shared/` (widgets, services) and features with `domain/`
+(types and `api.Endpoint`s: the contract), `data/`, `presentation/` and
+`server/` (handlers and validation, server only).
 
 Xcode and Gradle build the hosts as usual; a build step in each runs
 `nimbus native lib`, which builds `app/mobile` into the native library and

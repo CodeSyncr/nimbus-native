@@ -8,8 +8,12 @@ import (
 	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 
+	"__MODULE__/core/theme"
 	"__MODULE__/shared/services"
 )
+
+// The app's look, on phones and on the web (the server imports this package too).
+func init() { theme.Apply() }
 
 // App is the root component: a tab per entry in Tabs, each with its own
 // navigation stack.

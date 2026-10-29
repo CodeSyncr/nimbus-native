@@ -1,0 +1,116 @@
+// Package presentation is the counter's screen.
+package presentation
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/CodeSyncr/nimbus-native/plugins/dialog"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/core/constants"
+	"__MODULE__/features/counter/data"
+)
+
+// CounterScreen is the app's home: the count, its goal, and the controls.
+type CounterScreen struct{}
+
+func (CounterScreen) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	counter := data.Store.Use(c)
+	ui.Effect(c, func(ctx context.Context) func() {
+		data.Load(ctx, c) // the count from the last launch
+		return nil
+	}, "load")
+
+	change := func(f func(data.Counter) data.Counter) func() {
+		return func() {
+			before := data.Store.Get(c)
+			after := f(before)
+			data.Store.Update(c, func(data.Counter) data.Counter { return after })
+			data.Save(after)
+			if before.Count < constants.Goal && after.Count >= constants.Goal {
+				go dialog.Toast(context.Background(), "Goal reached 🎉") // no toasts on the web: fine
+			}
+		}
+	}
+
+	return ui.SafeArea(ui.Style{Grow: 1, Background: th.Background},
+		ui.Scroll(ui.Style{Grow: 1, Shrink: 1},
+			ui.View(ui.Style{Padding: ui.XY(24, 20), Gap: 28, AlignItems: ui.AlignCenter},
+				header(th),
+				ui.C(countCard{counter.Count}),
+				ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: 22},
+					round(th, "−", 64, false, "minus", change(func(x data.Counter) data.Counter { return x.Add(-1) })),
+					round(th, "+", 96, true, "plus", change(func(x data.Counter) data.Counter { return x.Add(1) })),
+					round(th, "↺", 64, false, "reset", change(func(x data.Counter) data.Counter { x.Count = 0; return x })),
+				),
+				stepPicker(th, counter.Step, func(s int) func() {
+					return change(func(x data.Counter) data.Counter { x.Step = s; return x })
+				}),
+				ui.Text("One Go codebase · iOS, Android and the web",
+					ui.Style{FontSize: th.Caption, Color: th.TextMuted, TextAlign: ui.AlignCenter}),
+			),
+		),
+	)
+}
+
+func header(th ui.Theme) *ui.Element {
+	return ui.View(ui.Style{Width: ui.Pct(100), MaxWidth: ui.Pt(440), Direction: ui.Row, Justify: ui.JustifySpaceBetween, AlignItems: ui.AlignCenter},
+		ui.View(ui.Style{Gap: 2},
+			ui.Text("Hello 👋", ui.Style{FontSize: th.Caption, Color: th.TextMuted, FontWeight: 600}),
+			ui.Text(constants.AppName, ui.Style{FontSize: th.Title, FontWeight: 800}),
+		),
+		ui.View(ui.Style{Background: th.Surface, BorderWidth: 1, BorderColor: th.Border, Radius: 999, Padding: ui.XY(14, 8)},
+			ui.Text(fmt.Sprintf("Goal %d", constants.Goal), ui.Style{FontSize: th.Caption, FontWeight: 700, Color: th.Primary})),
+	)
+}
+
+// countCard is the count, large, with how far it is to the goal.
+type countCard struct{ count int }
+
+func (k countCard) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	progress := float32(k.count) / constants.Goal
+	if progress > 1 {
+		progress = 1
+	}
+	status := fmt.Sprintf("%d of %d · %d%%", min(k.count, constants.Goal), constants.Goal, int(progress*100))
+	statusColor := th.TextMuted
+	if k.count >= constants.Goal {
+		status, statusColor = "Goal reached 🎉", th.Primary
+	}
+	return ui.View(ui.Style{Width: ui.Pct(100), MaxWidth: ui.Pt(440), Background: th.Surface, BorderWidth: 1, BorderColor: th.Border,
+		Radius: th.Radius, Padding: ui.XY(28, 32), Gap: 18, AlignItems: ui.AlignCenter},
+		ui.Text("COUNT", ui.Style{FontSize: 12, FontWeight: 800, Color: th.TextMuted}),
+		ui.Text(fmt.Sprint(k.count), ui.Style{FontSize: 112, FontWeight: 800, Color: th.Text, TextAlign: ui.AlignCenter}).TestID("count"),
+		ui.View(ui.Style{Width: ui.Pct(100), Height: ui.Pt(10), Radius: 5, Background: th.Border},
+			ui.View(ui.Style{Width: ui.Pct(progress * 100), Height: ui.Pt(10), Radius: 5, Background: th.Primary})),
+		ui.Text(status, ui.Style{FontSize: th.Caption, FontWeight: 600, Color: statusColor}).TestID("status"),
+	)
+}
+
+// round is a circular button; filled is the main one.
+func round(th ui.Theme, label string, size float32, filled bool, id string, onPress func()) *ui.Element {
+	bg, fg, border := th.Surface, th.Primary, th.Border
+	if filled {
+		bg, fg, border = th.Primary, th.OnPrimary, th.Primary
+	}
+	return ui.Pressable(onPress, ui.Style{Width: ui.Pt(size), Height: ui.Pt(size), Radius: size / 2, Background: bg,
+		BorderWidth: 1, BorderColor: border, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter},
+		ui.Text(label, ui.Style{FontSize: size * 0.42, FontWeight: 600, Color: fg}),
+	).Label(map[string]string{"minus": "Decrease", "plus": "Increase", "reset": "Reset"}[id]).TestID(id)
+}
+
+func stepPicker(th ui.Theme, current int, pick func(int) func()) *ui.Element {
+	chips := []*ui.Element{ui.Text("Step", ui.Style{FontSize: th.Caption, FontWeight: 700, Color: th.TextMuted, Margin: ui.Edges{Right: 4}})}
+	for _, s := range data.Steps {
+		bg, fg, border := th.Surface, th.Text, th.Border
+		if s == current {
+			bg, fg, border = th.Primary, th.OnPrimary, th.Primary
+		}
+		chips = append(chips, ui.Pressable(pick(s), ui.Style{Background: bg, BorderWidth: 1, BorderColor: border, Radius: 999, Padding: ui.XY(16, 8)},
+			ui.Text(fmt.Sprintf("×%d", s), ui.Style{FontSize: th.Body, FontWeight: 700, Color: fg})).TestID(fmt.Sprint("step-", s)))
+	}
+	return ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: 10}, chips...)
+}

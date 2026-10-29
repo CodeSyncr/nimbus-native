@@ -1,0 +1,13 @@
+package data
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+	c := Counter{Step: 5}.Add(1).Add(1)
+	if c.Count != 10 {
+		t.Fatalf("count %d, want 10", c.Count)
+	}
+	if c = c.Add(-3); c.Count != 0 {
+		t.Fatalf("count %d: it must not go below zero", c.Count)
+	}
+}

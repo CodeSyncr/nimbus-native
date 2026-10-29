@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.3 (2026-10-30)
+
+- `nimbus native new` makes a counter: one polished screen with a goal
+  and progress bar, step sizes, the count saved between launches, and
+  light and dark themes, on iOS, Android and the web. The shop is still
+  there: `nimbus native new -template shop <dir>`.
+- Outside a project, `nimbus native dev|build|run|gen` say so and how to
+  make one, instead of failing in `go list`.
+- Generated apps install their theme in the shared `app` package, so the
+  web shows it too (it used to show the default theme).
+
 ## 0.0.2 (2026-10-30)
 
 - Fixes iOS projects made from the published module: the Swift package's

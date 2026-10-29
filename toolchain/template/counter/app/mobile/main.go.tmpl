@@ -7,13 +7,9 @@ import (
 	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/app"
-	"__MODULE__/core/theme"
 )
 
-func init() {
-	theme.Apply()
-	ui.Mount(app.App{})
-}
+func init() { ui.Mount(app.App{}) }
 
 // main runs only under `nimbus native dev`; on a phone the host owns the process.
 func main() { ui.Main() }

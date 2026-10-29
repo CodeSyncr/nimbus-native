@@ -1,0 +1,15 @@
+// Command mobile is the phone app: native/ios and native/android build this
+// package into the app (through `nimbus native lib`). It must not import
+// server code; the build refuses Nimbus and any server package.
+package main
+
+import (
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/app"
+)
+
+func init() { ui.Mount(app.App{}) }
+
+// main runs only under `nimbus native dev`; on a phone the host owns the process.
+func main() { ui.Main() }
