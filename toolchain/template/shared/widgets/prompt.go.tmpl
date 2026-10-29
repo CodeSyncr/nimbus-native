@@ -1,0 +1,31 @@
+package widgets
+
+import (
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+)
+
+// SignInPrompt stands in for a screen that needs a signed-in user.
+type SignInPrompt struct{ Message string }
+
+func (p SignInPrompt) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	return ui.View(ui.Style{Grow: 1, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
+		ui.Text(p.Message, ui.Style{FontSize: th.Body, Color: th.TextMuted, TextAlign: ui.AlignCenter}),
+		router.Link("/login", ui.Style{Background: th.Primary, Radius: th.Radius, Padding: ui.XY(20, 12)},
+			ui.Text("Sign in", ui.Style{Color: th.OnPrimary, FontWeight: 600})).TestID("sign-in"),
+	)
+}
+
+// Empty says a list has nothing in it yet, with a link onward.
+type Empty struct {
+	Message, Action, Path string
+}
+
+func (e Empty) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	return ui.View(ui.Style{Grow: 1, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
+		ui.Text(e.Message, ui.Style{FontSize: th.Body, Color: th.TextMuted}),
+		router.Link(e.Path, ui.Style{Padding: ui.XY(16, 10)}, ui.Text(e.Action, ui.Style{Color: th.Primary, FontWeight: 600})),
+	)
+}

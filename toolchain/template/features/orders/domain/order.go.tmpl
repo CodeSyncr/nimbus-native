@@ -7,12 +7,20 @@ package domain
 import "github.com/CodeSyncr/nimbus-native/api"
 
 type Order struct {
-	ID       int     `json:"id"`
-	Customer string  `json:"customer"`
-	Phone    string  `json:"phone"`
-	Items    int     `json:"items"`
-	Total    float64 `json:"total"`
-	Status   Status  `json:"status"`
+	ID     int     `json:"id"`
+	Lines  []Line  `json:"lines"`
+	Total  float64 `json:"total"`
+	Status Status  `json:"status"`
+	Placed string  `json:"placed"` // RFC 3339
+}
+
+// Line is one product in an order, priced when it was placed.
+type Line struct {
+	ProductID int     `json:"productId"`
+	Name      string  `json:"name"`
+	Emoji     string  `json:"emoji"`
+	Qty       int     `json:"qty"`
+	Price     float64 `json:"price"`
 }
 
 // Status is where an order is.
@@ -30,14 +38,19 @@ type OrderRef struct {
 	ID int `path:"id" json:"-"`
 }
 
-// NewOrder is what the app sends to place an order. The server validates it.
+// NewOrder is a checkout: product ids and quantities. The server prices it.
 type NewOrder struct {
-	Customer string `json:"customer"`
-	Phone    string `json:"phone"`
+	Lines []NewLine `json:"lines"`
 }
 
+type NewLine struct {
+	ProductID int `json:"productId"`
+	Qty       int `json:"qty"`
+}
+
+// All three need a signed-in user.
 var (
-	ListOrders  = api.GET[api.None, []Order]("/api/orders")
-	GetOrder    = api.GET[OrderRef, Order]("/api/orders/{id}")
-	CreateOrder = api.POST[NewOrder, Order]("/api/orders")
+	ListOrders = api.GET[api.None, []Order]("/api/orders")
+	GetOrder   = api.GET[OrderRef, Order]("/api/orders/{id}")
+	PlaceOrder = api.POST[NewOrder, Order]("/api/orders")
 )

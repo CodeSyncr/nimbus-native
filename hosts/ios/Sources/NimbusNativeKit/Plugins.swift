@@ -221,7 +221,8 @@ enum Dialogs {
         label.textAlignment = .center
         let maxW = host.bounds.width - 48
         let size = label.sizeThatFits(CGSize(width: maxW, height: .greatestFiniteMagnitude))
-        label.frame = CGRect(x: (host.bounds.width - size.width) / 2, y: host.bounds.height - host.safeAreaInsets.bottom - size.height - 24,
+        // Above a tab bar, where one would be (49 pt), clear of the home indicator.
+        label.frame = CGRect(x: (host.bounds.width - size.width) / 2, y: host.bounds.height - host.safeAreaInsets.bottom - size.height - 72,
                              width: size.width, height: size.height)
         label.alpha = 0
         host.addSubview(label)

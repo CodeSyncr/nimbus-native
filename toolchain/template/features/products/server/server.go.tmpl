@@ -1,0 +1,44 @@
+// Package server is the catalog on the server.
+package server
+
+import (
+	"strconv"
+
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus/router"
+
+	"__MODULE__/features/products/domain"
+)
+
+// Catalog is every product; swap it for a database model.
+var Catalog = []domain.Product{
+	{ID: 1, Name: "Masala Chai", Emoji: "🫖", Price: 249, Category: "Tea", Description: "Assam black tea with cardamom, ginger and cinnamon. Brew strong, add milk."},
+	{ID: 2, Name: "Darjeeling First Flush", Emoji: "🍃", Price: 499, Category: "Tea", Description: "Bright, floral spring tea from the hills of Darjeeling."},
+	{ID: 3, Name: "Filter Coffee", Emoji: "☕", Price: 349, Category: "Coffee", Description: "South Indian coffee with chicory, for a steel filter and lots of milk."},
+	{ID: 4, Name: "Cold Brew Pack", Emoji: "🧊", Price: 399, Category: "Coffee", Description: "Coarse-ground beans in steeping bags. Leave overnight in the fridge."},
+	{ID: 5, Name: "Ceramic Mug", Emoji: "🍵", Price: 599, Category: "Gear", Description: "Hand-glazed stoneware, 350 ml, keeps tea warm for longer."},
+	{ID: 6, Name: "Steel Tumbler Set", Emoji: "🥤", Price: 799, Category: "Gear", Description: "Two tumblers and davaras, for pouring coffee the traditional way."},
+}
+
+// Find is the product with id.
+func Find(id int) (domain.Product, bool) {
+	for _, p := range Catalog {
+		if p.ID == id {
+			return p, true
+		}
+	}
+	return domain.Product{}, false
+}
+
+// Routes registers the catalog.
+func Routes(r *router.Router) {
+	r.Get(domain.ListProducts.Path, func(c *nhttp.Context) error { return c.JSON(200, Catalog) })
+	r.Get(domain.GetProduct.Path, func(c *nhttp.Context) error {
+		id, _ := strconv.Atoi(c.Param("id"))
+		p, ok := Find(id)
+		if !ok {
+			return c.JSON(404, map[string]string{"error": "no such product"})
+		}
+		return c.JSON(200, p)
+	})
+}

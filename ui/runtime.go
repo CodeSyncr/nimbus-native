@@ -84,6 +84,10 @@ type runtime struct {
 	seq          uint64
 	measures     uint32
 
+	// Stores (store.go).
+	storesMu sync.Mutex
+	stores   map[any]*storeState
+
 	// Sessions (session.go).
 	hostLayout func(tag uint32, s layout.Style)
 	values     map[any]any
@@ -98,7 +102,8 @@ type runtime struct {
 
 func newRuntime(root Component) *runtime {
 	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
-		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, toggled: map[*instance]bool{}, queries: map[string]*queryEntry{}}
+		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, toggled: map[*instance]bool{}, queries: map[string]*queryEntry{},
+		stores: map[any]*storeState{}}
 }
 
 // do runs f on the UI loop. Safe from any goroutine, including the loop.

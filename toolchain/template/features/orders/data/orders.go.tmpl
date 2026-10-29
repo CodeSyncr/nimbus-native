@@ -1,4 +1,4 @@
-// Package data fetches and changes orders through the server.
+// Package data fetches and places the signed-in user's orders.
 package data
 
 import (
@@ -8,23 +8,21 @@ import (
 	"github.com/CodeSyncr/nimbus-native/api"
 
 	"__MODULE__/features/orders/domain"
-	"__MODULE__/shared/services"
 )
 
-// Query keys: screens showing orders refetch when an order is placed.
+// Query keys: screens showing orders refetch when one is placed.
 const ListKey = "orders"
 
 func OrderKey(id int) string { return "orders/" + strconv.Itoa(id) }
 
-func List(ctx context.Context) ([]domain.Order, error) {
-	return api.Call(ctx, services.API, domain.ListOrders, api.None{})
+func List(ctx context.Context, client *api.Client) ([]domain.Order, error) {
+	return api.Call(ctx, client, domain.ListOrders, api.None{})
 }
 
-func Get(ctx context.Context, id int) (domain.Order, error) {
-	return api.Call(ctx, services.API, domain.GetOrder, domain.OrderRef{ID: id})
+func Get(ctx context.Context, client *api.Client, id int) (domain.Order, error) {
+	return api.Call(ctx, client, domain.GetOrder, domain.OrderRef{ID: id})
 }
 
-func Create(ctx context.Context, o domain.NewOrder) (domain.Order, error) {
-	return api.Call(ctx, services.API, domain.CreateOrder, o)
+func Place(ctx context.Context, client *api.Client, o domain.NewOrder) (domain.Order, error) {
+	return api.Call(ctx, client, domain.PlaceOrder, o)
 }
-

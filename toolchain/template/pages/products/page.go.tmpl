@@ -1,0 +1,15 @@
+// Package products is the page at /products.
+package products
+
+import (
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/products/presentation"
+)
+
+type Page struct{}
+
+func (Page) Head() router.Head { return router.Head{Title: "Shop", Description: "Tea, coffee and the things to make them with."} }
+
+func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.ProductsScreen{}) }

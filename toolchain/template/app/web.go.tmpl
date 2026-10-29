@@ -25,8 +25,8 @@ func (s webShell) Render(c *ui.Ctx) *ui.Element {
 		ui.Text(constants.AppName, ui.Style{FontSize: th.Heading, FontWeight: 700, Margin: ui.Edges{Right: th.SpaceL}}),
 	}
 	for _, t := range Tabs {
-		page, _, ok := router.Match(t.Path)
-		if !ok {
+		title := TabTitle(c, t)
+		if title == "" {
 			continue
 		}
 		color, weight := th.TextMuted, uint16(500)
@@ -34,7 +34,7 @@ func (s webShell) Render(c *ui.Ctx) *ui.Element {
 			color, weight = th.Primary, 700
 		}
 		links = append(links, router.Link(t.Path, ui.Style{Padding: ui.XY(10, 8)},
-			ui.Text(router.TitleOf(page, t.Path), ui.Style{Color: color, FontWeight: weight})))
+			ui.Text(title, ui.Style{Color: color, FontWeight: weight})).TestID("nav"+strings.ReplaceAll(t.Path, "/", "-")))
 	}
 	header := ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Padding: ui.XY(th.SpaceL, th.SpaceM),
 		Background: th.Bar, BorderWidth: 1, BorderColor: th.Border}, links...)

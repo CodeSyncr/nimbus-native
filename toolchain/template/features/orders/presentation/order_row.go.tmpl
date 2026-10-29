@@ -11,28 +11,29 @@ import (
 	"__MODULE__/shared/widgets"
 )
 
-// OrderRow is one order in the list.
+// OrderRow is one order in the list: a link to its page.
 type OrderRow struct{ O domain.Order }
 
 func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
-	th := ui.UseTheme(c)
-	o := r.O
+	th, o := ui.UseTheme(c), r.O
 	fg, bg := statusColors(th, o.Status)
-	path := fmt.Sprintf("/orders/%d", o.ID)
-	return ui.Pressable(func() { router.Push(c, path) },
+	items := 0
+	emojis := ""
+	for _, l := range o.Lines {
+		items += l.Qty
+		emojis += l.Emoji
+	}
+	return router.Link(fmt.Sprintf("/orders/%d", o.ID),
 		ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: th.SpaceM, Padding: ui.XY(th.SpaceL, 14),
 			Background: th.Surface, Margin: ui.Edges{Bottom: 1}},
-		ui.View(ui.Style{Width: ui.Pt(40), Height: ui.Pt(40), Radius: 20, Background: th.Primary, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter},
-			ui.Text(utils.Initial(o.Customer), ui.Style{Color: th.OnPrimary, FontWeight: 700})),
 		ui.View(ui.Style{Grow: 1, Shrink: 1, Gap: 2},
-			ui.Text(o.Customer, ui.Style{FontSize: th.Body, FontWeight: 600}).TestID(fmt.Sprint("order-", o.ID)),
-			ui.Text(fmt.Sprintf("%d items · %s", o.Items, money(o.Total)), ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+			ui.Text(fmt.Sprintf("Order #%d  %s", o.ID, emojis), ui.Style{FontSize: th.Body, FontWeight: 600, Lines: 1}),
+			ui.Text(fmt.Sprintf("%d items · %s · %s", items, utils.Money(o.Total), utils.Date(o.Placed)),
+				ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
 		),
 		widgets.Badge(string(o.Status), fg, bg),
-	).Href(path).TestID(fmt.Sprint("row-", o.ID)) // Href: a real link on the web
+	).TestID(fmt.Sprint("order-", o.ID))
 }
-
-func money(v float64) string { return utils.Money(v) }
 
 func statusColors(th ui.Theme, s domain.Status) (fg, bg ui.Color) {
 	if th.Dark {

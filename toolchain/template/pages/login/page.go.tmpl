@@ -1,0 +1,17 @@
+// Package login is the page at /login.
+package login
+
+import (
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/auth/presentation"
+)
+
+type Page struct{}
+
+func (Page) Title() string { return "Sign in" }
+
+func (Page) Head() router.Head { return router.Head{Title: "Sign in", NoIndex: true} }
+
+func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.LoginScreen{}) }

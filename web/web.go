@@ -168,14 +168,7 @@ func (s *site) page(w http.ResponseWriter, r *http.Request) {
 
 // headTags is the page's title and meta tags.
 func (s *site) headTags(h router.Head, url string) string {
-	title := h.Title
-	if s.o.SiteName != "" {
-		if title == "" {
-			title = s.o.SiteName
-		} else {
-			title += " · " + s.o.SiteName
-		}
-	}
+	title := s.title(h)
 	var b strings.Builder
 	fmt.Fprintf(&b, "<title>%s</title>\n", html.EscapeString(title))
 	meta := func(attr, name, content string) {

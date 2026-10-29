@@ -1,12 +1,58 @@
-// Package services holds the app's connections to the outside world.
+// Package services holds the app's connections to the outside world: the
+// server, and who is signed in to it.
 package services
 
 import (
+	"context"
+	"encoding/json"
+
 	"github.com/CodeSyncr/nimbus-native/api"
+	"github.com/CodeSyncr/nimbus-native/plugins/securestore"
+	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/core/constants"
+	auth "__MODULE__/features/auth/domain"
 )
 
-// API calls the app's server. Feature data packages use it with the
-// endpoints their domain package declares.
-var API = api.New(constants.APIBaseURL)
+// Session is who is signed in: one per app on a phone, one per tab on the
+// web. Empty Token means signed out.
+var Session = ui.NewStore(func() auth.Session { return auth.Session{} })
+
+// API is a client for the app's server, sending the signed-in user's token.
+func API(c *ui.Ctx) *api.Client {
+	client := api.New(constants.APIBaseURL)
+	client.Token = func() string { return Session.Get(c).Token }
+	return client
+}
+
+// SignedIn reports whether someone is signed in (and re-renders c when that changes).
+func SignedIn(c *ui.Ctx) bool { return Session.Use(c).Token != "" }
+
+const sessionKey = "session"
+
+// SignIn makes s the session and keeps it in secure storage, so the next
+// launch starts signed in.
+func SignIn(c *ui.Ctx, s auth.Session) {
+	Session.Update(c, func(auth.Session) auth.Session { return s })
+	if b, err := json.Marshal(s); err == nil {
+		go securestore.Set(context.Background(), sessionKey, string(b)) // unavailable on the web: fine
+	}
+}
+
+// SignOut forgets the session, here and in secure storage.
+func SignOut(c *ui.Ctx) {
+	Session.Update(c, func(auth.Session) auth.Session { return auth.Session{} })
+	go securestore.Delete(context.Background(), sessionKey)
+}
+
+// RestoreSession reads a saved session at launch. Call it from an effect.
+func RestoreSession(ctx context.Context, c *ui.Ctx) {
+	raw, ok, err := securestore.Get(ctx, sessionKey)
+	if err != nil || !ok {
+		return
+	}
+	var s auth.Session
+	if json.Unmarshal([]byte(raw), &s) == nil && s.Token != "" {
+		Session.Update(c, func(auth.Session) auth.Session { return s })
+	}
+}

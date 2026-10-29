@@ -4,6 +4,7 @@ package utils
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 // Money formats an amount in rupees with grouped thousands:
@@ -32,4 +33,13 @@ func Initial(name string) string {
 		return strings.ToUpper(string(r))
 	}
 	return "?"
+}
+
+// Date shows an RFC 3339 time as a short local date: "29 Oct 2026".
+func Date(rfc3339 string) string {
+	t, err := time.Parse(time.RFC3339, rfc3339)
+	if err != nil {
+		return rfc3339
+	}
+	return t.Local().Format("2 Jan 2006")
 }

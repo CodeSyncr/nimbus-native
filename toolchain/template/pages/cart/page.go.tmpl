@@ -1,0 +1,15 @@
+// Package cart is the page at /cart.
+package cart
+
+import (
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/cart/presentation"
+)
+
+type Page struct{}
+
+func (Page) Head() router.Head { return router.Head{Title: "Cart", NoIndex: true} }
+
+func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.CartScreen{}) }

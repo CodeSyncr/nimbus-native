@@ -1,0 +1,91 @@
+// Package server is sign-in on the server: a demo account, and tokens kept
+// in memory. Swap the users for a database model and the tokens for Nimbus
+// sessions or JWTs when you build on it.
+package server
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"strings"
+	"sync"
+
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus/router"
+	"github.com/CodeSyncr/nimbus/validation"
+
+	"__MODULE__/features/auth/domain"
+)
+
+// DemoEmail and DemoPassword sign in to the demo account.
+const (
+	DemoEmail    = "demo@shop.dev"
+	DemoPassword = "password"
+)
+
+type user struct{ name, password string }
+
+var (
+	users = map[string]user{DemoEmail: {name: "Demo Shopper", password: DemoPassword}}
+
+	mu     sync.Mutex
+	tokens = map[string]string{} // token → email
+)
+
+// credentials is domain.Credentials with the server's rules attached.
+type credentials domain.Credentials
+
+func (credentials) Rules() validation.Schema {
+	return validation.Schema{
+		"email":    validation.String().Required(),
+		"password": validation.String().Required(),
+	}
+}
+
+// Routes registers sign-in.
+func Routes(r *router.Router) {
+	r.Post(domain.Login.Path, func(c *nhttp.Context) error {
+		var req credentials
+		errs, err := validation.BindAndValidateSchema(c, &req)
+		if err != nil {
+			return err
+		}
+		if len(errs) > 0 {
+			return c.ValidationErrors(errs)
+		}
+		email := strings.ToLower(strings.TrimSpace(req.Email))
+		u, ok := users[email]
+		if !ok || u.password != req.Password {
+			return c.JSON(422, map[string]any{"message": "Wrong email or password",
+				"errors": map[string][]string{"password": {"wrong email or password"}}})
+		}
+		b := make([]byte, 24)
+		rand.Read(b)
+		token := hex.EncodeToString(b)
+		mu.Lock()
+		tokens[token] = email
+		mu.Unlock()
+		return c.JSON(200, domain.Session{Token: token, Name: u.name, Email: email})
+	})
+	r.Get(domain.Me.Path, func(c *nhttp.Context) error {
+		s, ok := UserOf(c)
+		if !ok {
+			return c.JSON(401, map[string]string{"error": "sign in first"})
+		}
+		return c.JSON(200, s)
+	})
+}
+
+// UserOf is the user a request's bearer token belongs to.
+func UserOf(c *nhttp.Context) (domain.Session, bool) {
+	token, ok := strings.CutPrefix(c.Request.Header.Get("Authorization"), "Bearer ")
+	if !ok {
+		return domain.Session{}, false
+	}
+	mu.Lock()
+	email, ok := tokens[token]
+	mu.Unlock()
+	if !ok {
+		return domain.Session{}, false
+	}
+	return domain.Session{Token: token, Name: users[email].name, Email: email}, true
+}

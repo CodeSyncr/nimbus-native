@@ -1,0 +1,22 @@
+// Package domain is sign-in's contract: what the app sends and gets back.
+package domain
+
+import "github.com/CodeSyncr/nimbus-native/api"
+
+// Credentials sign a user in. The server validates them.
+type Credentials struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// Session is a signed-in user: the token goes with every API call.
+type Session struct {
+	Token string `json:"token"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+}
+
+var (
+	Login = api.POST[Credentials, Session]("/api/login")
+	Me    = api.GET[api.None, Session]("/api/me")
+)

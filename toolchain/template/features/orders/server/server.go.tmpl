@@ -1,71 +1,85 @@
-// Package server is the orders feature on the server: the handlers behind
-// the domain package's endpoints, and the rules new orders must meet. Only
-// the Nimbus app (main.go) imports it; the phone app can't.
+// Package server is the orders feature on the server: a signed-in user's
+// orders, and checkout, which prices the cart from the catalog. Only the
+// Nimbus app (main.go) imports it; the phone app can't.
 package server
 
 import (
 	"strconv"
 	"sync"
+	"time"
 
 	nhttp "github.com/CodeSyncr/nimbus/http"
 	"github.com/CodeSyncr/nimbus/router"
-	"github.com/CodeSyncr/nimbus/validation"
 
+	auth "__MODULE__/features/auth/server"
 	"__MODULE__/features/orders/domain"
+	products "__MODULE__/features/products/server"
 )
 
-// newOrder is domain.NewOrder with the server's rules attached.
-type newOrder domain.NewOrder
-
-func (newOrder) Rules() validation.Schema {
-	return validation.Schema{
-		"customer": validation.String().Required().Min(2),
-		"phone":    validation.String().Required().Regex(`^[0-9 ]{10,14}$`),
-	}
-}
-
-// store keeps orders in memory; swap it for a database model.
+// store keeps orders in memory, per user; swap it for a database model.
 type store struct {
 	mu     sync.Mutex
-	orders []domain.Order
+	nextID int
+	byUser map[string][]domain.Order // newest first
 }
 
-var orders = &store{orders: []domain.Order{
-	{ID: 3, Customer: "Meera Iyer", Phone: "99887 76655", Items: 4, Total: 2150, Status: domain.Delivered},
-	{ID: 2, Customer: "Vikram Shah", Phone: "91234 56780", Items: 1, Total: 399, Status: domain.Shipped},
-	{ID: 1, Customer: "Asha Rao", Phone: "98765 43210", Items: 3, Total: 1249.5, Status: domain.Paid},
-}}
+var orders = &store{nextID: 1, byUser: map[string][]domain.Order{}}
 
 // Routes registers the orders endpoints.
 func Routes(r *router.Router) {
 	r.Get(domain.ListOrders.Path, func(c *nhttp.Context) error {
+		u, ok := auth.UserOf(c)
+		if !ok {
+			return c.JSON(401, map[string]string{"error": "sign in first"})
+		}
 		orders.mu.Lock()
 		defer orders.mu.Unlock()
-		return c.JSON(200, orders.orders)
+		list := orders.byUser[u.Email]
+		if list == nil {
+			list = []domain.Order{}
+		}
+		return c.JSON(200, list)
 	})
 	r.Get(domain.GetOrder.Path, func(c *nhttp.Context) error {
+		u, ok := auth.UserOf(c)
+		if !ok {
+			return c.JSON(401, map[string]string{"error": "sign in first"})
+		}
 		id, _ := strconv.Atoi(c.Param("id"))
 		orders.mu.Lock()
 		defer orders.mu.Unlock()
-		for _, o := range orders.orders {
+		for _, o := range orders.byUser[u.Email] {
 			if o.ID == id {
 				return c.JSON(200, o)
 			}
 		}
 		return c.JSON(404, map[string]string{"error": "no such order"})
 	})
-	r.Post(domain.CreateOrder.Path, func(c *nhttp.Context) error {
-		var req newOrder
-		errs, err := validation.BindAndValidateSchema(c, &req)
-		if err != nil {
-			return err
+	r.Post(domain.PlaceOrder.Path, func(c *nhttp.Context) error {
+		u, ok := auth.UserOf(c)
+		if !ok {
+			return c.JSON(401, map[string]string{"error": "sign in first"})
 		}
-		if len(errs) > 0 {
-			return c.ValidationErrors(errs)
+		var req domain.NewOrder
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(400, map[string]string{"error": "bad order"})
+		}
+		o := domain.Order{Status: domain.Paid, Placed: time.Now().UTC().Format(time.RFC3339)}
+		for _, l := range req.Lines {
+			p, ok := products.Find(l.ProductID)
+			if !ok || l.Qty < 1 || l.Qty > 99 {
+				return c.JSON(422, map[string]string{"message": "Your cart has something we can't sell"})
+			}
+			o.Lines = append(o.Lines, domain.Line{ProductID: p.ID, Name: p.Name, Emoji: p.Emoji, Qty: l.Qty, Price: p.Price})
+			o.Total += p.Price * float64(l.Qty)
+		}
+		if len(o.Lines) == 0 {
+			return c.JSON(422, map[string]string{"message": "Your cart is empty"})
 		}
 		orders.mu.Lock()
-		o := domain.Order{ID: len(orders.orders) + 1, Customer: req.Customer, Phone: req.Phone, Items: 1, Total: 499, Status: domain.Paid}
-		orders.orders = append([]domain.Order{o}, orders.orders...)
+		o.ID = orders.nextID
+		orders.nextID++
+		orders.byUser[u.Email] = append([]domain.Order{o}, orders.byUser[u.Email]...)
 		orders.mu.Unlock()
 		return c.JSON(201, o)
 	})

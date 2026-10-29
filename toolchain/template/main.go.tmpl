@@ -14,11 +14,15 @@ import (
 
 	shop "__MODULE__/app"
 	"__MODULE__/core/constants"
+	auth "__MODULE__/features/auth/server"
 	orders "__MODULE__/features/orders/server"
+	products "__MODULE__/features/products/server"
 )
 
 func main() {
 	app := nimbus.New()
+	auth.Routes(app.Router)
+	products.Routes(app.Router)
 	orders.Routes(app.Router)
 
 	// The app's pages (pages/), rendered here for browsers and search engines.

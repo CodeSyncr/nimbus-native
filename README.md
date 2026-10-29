@@ -90,9 +90,13 @@ nimbus native run android       # or open native/android in Android Studio
 
 A project is one Go module, laid out by feature:
 
+The generated app is a small shop that runs on iOS, Android and the web:
+a catalog, a cart, sign-in (demo account `demo@shop.dev` / `password`),
+checkout and the user's orders, served by its own Nimbus server.
+
 ```
 shop/
-  main.go                  the Nimbus server: mounts each feature's routes
+  main.go                  the Nimbus server: each feature's API, and the pages for browsers
   app/
     app.go                 the root component (tabs, stacks)
     router.go              registers pages/ and picks the tabs
@@ -100,9 +104,9 @@ shop/
   pages/                   folder routing: orders/_id/page.go is /orders/:id
   core/                    constants, theme, utils
   shared/                  widgets and services any feature uses
-  features/orders/
+  features/<auth|products|cart|orders|account>/
     domain/                types and api.Endpoints: the contract
-    data/                  calls the endpoints
+    data/                  calls the endpoints (the cart: a ui.Store)
     presentation/          screens and components
     server/                handlers and validation (server only)
   native/
@@ -155,6 +159,20 @@ router.Push(c, "/orders/42")    // any screen
 
 Go skips `_`-prefixed folders in `./...` patterns, so `go vet ./...` passes
 over parameter pages; they are compiled through the table the app imports.
+
+## Shared state
+
+`ui.Store` is state the whole app shares, such as a cart or who is signed
+in: one value per app on a phone, and one per browser tab on the web
+(where every visitor runs in the same server, so a package variable would
+be shared between them).
+
+```go
+var Cart = ui.NewStore(func() Cart { return nil })
+
+items := Cart.Use(c)                                          // re-renders c when it changes
+Cart.Update(c, func(ct Cart) Cart { return ct.Add(p) })       // from handlers, effects, actions
+```
 
 ## Controls and dialogs
 

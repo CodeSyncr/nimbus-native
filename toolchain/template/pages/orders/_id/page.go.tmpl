@@ -4,6 +4,7 @@ package order
 import (
 	"fmt"
 
+	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/features/orders/presentation"
@@ -14,5 +15,7 @@ type Page struct {
 }
 
 func (p Page) Title() string { return fmt.Sprintf("Order #%d", p.ID) }
+
+func (p Page) Head() router.Head { return router.Head{Title: p.Title(), NoIndex: true} }
 
 func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrderScreen{ID: p.ID}) }

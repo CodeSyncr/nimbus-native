@@ -3,8 +3,12 @@
 package app
 
 import (
+	"context"
+
 	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/shared/services"
 )
 
 // App is the root component: a tab per entry in Tabs, each with its own
@@ -12,14 +16,17 @@ import (
 type App struct{}
 
 func (App) Render(c *ui.Ctx) *ui.Element {
+	ui.Effect(c, func(ctx context.Context) func() {
+		services.RestoreSession(ctx, c) // signed in last time: still signed in
+		return nil
+	}, "restore")
 	tabs := make([]ui.Tab, 0, len(Tabs))
 	for _, t := range Tabs {
 		page, _, ok := router.Match(t.Path)
 		if !ok {
 			continue // no page folder for this path
 		}
-		title := router.TitleOf(page, t.Path)
-		tabs = append(tabs, ui.Tab{Title: title, Icon: t.Icon, Screen: stack{title, page}})
+		tabs = append(tabs, ui.Tab{Title: TabTitle(c, t), Icon: t.Icon, Screen: stack{router.TitleOf(page, t.Path), page}})
 	}
 	return ui.Tabs(ui.Flex(1), tabs...)
 }

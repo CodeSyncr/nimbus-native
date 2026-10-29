@@ -2,28 +2,51 @@
 package presentation
 
 import (
+	"context"
+
+	"github.com/CodeSyncr/nimbus-native/plugins/dialog"
 	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/core/constants"
+	"__MODULE__/shared/services"
+	"__MODULE__/shared/widgets"
 )
 
-// AccountScreen shows the app's settings.
+// AccountScreen is who is signed in, and the app's settings (the page at /account).
 type AccountScreen struct{}
 
 func (AccountScreen) Render(c *ui.Ctx) *ui.Element {
 	th := ui.UseTheme(c)
+	s := services.Session.Use(c)
+	if s.Token == "" {
+		return ui.C(widgets.SignInPrompt{Message: "Sign in to check out and see your orders"})
+	}
 	mode := "Light"
 	if th.Dark {
 		mode = "Dark"
 	}
+	signOut := ui.UseAction(c, func(ctx context.Context, _ struct{}) (bool, error) {
+		ok, err := dialog.Confirm(ctx, "Sign out?", "Your cart stays on this device.", "Sign out", true)
+		if err != nil {
+			return true, nil // no dialogs here (the web): just sign out
+		}
+		return ok, nil
+	}, func(ok bool) {
+		if ok {
+			services.SignOut(c)
+		}
+	})
 	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: th.SpaceL},
-		ui.Text(constants.AppName, ui.Style{FontSize: th.Title, FontWeight: 700}),
+		ui.View(ui.Style{Gap: 4},
+			ui.Text(s.Name, ui.Style{FontSize: th.Title, FontWeight: 700}).TestID("account-name"),
+			ui.Text(s.Email, ui.Style{Color: th.TextMuted}),
+		),
 		ui.View(ui.Style{Background: th.Surface, Radius: th.Radius, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
 			row(th, "Server", constants.APIBaseURL),
 			row(th, "Appearance", mode+" (follows the system)"),
 		),
-		ui.Text("Built with Nimbus Native: Go on the phone, native views on screen.",
-			ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+		ui.Pressable(func() { signOut.Run(struct{}{}) }, ui.Style{Padding: ui.XY(16, 12), AlignItems: ui.AlignCenter},
+			ui.Text("Sign out", ui.Style{Color: th.Danger, FontWeight: 600})).TestID("sign-out"),
 	)
 }
 

@@ -115,7 +115,7 @@ func (s *site) title(h router.Head) string {
 	if s.o.SiteName == "" {
 		return h.Title
 	}
-	if h.Title == "" {
+	if h.Title == "" || h.Title == s.o.SiteName {
 		return s.o.SiteName
 	}
 	return h.Title + " · " + s.o.SiteName

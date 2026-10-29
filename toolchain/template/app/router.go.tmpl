@@ -1,8 +1,12 @@
 package app
 
 import (
-	"github.com/CodeSyncr/nimbus-native/router"
+	"fmt"
 
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	cart "__MODULE__/features/cart/data"
 	"__MODULE__/pages"
 )
 
@@ -19,6 +23,23 @@ type Tab struct {
 
 // Tabs are the app's tabs, in order.
 var Tabs = []Tab{
+	{Path: "/products", Icon: "bag"},
+	{Path: "/cart", Icon: "cart"},
 	{Path: "/orders", Icon: "list.bullet"},
 	{Path: "/account", Icon: "person.crop.circle"},
+}
+
+// TabTitle is a tab's label: its page's title, with the cart's count.
+func TabTitle(c *ui.Ctx, t Tab) string {
+	page, _, ok := router.Match(t.Path)
+	if !ok {
+		return ""
+	}
+	title := router.TitleOf(page, t.Path)
+	if t.Path == "/cart" {
+		if n := cart.Store.Use(c).Count(); n > 0 {
+			title = fmt.Sprintf("%s (%d)", title, n)
+		}
+	}
+	return title
 }

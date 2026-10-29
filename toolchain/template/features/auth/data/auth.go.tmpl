@@ -1,0 +1,14 @@
+// Package data signs in through the server.
+package data
+
+import (
+	"context"
+
+	"github.com/CodeSyncr/nimbus-native/api"
+
+	"__MODULE__/features/auth/domain"
+)
+
+func Login(ctx context.Context, client *api.Client, cr domain.Credentials) (domain.Session, error) {
+	return api.Call(ctx, client, domain.Login, cr)
+}
