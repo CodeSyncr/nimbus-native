@@ -171,7 +171,7 @@ public final class Renderer {
         let v: UIView
         switch o.kind {
         case .text:
-            let l = UILabel()
+            let l = NNLabel()
             l.numberOfLines = 0
             l.lineBreakMode = .byTruncatingTail
             v = l
@@ -313,6 +313,15 @@ func color(_ c: UInt32) -> UIColor? {
     guard c != 0 else { return nil }
     return UIColor(red: CGFloat(c >> 24 & 0xff) / 255, green: CGFloat(c >> 16 & 0xff) / 255,
                    blue: CGFloat(c >> 8 & 0xff) / 255, alpha: CGFloat(c & 0xff) / 255)
+}
+
+/// A label that draws its text at the top of its frame, as Go's layout and
+/// Android do (UILabel centres it vertically when the frame is taller).
+final class NNLabel: UILabel {
+    override func drawText(in rect: CGRect) {
+        let fit = textRect(forBounds: rect, limitedToNumberOfLines: numberOfLines)
+        super.drawText(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: min(fit.height, rect.height)))
+    }
 }
 
 /// A container that dims while pressed.

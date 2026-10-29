@@ -416,7 +416,10 @@ class Renderer internal constructor(private val root: NimbusView) {
             }
             val text = mt.text
             val desired = ceil(Layout.getDesiredWidth(text, p)).toInt()
-            val width = if (mt.maxWidth < 0) desired else min(desired, (mt.maxWidth * d).toInt())
+            // Round, don't truncate: a width Go got from an earlier measurement
+            // converts back to 99.9999 px, and truncating that loses a pixel and
+            // wraps the text onto a second line.
+            val width = if (mt.maxWidth < 0) desired else min(desired, (mt.maxWidth * d).roundToInt())
             val b = StaticLayout.Builder.obtain(text, 0, text.length, p, max(width, 1))
                 .setIncludePad(true)
                 .setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)

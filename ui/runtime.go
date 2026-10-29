@@ -70,7 +70,8 @@ type runtime struct {
 	destroyed    []uint32
 	effects      []*hookSlot
 	sentChrome   render.Chrome // the theme the host last got
-	modals       []*modal      // open modals, bottom first
+	queries      map[string]*queryEntry
+	modals       []*modal // open modals, bottom first
 	modalKey     int
 	lists        map[*instance]bool // mounted Lists
 	rechild      map[*instance]bool // Lists and Stacks whose children must render again
@@ -80,7 +81,7 @@ type runtime struct {
 
 func newRuntime(root Component) *runtime {
 	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
-		lists: map[*instance]bool{}, rechild: map[*instance]bool{}}
+		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, queries: map[string]*queryEntry{}}
 }
 
 // do runs f on the UI loop. Safe from any goroutine, including the loop.

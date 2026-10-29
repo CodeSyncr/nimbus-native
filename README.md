@@ -41,8 +41,9 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
 format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
-navigation, tabs, modals, safe areas, forms, theming and dark mode. Next: a typed client for
-Nimbus servers, device builds and signing, then the web.
+navigation, tabs, modals, safe areas, forms, theming and dark mode, a
+typed client for Nimbus servers with data-loading hooks. Next: device builds and
+signing, then the web.
 
 ## Layout
 
@@ -66,6 +67,8 @@ Nimbus servers, device builds and signing, then the web.
 | `examples/hello/` | Bridge and wire checks |
 | `examples/gallery/` | Every primitive plus a 1,000-row list, with a built-in benchmark |
 | `examples/baseline/` | The same list in plain Android views, to calibrate emulator numbers |
+| `examples/fullstack/` | A Nimbus server and app sharing one contract (its own module) |
+| `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
 
 ## Try it
 
@@ -217,6 +220,36 @@ back.
 |---|---|---|
 | Push, tap → committed | Go 2 ms; UIKit push 57–123 ms | 19 ms total |
 | Native back → Go follows | ✓ | ✓ |
+
+## Talking to a Nimbus server
+
+```go
+// shared/api.go — imported by the Nimbus server and the app
+var ListOrders  = api.GET[ListOrdersReq, []Order]("/api/orders")
+var CreateOrder = api.POST[NewOrder, Order]("/api/orders")
+
+// in the app
+client := api.New("https://orders.example.com")
+q := ui.UseQuery(c, "orders", func(ctx context.Context) ([]Order, error) {
+	return api.Call(ctx, client, ListOrders, ListOrdersReq{})
+})
+place := ui.UseAction(c, func(ctx context.Context, o NewOrder) (Order, error) {
+	created, err := api.Call(ctx, client, CreateOrder, o)
+	form.SetErrors(err) // a Nimbus 422 lands on the form's fields
+	return created, err
+}, func(Order) { ui.RefetchQuery(c, "orders") })
+```
+
+The `api` package depends only on the standard library, so shared code
+that imports it builds into the app without pulling in the server. An
+endpoint's method, path and request/response types are declared once;
+`{name}` path parameters come from fields tagged `path:"name"`, GET/DELETE
+requests become query parameters and the rest JSON bodies. A non-2xx
+response is an `*api.Error`; a Nimbus 422's field errors come with it.
+`ui.UseQuery` fetches off the UI goroutine, caches by key across
+components, refreshes stale data in the background and refetches on
+demand; `ui.UseAction` runs writes with their progress and result. See
+`examples/fullstack` for a Nimbus server and app sharing one contract.
 
 ## Theming and dark mode
 

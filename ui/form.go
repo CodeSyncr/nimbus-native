@@ -19,6 +19,13 @@ type Form[T any] struct {
 	touch     func(func(map[string]bool) map[string]bool)
 	errs      FieldErrors
 	formError error
+	server    serverErrors // from SetErrors: shown until the field changes
+	setServer func(func(serverErrors) serverErrors)
+}
+
+type serverErrors struct {
+	fields FieldErrors
+	form   error
 }
 
 // UseForm keeps a form's value in state and validates it on every change.
@@ -31,7 +38,8 @@ type Form[T any] struct {
 func UseForm[T any](c *Ctx, initial T, validate func(T) error) *Form[T] {
 	value, update := Reducer(c, initial)
 	touched, touch := Reducer(c, map[string]bool{})
-	f := &Form[T]{value: value, update: update, touched: touched, touch: touch}
+	server, setServer := Reducer(c, serverErrors{})
+	f := &Form[T]{value: value, update: update, touched: touched, touch: touch, server: server, setServer: setServer}
 	if validate != nil {
 		f.errs, f.formError = splitErrors(validate(value))
 	}
@@ -63,6 +71,9 @@ func (f *Form[T]) Field(name string, at func(*T) *string) Field {
 	if f.touched[name] {
 		fd.Error = first(f.errs[name])
 	}
+	if fd.Error == "" {
+		fd.Error = first(f.server.fields[name])
+	}
 	fd.OnChange = func(s string) {
 		f.update(func(v T) T {
 			*at(&v) = s
@@ -76,8 +87,29 @@ func (f *Form[T]) Field(name string, at func(*T) *string) Field {
 			t[name] = true
 			return t
 		})
+		f.setServer(func(s serverErrors) serverErrors {
+			if _, ok := s.fields[name]; !ok {
+				return s
+			}
+			fields := FieldErrors{}
+			for k, v := range s.fields {
+				if k != name {
+					fields[k] = v
+				}
+			}
+			s.fields = fields
+			return s
+		})
 	}
 	return fd
+}
+
+// SetErrors shows errors a server returned for the value — say, the field
+// errors in a Nimbus 422 — on their fields, until each field changes. nil
+// clears them. Safe from any goroutine, so an action can call it directly.
+func (f *Form[T]) SetErrors(err error) {
+	fields, formErr := splitErrors(err)
+	f.setServer(func(serverErrors) serverErrors { return serverErrors{fields: fields, form: formErr} })
 }
 
 // Submit returns a handler for the submit button: when the value is valid
@@ -99,8 +131,14 @@ func (f *Form[T]) Submit(onValid func(T)) func() {
 	}
 }
 
-// FormError is the validation error that belongs to no single field.
-func (f *Form[T]) FormError() error { return f.formError }
+// FormError is the error that belongs to no single field: from validation,
+// or from SetErrors (a server or network failure).
+func (f *Form[T]) FormError() error {
+	if f.formError != nil {
+		return f.formError
+	}
+	return f.server.form
+}
 
 // Field is one bound text field: its value, the error to show (empty until
 // the user has touched it or tried to submit), and its change handler.

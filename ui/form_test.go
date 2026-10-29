@@ -82,3 +82,25 @@ func TestSplitErrors(t *testing.T) {
 		t.Fatal("a plain error should stay a form error")
 	}
 }
+
+type serverForm struct{}
+
+func (serverForm) Render(c *Ctx) *Element {
+	f := UseForm(c, signup{}, nil) // no local rules: the server decides
+	return View(Style{},
+		TextField(f.Field("email", func(s *signup) *string { return &s.Email }), FieldOptions{}),
+		Pressable(func() { f.SetErrors(nimbusErrors{"email": {"email is taken"}}) }, Style{Height: Pt(44)}).TestID("reject"),
+	)
+}
+
+func TestFormShowsServerErrors(t *testing.T) {
+	h := start(t, serverForm{})
+	h.send(&render.Press{Tag: h.tagOf("reject")})
+	if h.lastText(h.tagOf("error-email")) == nil || h.lastText(h.tagOf("error-email")).Text != "email is taken" {
+		t.Fatal("server error not shown on its field")
+	}
+	h.send(&render.Changed{Tag: h.tagOf("field-email"), Text: "other@example.com"})
+	if h.tagOf("error-email") != 0 {
+		t.Fatal("editing the field should clear its server error")
+	}
+}
