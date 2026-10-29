@@ -107,9 +107,78 @@ func TestMeasureCalls(t *testing.T) {
 }
 
 func BenchmarkScreen1000Rows(b *testing.B) {
-	root := screen(nil)
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
+		screen(nil).Calculate(nan, nan) // a fresh tree: full layout
+	}
+}
+
+func rects(n *Node, out *[][4]float32) {
+	*out = append(*out, [4]float32{n.X, n.Y, n.W, n.H})
+	for _, c := range n.Children {
+		rects(c, out)
+	}
+}
+
+func TestIncremental(t *testing.T) {
+	calls := 0
+	root := screen(&calls)
+	root.Calculate(nan, nan)
+	calls = 0
+	root.Calculate(nan, nan)
+	if calls != 0 {
+		t.Fatalf("an unchanged tree was measured again (%d calls)", calls)
+	}
+
+	// Change one title deep in the list, and the header's height.
+	list := root.Children[1]
+	title := list.Children[500].Children[1].Children[0]
+	title.Measure = fakeText(60, &calls) // now wraps
+	title.MarkDirty()
+	header := root.Children[0]
+	header.Style.Height = Pt(80)
+	header.MarkDirty()
+	root.Calculate(nan, nan)
+	if calls == 0 || calls > 12 {
+		t.Fatalf("%d measure calls after changing one text; want a handful", calls)
+	}
+
+	// The incremental result must equal a from-scratch layout of the same tree.
+	var got, want [][4]float32
+	rects(root, &got)
+	fresh := screen(nil)
+	fresh.Children[1].Children[500].Children[1].Children[0].Measure = fakeText(60, nil)
+	fresh.Children[0].Style.Height = Pt(80)
+	fresh.Calculate(nan, nan)
+	rects(fresh, &want)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("node %d: incremental %v, fresh %v", i, got[i], want[i])
+		}
+	}
+
+	// The root has a fixed size, so a new viewport changes nothing; a root
+	// that fills the viewport follows it.
+	root.Calculate(320, 600)
+	if root.W != 390 || list.H != 844-80 {
+		t.Fatalf("fixed root: %v wide, list %v tall", root.W, list.H)
+	}
+	root.Style.Width, root.Style.Height = Value{}, Value{}
+	root.MarkDirty()
+	root.Calculate(320, 600)
+	if root.W != 320 || list.H != 600-80 || list.Children[0].W != 320 {
+		t.Fatalf("filling root: %v wide, list %v tall, row %v wide", root.W, list.H, list.Children[0].W)
+	}
+}
+
+func BenchmarkScreenOneChange(b *testing.B) {
+	root := screen(nil)
+	root.Calculate(nan, nan)
+	header := root.Children[0]
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		header.Style.Height = Pt(float32(50 + i%10))
+		header.MarkDirty()
 		root.Calculate(nan, nan)
 	}
 }

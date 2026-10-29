@@ -26,8 +26,22 @@ type Node struct {
 	X, Y, W, H         float32
 	ContentW, ContentH float32
 
-	pass  uint32
-	cache []cacheEntry
+	// Incremental layout: a clean node's results and measurements are reused
+	// across Calculate calls while it is offered the same space.
+	parent *Node
+	clean  bool
+	final  cacheEntry // the inputs of the last final layout
+	pass   uint32
+	cache  []cacheEntry
+}
+
+// MarkDirty tells the engine n changed (style, children, or what its Measure
+// returns) so the next Calculate lays out n and its ancestors again. New
+// nodes start dirty.
+func (n *Node) MarkDirty() {
+	for ; n != nil && n.clean; n = n.parent {
+		n.clean = false
+	}
 }
 
 type cacheEntry struct {
@@ -76,24 +90,38 @@ type pass struct{ id uint32 }
 // out its children. ownerW/ownerH are the parent's inner size, for
 // percentages.
 func (p *pass) compute(n *Node, availW float32, wMode Mode, availH float32, hMode Mode, ownerW, ownerH float32, free axes, final bool) (float32, float32) {
+	key := cacheEntry{availW: availW, availH: availH, ownerW: ownerW, ownerH: ownerH, wMode: wMode, hMode: hMode, free: free}
+	if !n.clean && n.pass != p.id {
+		// Dirty: earlier measurements no longer hold.
+		n.pass, n.cache = p.id, n.cache[:0]
+	}
+	if final && n.clean && n.final.matches(key) {
+		return n.W, n.H // unchanged and offered the same space: keep last layout
+	}
 	if !final {
-		if n.pass != p.id {
-			n.pass, n.cache = p.id, n.cache[:0]
-		}
 		for _, c := range n.cache {
-			if c.wMode == wMode && c.hMode == hMode && c.free == free && same(c.availW, availW) && same(c.availH, availH) &&
-				same(c.ownerW, ownerW) && same(c.ownerH, ownerH) {
+			if c.matches(key) {
 				return c.w, c.h
 			}
 		}
 	}
 	w, h := p.layout(n, availW, wMode, availH, hMode, ownerW, ownerH, free, final)
 	if !final {
-		n.cache = append(n.cache, cacheEntry{availW, availH, ownerW, ownerH, wMode, hMode, free, w, h})
+		key.w, key.h = w, h
+		n.cache = append(n.cache, key)
 	} else {
 		n.W, n.H = w, h
+		n.final, n.clean = key, true
+		for _, c := range n.Children {
+			c.parent = n
+		}
 	}
 	return w, h
+}
+
+func (c cacheEntry) matches(k cacheEntry) bool {
+	return c.wMode == k.wMode && c.hMode == k.hMode && c.free == k.free && same(c.availW, k.availW) &&
+		same(c.availH, k.availH) && same(c.ownerW, k.ownerW) && same(c.ownerH, k.ownerH)
 }
 
 func same(a, b float32) bool { return a == b || (!defined(a) && !defined(b)) }

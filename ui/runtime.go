@@ -1,0 +1,530 @@
+// Package ui is Nimbus Native's component layer: apps describe their screens
+// as Go components, and the runtime keeps real native views (UIKit, Android
+// Views) in step with them.
+//
+// Everything happens on one goroutine, the UI loop: host events, state
+// updates, rendering, layout and effects. A render reconciles the new
+// element tree against the one on screen, lays it out with the layout
+// package, and sends the differences to the host as one render.Commit.
+package ui
+
+import (
+	"reflect"
+	"runtime/debug"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/CodeSyncr/nimbus-native/bridge"
+	"github.com/CodeSyncr/nimbus-native/layout"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
+)
+
+// Mount makes root the app's UI. Call it from init; the UI loop starts when
+// the host starts the runtime.
+func Mount(root Component) {
+	rt := newRuntime(root)
+	rt.send = func(b []byte) { bridge.Send(b) }
+	rt.measure = func(m *render.MeasureText) render.TextSize {
+		reply, err := bridge.CallHost(render.Encode(m))
+		if err == nil {
+			if r, err := render.Decode(reply); err == nil {
+				if ts, ok := r.(*render.TextSize); ok {
+					return *ts
+				}
+			}
+		}
+		logf("text measurement failed: %v", err)
+		return render.TextSize{}
+	}
+	logf = bridge.Logf
+	bridge.OnMessage(rt.receive)
+	bridge.OnStart(rt.loop)
+}
+
+type runtime struct {
+	mu    sync.Mutex
+	queue []func()
+	wake  chan struct{}
+
+	// Ports to the host; tests replace them.
+	send    func([]byte)
+	measure func(*render.MeasureText) render.TextSize
+
+	// Owned by the UI loop.
+	root         Component
+	rootInst     *instance
+	rootTag      uint32
+	viewport     ViewportInfo
+	haveViewport bool
+	dirty        bool
+	forceAll     bool // re-render every component (the viewport changed)
+	nextTag      uint32
+	byTag        map[uint32]*instance
+	ops          []render.Op
+	destroyed    []uint32
+	effects      []*hookSlot
+	seq          uint64
+	measures     uint32
+}
+
+func newRuntime(root Component) *runtime {
+	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{}}
+}
+
+// do runs f on the UI loop. Safe from any goroutine, including the loop.
+func (rt *runtime) do(f func()) {
+	rt.mu.Lock()
+	rt.queue = append(rt.queue, f)
+	rt.mu.Unlock()
+	select {
+	case rt.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (rt *runtime) loop() {
+	for range rt.wake {
+		rt.drain()
+	}
+}
+
+// drain runs queued work until none is left, then renders if anything
+// changed: many state updates in a row cost one render.
+func (rt *runtime) drain() {
+	for {
+		rt.mu.Lock()
+		q := rt.queue
+		rt.queue = nil
+		rt.mu.Unlock()
+		if len(q) == 0 {
+			break
+		}
+		for _, f := range q {
+			guard("update", f)
+		}
+	}
+	if rt.dirty && rt.haveViewport {
+		rt.commit()
+	}
+}
+
+// receive handles a message from the host (on the bridge's goroutine).
+func (rt *runtime) receive(b []byte) {
+	m, err := render.Decode(b)
+	if err != nil {
+		logf("ui: undecodable host message: %v", err)
+		return
+	}
+	rt.do(func() {
+		switch m := m.(type) {
+		case *render.Viewport:
+			rt.viewport = ViewportInfo{W: m.W, H: m.H, Scale: m.Scale, SafeTop: m.SafeTop, SafeBottom: m.SafeBottom,
+				SafeLeft: m.SafeLeft, SafeRight: m.SafeRight, Platform: m.Platform, Dark: m.Dark}
+			rt.haveViewport, rt.dirty, rt.forceAll = true, true, true
+		case *render.Press:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onPress != nil {
+				in.el.onPress()
+			}
+		case *render.Changed:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onChange != nil {
+				in.el.onChange(m.Text)
+			}
+		}
+	})
+}
+
+// instance is an element on screen: a component with its hooks, or a native
+// view with its tag, layout node and the last props sent for it.
+type instance struct {
+	el        *Element
+	unmounted bool
+	dirty     bool // a component whose state changed since its last render
+
+	// Component
+	hooks []*hookSlot
+	child *instance
+
+	// Native view
+	tag       uint32
+	node      *layout.Node
+	children  []*instance
+	childTags []uint32
+	sent      sentProps
+	measured  map[measureKey]render.TextSize
+}
+
+type sentProps struct {
+	box    render.Box
+	text   render.Text
+	image  render.Image
+	input  render.Input
+	scroll render.Scroll
+	spin   render.Spinner
+	frame  render.Frame
+}
+
+type measureKey struct {
+	w    float32
+	mode layout.Mode
+}
+
+// commit renders the whole tree and sends what changed.
+func (rt *runtime) commit() {
+	t0 := time.Now()
+	rt.dirty, rt.measures = false, 0
+	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root))
+	rt.forceAll = false
+	c := &render.Commit{}
+	host := hostRoot(rt.rootInst)
+	if host != nil && host.tag != rt.rootTag {
+		rt.rootTag, c.Root = host.tag, host.tag
+	}
+	t1 := time.Now()
+	if host != nil {
+		host.node.Calculate(rt.viewport.W, rt.viewport.H)
+		rt.emitFrames(host)
+	}
+	t2 := time.Now()
+	if len(rt.destroyed) > 0 {
+		rt.ops = append(rt.ops, &render.Destroy{Tags: rt.destroyed})
+		rt.destroyed = nil
+	}
+	rt.seq++
+	c.Seq, c.Ops = rt.seq, rt.ops
+	c.BuildNs, c.LayoutNs, c.Measures = uint64(t1.Sub(t0)), uint64(t2.Sub(t1)), rt.measures
+	rt.send(render.Encode(c))
+	rt.ops = rt.ops[:0]
+
+	effects := rt.effects
+	rt.effects = nil
+	for _, s := range effects {
+		if s.pending {
+			s.pending = false
+			s.start()
+		}
+	}
+}
+
+func (rt *runtime) op(o render.Op) { rt.ops = append(rt.ops, o) }
+
+// reconcile makes old show el, reusing it when it is the same type.
+func (rt *runtime) reconcile(old *instance, el *Element) *instance {
+	switch {
+	case el == nil:
+		if old != nil {
+			rt.unmount(old)
+		}
+		return nil
+	case old == nil:
+		return rt.mount(el)
+	case !el.sameType(old.el):
+		rt.unmount(old)
+		return rt.mount(el)
+	}
+	rt.update(old, el)
+	return old
+}
+
+func (rt *runtime) mount(el *Element) *instance {
+	in := &instance{el: el}
+	if el.comp != nil {
+		in.child = rt.reconcile(nil, rt.renderComponent(in))
+		return in
+	}
+	rt.nextTag++
+	in.tag = rt.nextTag
+	in.node = &layout.Node{}
+	rt.byTag[in.tag] = in
+	rt.op(&render.Create{Tag: in.tag, Kind: el.kind})
+	switch el.kind {
+	case render.KindText:
+		in.node.Measure = rt.textMeasure(in)
+	case render.KindInput:
+		in.node.Measure = rt.inputMeasure(in)
+	case render.KindSpinner:
+		in.node.Measure = rt.spinnerMeasure
+	}
+	rt.props(in, true)
+	rt.reconcileChildren(in, el.children)
+	return in
+}
+
+func (rt *runtime) update(in *instance, el *Element) {
+	if el.comp != nil {
+		// Same props and no state change: what it rendered last time stands.
+		skip := !rt.forceAll && !in.dirty && propsEqual(in.el.comp, el.comp)
+		in.el = el
+		if !skip {
+			in.dirty = false
+			in.child = rt.reconcile(in.child, rt.renderComponent(in))
+		}
+		return
+	}
+	in.el = el
+	rt.props(in, false)
+	rt.reconcileChildren(in, el.children)
+}
+
+func (rt *runtime) renderComponent(in *instance) (out *Element) {
+	defer func() {
+		if r := recover(); r != nil {
+			logf("panic rendering %T: %v\n%s", in.el.comp, r, debug.Stack())
+			out = nil
+		}
+	}()
+	return in.el.comp.Render(&Ctx{rt: rt, inst: in})
+}
+
+// reconcileChildren matches new child elements to existing instances by key
+// (or position), then tells the host the native child order if it changed.
+func (rt *runtime) reconcileChildren(in *instance, els []*Element) {
+	old := make(map[string]*instance, len(in.children))
+	for i, c := range in.children {
+		old[childKey(c.el, i)] = c
+	}
+	next := make([]*instance, 0, len(els))
+	for i, el := range els {
+		if el == nil {
+			continue
+		}
+		k := childKey(el, i)
+		if o := old[k]; o != nil && el.sameType(o.el) {
+			delete(old, k)
+			rt.update(o, el)
+			next = append(next, o)
+		} else {
+			next = append(next, rt.mount(el))
+		}
+	}
+	for _, o := range old {
+		rt.unmount(o)
+	}
+	in.children = next
+
+	tags := make([]uint32, 0, len(next))
+	for _, c := range next {
+		if h := hostRoot(c); h != nil {
+			tags = append(tags, h.tag)
+		}
+	}
+	if !equalTags(tags, in.childTags) {
+		// Tags name instances one to one, so the layout children change
+		// exactly when the tags do.
+		nodes := make([]*layout.Node, 0, len(tags))
+		for _, t := range tags {
+			nodes = append(nodes, rt.byTag[t].node)
+		}
+		in.node.Children = nodes
+		in.node.MarkDirty()
+		in.childTags = tags
+		rt.op(&render.Children{Tag: in.tag, Children: tags})
+	}
+}
+
+// propsEqual reports whether two components have equal props. Components
+// with props Go can't compare (slices, maps, funcs) always re-render.
+func propsEqual(a, b Component) (eq bool) {
+	t := reflect.TypeOf(a)
+	if t != reflect.TypeOf(b) || !t.Comparable() {
+		return false
+	}
+	defer func() {
+		if recover() != nil {
+			eq = false // an interface field holding something incomparable
+		}
+	}()
+	return a == b
+}
+
+func childKey(el *Element, i int) string {
+	if el.key != "" {
+		return "k" + el.key
+	}
+	return "i" + strconv.Itoa(i)
+}
+
+func (rt *runtime) unmount(in *instance) {
+	in.unmounted = true
+	for _, s := range in.hooks {
+		s.stop()
+		s.pending = false
+	}
+	if in.child != nil {
+		rt.unmount(in.child)
+	}
+	for _, c := range in.children {
+		rt.unmount(c)
+	}
+	if in.tag != 0 {
+		delete(rt.byTag, in.tag)
+		rt.destroyed = append(rt.destroyed, in.tag)
+	}
+}
+
+// hostRoot is the native view an instance renders to.
+func hostRoot(in *instance) *instance {
+	for in != nil && in.tag == 0 {
+		in = in.child
+	}
+	return in
+}
+
+// props sends whatever of el's look changed since the last commit.
+func (rt *runtime) props(in *instance, first bool) {
+	el, s := in.el, &in.el.style
+	ls := s.layout()
+	ls.Scroll = el.kind == render.KindScroll
+	if ls != in.node.Style {
+		in.node.Style = ls
+		in.node.MarkDirty()
+	}
+
+	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
+		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID}
+	if box != in.sent.box && !(first && box == (render.Box{Tag: in.tag, Opacity: 1})) {
+		rt.op(&box)
+	}
+	in.sent.box = box
+
+	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight}
+	switch el.kind {
+	case render.KindText:
+		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(s.Color), Align: textAlign(s.TextAlign), Lines: s.Lines}
+		if first || t != in.sent.text {
+			if t.Text != in.sent.text.Text || t.Font != in.sent.text.Font || t.Lines != in.sent.text.Lines {
+				in.measured = nil
+				in.node.MarkDirty()
+			}
+			in.sent.text = t
+			rt.op(&t)
+		}
+	case render.KindImage:
+		img := render.Image{Tag: in.tag, URL: el.src, Fit: el.fit}
+		if first || img != in.sent.image {
+			in.sent.image = img
+			rt.op(&img)
+		}
+	case render.KindInput:
+		inp := render.Input{Tag: in.tag, Value: el.text, Placeholder: el.placeholder, Font: font,
+			Color: uint32(s.Color), Secure: el.secure, Keyboard: el.keyboard}
+		if first || inp != in.sent.input {
+			if inp.Font != in.sent.input.Font {
+				in.measured = nil
+				in.node.MarkDirty()
+			}
+			in.sent.input = inp
+			rt.op(&inp)
+		}
+	case render.KindSpinner:
+		sp := render.Spinner{Tag: in.tag, Color: uint32(s.Color)}
+		if first || sp != in.sent.spin {
+			in.sent.spin = sp
+			rt.op(&sp)
+		}
+	}
+}
+
+// emitFrames sends the frames (and scroll content sizes) layout changed.
+func (rt *runtime) emitFrames(in *instance) {
+	n := in.node
+	f := render.Frame{Tag: in.tag, X: n.X, Y: n.Y, W: n.W, H: n.H}
+	if f != in.sent.frame {
+		in.sent.frame = f
+		rt.op(&f)
+	}
+	if in.el.kind == render.KindScroll {
+		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal}
+		if sc != in.sent.scroll {
+			in.sent.scroll = sc
+			rt.op(&sc)
+		}
+	}
+	for _, c := range in.children {
+		if h := hostRoot(c); h != nil {
+			rt.emitFrames(h)
+		}
+	}
+}
+
+func (rt *runtime) textMeasure(in *instance) layout.MeasureFunc {
+	return func(w float32, wm layout.Mode, h float32, hm layout.Mode) (float32, float32) {
+		if wm == layout.Undefined {
+			w = -1
+		}
+		key := measureKey{w, wm}
+		if sz, ok := in.measured[key]; ok {
+			return sz.W, sz.H
+		}
+		t := in.sent.text
+		rt.measures++
+		sz := rt.measure(&render.MeasureText{Text: t.Text, Font: t.Font, MaxWidth: w, Lines: t.Lines})
+		if in.measured == nil {
+			in.measured = map[measureKey]render.TextSize{}
+		}
+		in.measured[key] = sz
+		return sz.W, sz.H
+	}
+}
+
+// inputMeasure: one line of the input's font plus the platform's field
+// padding; as wide as offered.
+func (rt *runtime) inputMeasure(in *instance) layout.MeasureFunc {
+	return func(w float32, wm layout.Mode, h float32, hm layout.Mode) (float32, float32) {
+		key := measureKey{-2, 0}
+		sz, ok := in.measured[key]
+		if !ok {
+			rt.measures++
+			sz = rt.measure(&render.MeasureText{Text: "Ag", Font: in.sent.input.Font, MaxWidth: -1})
+			if in.measured == nil {
+				in.measured = map[measureKey]render.TextSize{}
+			}
+			in.measured[key] = sz
+		}
+		width := float32(160)
+		if wm != layout.Undefined {
+			width = w
+		}
+		return width, sz.H + 2*fieldPadding
+	}
+}
+
+const fieldPadding = 10
+
+func (rt *runtime) spinnerMeasure(w float32, wm layout.Mode, h float32, hm layout.Mode) (float32, float32) {
+	if rt.viewport.Platform == "android" {
+		return 32, 32
+	}
+	return 20, 20
+}
+
+func textAlign(a Align) render.Align {
+	switch a {
+	case AlignCenter:
+		return render.AlignCenter
+	case AlignEnd:
+		return render.AlignEnd
+	}
+	return render.AlignStart
+}
+
+func equalTags(a, b []uint32) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func guard(what string, f func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			logf("panic in %s: %v\n%s", what, r, debug.Stack())
+		}
+	}()
+	f()
+}
