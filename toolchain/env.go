@@ -1,7 +1,9 @@
-// Package toolchain builds Nimbus Native apps for iOS and Android with the
-// platform tools directly: go build (c-archive / c-shared), Xcode's clang and
-// swiftc, the NDK's clang, and the Android SDK's aapt2, d8, zipalign and
-// apksigner. No gomobile, no Gradle, no generated Xcode project.
+// Package toolchain builds Nimbus Native apps for iOS and Android. Single
+// directory apps (the examples) build with the platform tools directly: go
+// build (c-archive / c-shared), Xcode's clang and swiftc, the NDK's clang,
+// and the Android SDK's aapt2, d8, zipalign and apksigner. Projects made by
+// New hold real Xcode and Gradle projects, which call Lib to build the Go
+// side. No gomobile either way.
 package toolchain
 
 import (

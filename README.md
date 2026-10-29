@@ -38,12 +38,13 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 
 ## Roadmap
 
-Done: own toolchain (no gomobile, no Gradle), C ABI bridge, typed wire
+Done: own toolchain (no gomobile), C ABI bridge, typed wire
 format with Go/Swift/Kotlin generation, flexbox layout, components and
 hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
 navigation, tabs, modals, safe areas, forms, theming and dark mode, a
-typed client for Nimbus servers with data-loading hooks. Next: device builds and
-signing, then the web.
+typed client for Nimbus servers with data-loading hooks, `nimbus native new`
+projects that open in Xcode and Android Studio. Next: folder routing, the
+same UI on the web, then device builds and signing.
 
 ## Layout
 
@@ -62,7 +63,7 @@ signing, then the web.
 | `hosts/ios/…/Renderer.swift` | UIKit renderer and `NimbusViewController` |
 | `hosts/android/…/Renderer.kt`, `NimbusView.kt` | Android Views renderer and root view |
 | `dev/` | Dev mode: `frame` (the socket protocol), `client` (the shell's proxy); the relay is in `toolchain/dev.go` |
-| `toolchain/` | Builds apps with the platform tools directly — no gomobile, no Gradle; runs `gen` first |
+| `toolchain/` | Builds apps — no gomobile; runs `gen` first. `toolchain/template/` is what `nimbus native new` writes |
 | `cmd/nimbus-native/` | The toolchain behind `nimbus native …` (never called directly) |
 | `examples/hello/` | Bridge and wire checks |
 | `examples/gallery/` | Every primitive plus a 1,000-row list, with a built-in benchmark |
@@ -70,7 +71,45 @@ signing, then the web.
 | `examples/fullstack/` | A Nimbus server and app sharing one contract (its own module) |
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
 
-## Try it
+## Start a project
+
+```sh
+nimbus native new shop
+cd shop
+go run .                        # the Nimbus server, on :3333
+nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
+nimbus native run android       # or open native/android in Android Studio
+```
+
+A project is one Go module, laid out by feature:
+
+```
+shop/
+  main.go                  the Nimbus server: mounts each feature's routes
+  app/
+    app.go                 the root component (tabs, stacks)
+    router.go              the top-level routes
+    mobile/main.go         the phone app's package main
+  core/                    constants, theme, utils
+  shared/                  widgets and services any feature uses
+  features/orders/
+    domain/                types and api.Endpoints: the contract
+    data/                  calls the endpoints
+    presentation/          screens and components
+    server/                handlers and validation (server only)
+  native/
+    ios/                   Xcode project (Runner + the NimbusNativeKit package)
+    android/               Gradle project (app + the nimbusnativekit module)
+```
+
+Xcode and Gradle build the hosts as usual; a build step in each runs
+`nimbus native lib`, which builds `app/mobile` into the native library and
+writes the generated Swift or Kotlin. It also keeps the project's copy of the
+host kit at the version `go.mod` requires (after an upgrade, the first build
+updates it and asks you to build again), and refuses to build a phone app
+that imports Nimbus or any `server` package: that code stays on the server.
+
+## Try the examples
 
 Everything goes through the `nimbus` CLI — there is no second tool:
 
@@ -85,7 +124,7 @@ nimbus native gen ./examples/hello             # every build does this too
 
 `nimbus native` runs the toolchain (`cmd/nimbus-native`) at the version the
 app's `go.mod` requires, so the CLI always matches the app's runtime. Outside
-such a module, set `NIMBUS_NATIVE_BIN` to a built toolchain.
+such a module it runs the latest release, or `NIMBUS_NATIVE_BIN` if set.
 
 `run` streams the app's log until you press Ctrl+C.
 
@@ -132,6 +171,9 @@ checked) into the user cache on the first Android build; `NIMBUS_KOTLINC`
 points it at another. Plain Java activities still build alongside.
 
 ## How a build works
+
+Projects build with xcodebuild and Gradle (the IDEs' own builds). The
+examples build with the platform tools directly:
 
 - **iOS:** `go build -buildmode=c-archive` (GOOS=ios, Xcode clang) → `libapp.a`,
   then `swiftc` links it with the host and app Swift code, writes Info.plist,

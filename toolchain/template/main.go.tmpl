@@ -1,0 +1,21 @@
+// The __NAME__ server: a Nimbus app serving the API the phone app calls.
+// Each feature registers its own routes from its server package.
+//
+//	go run .
+package main
+
+import (
+	"log"
+
+	"github.com/CodeSyncr/nimbus"
+
+	orders "__MODULE__/features/orders/server"
+)
+
+func main() {
+	app := nimbus.New()
+	orders.Routes(app.Router)
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
+	}
+}

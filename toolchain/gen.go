@@ -22,7 +22,7 @@ type Generated struct {
 	KotlinFiles []string // compile into the Android app
 }
 
-// Gen regenerates every wire schema inside the app (directories whose Go
+// Gen regenerates every wire schema the app links from its own code (directories whose Go
 // files carry //wire: directives), writing wire_gen.go next to each, and
 // host code under build/gen. The combined hash covers every schema package
 // the app links, including ones from its dependencies.
@@ -46,7 +46,7 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 			}
 		}
 	}
-	out := filepath.Join(a.Dir, "build", "gen")
+	out := filepath.Join(a.root(), "build", "gen")
 	if err := os.RemoveAll(out); err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 		if !isSchemaDir(dir) {
 			continue
 		}
-		if !within(dir, a.Dir) {
+		if !within(dir, a.root()) {
 			// A dependency's schema: its host code ships with that dependency.
 			s, err := schema.Load(dir)
 			if err != nil {
@@ -78,9 +78,9 @@ func (e *Env) Gen(a *App) (*Generated, error) {
 		}
 		o, err := gen.Generate(dir, a.ID)
 		if err != nil {
-			return nil, fmt.Errorf("schema %s: %w", rel(a.Dir, dir), err)
+			return nil, fmt.Errorf("schema %s: %w", rel(a.root(), dir), err)
 		}
-		e.step("gen %s → Go, Swift, Kotlin (%#016x)", rel(a.Dir, dir), o.Schema.Hash)
+		e.step("gen %s → Go, Swift, Kotlin (%#016x)", rel(a.root(), dir), o.Schema.Hash)
 		if err := writeIfChanged(filepath.Join(dir, gen.GoFile), o.Go); err != nil {
 			return nil, err
 		}

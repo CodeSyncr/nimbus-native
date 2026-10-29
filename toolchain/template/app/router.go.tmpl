@@ -1,0 +1,22 @@
+package app
+
+import (
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	account "__MODULE__/features/account/presentation"
+	orders "__MODULE__/features/orders/presentation"
+)
+
+// Route is a top-level destination.
+type Route struct {
+	Title  string
+	Icon   string // an SF Symbol on iOS; Android shows the title
+	Screen ui.Component
+}
+
+// Routes are the app's tabs, in order. Screens deeper in a tab are pushed
+// with ui.Navigation(c).Push.
+var Routes = []Route{
+	{Title: "Orders", Icon: "list.bullet", Screen: orders.OrdersScreen{}},
+	{Title: "Account", Icon: "person.crop.circle", Screen: account.AccountScreen{}},
+}

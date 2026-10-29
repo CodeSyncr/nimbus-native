@@ -1,0 +1,43 @@
+// Package domain is the orders feature's contract: its types and the
+// endpoints that carry them. The server implements the endpoints and the
+// app calls them, both compiling against this package, so it imports only
+// the dependency-free api package.
+package domain
+
+import "github.com/CodeSyncr/nimbus-native/api"
+
+type Order struct {
+	ID       int     `json:"id"`
+	Customer string  `json:"customer"`
+	Phone    string  `json:"phone"`
+	Items    int     `json:"items"`
+	Total    float64 `json:"total"`
+	Status   Status  `json:"status"`
+}
+
+// Status is where an order is.
+type Status string
+
+const (
+	Paid      Status = "Paid"
+	Packed    Status = "Packed"
+	Shipped   Status = "Shipped"
+	Delivered Status = "Delivered"
+)
+
+// OrderRef names one order.
+type OrderRef struct {
+	ID int `path:"id" json:"-"`
+}
+
+// NewOrder is what the app sends to place an order. The server validates it.
+type NewOrder struct {
+	Customer string `json:"customer"`
+	Phone    string `json:"phone"`
+}
+
+var (
+	ListOrders  = api.GET[api.None, []Order]("/api/orders")
+	GetOrder    = api.GET[OrderRef, Order]("/api/orders/{id}")
+	CreateOrder = api.POST[NewOrder, Order]("/api/orders")
+)

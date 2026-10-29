@@ -1,0 +1,76 @@
+// Package presentation is the orders feature's screens.
+package presentation
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/features/orders/data"
+	"__MODULE__/features/orders/domain"
+	"__MODULE__/shared/widgets"
+)
+
+// OrdersScreen lists the server's orders. Tapping one opens it; "New" places one.
+type OrdersScreen struct{}
+
+func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
+	th, modals := ui.UseTheme(c), ui.Modals(c)
+	q := ui.UseQuery(c, data.ListKey, data.List)
+
+	header := ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween, AlignItems: ui.AlignCenter, Padding: ui.All(th.SpaceL)},
+		ui.Text(fmt.Sprintf("%d orders", len(q.Data)), ui.Style{FontSize: th.Body, Color: th.TextMuted}).TestID("count"),
+		ui.Pressable(func() { modals.Present("New order", NewOrderScreen{}) },
+			ui.Style{Background: th.Primary, Radius: 10, Padding: ui.XY(14, 8)},
+			ui.Text("+ New", ui.Style{Color: th.OnPrimary, FontWeight: 600}),
+		).TestID("new"),
+	)
+	var body *ui.Element
+	switch {
+	case q.Err != nil && !q.Loaded:
+		body = ui.C(widgets.Problem{Message: q.Err.Error(), Retry: q.Refetch})
+	case !q.Loaded:
+		body = widgets.Loading()
+	default:
+		orders := q.Data
+		body = ui.List(len(orders), func(i int) *ui.Element { return ui.C(OrderRow{orders[i]}) }, ui.Flex(1)).
+			ItemKey(func(i int) string { return fmt.Sprint(orders[i].ID) })
+	}
+	return ui.SafeArea(ui.Style{Grow: 1}, header, body)
+}
+
+// OrderScreen shows one order, fetched by id.
+type OrderScreen struct{ ID int }
+
+func (s OrderScreen) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	q := ui.UseQuery(c, data.OrderKey(s.ID), func(ctx context.Context) (domain.Order, error) { return data.Get(ctx, s.ID) })
+	switch {
+	case q.Err != nil && !q.Loaded:
+		return ui.C(widgets.Problem{Message: q.Err.Error(), Retry: q.Refetch})
+	case !q.Loaded:
+		return widgets.Loading()
+	}
+	o := q.Data
+	fg, bg := statusColors(th, o.Status)
+	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: th.SpaceL},
+		ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween, AlignItems: ui.AlignCenter},
+			ui.Text(o.Customer, ui.Style{FontSize: th.Title, FontWeight: 700}).TestID("detail-customer"),
+			widgets.Badge(string(o.Status), fg, bg),
+		),
+		ui.View(ui.Style{Background: th.Surface, Radius: th.Radius, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
+			field(th, "Order", fmt.Sprintf("#%d", o.ID)),
+			field(th, "Phone", o.Phone),
+			field(th, "Items", fmt.Sprint(o.Items)),
+			field(th, "Total", money(o.Total)),
+		),
+	)
+}
+
+func field(th ui.Theme, label, value string) *ui.Element {
+	return ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween},
+		ui.Text(label, ui.Style{FontSize: th.Body, Color: th.TextMuted}),
+		ui.Text(value, ui.Style{FontSize: th.Body, FontWeight: 600}),
+	)
+}

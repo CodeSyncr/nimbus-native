@@ -1,0 +1,35 @@
+// Package presentation is the account feature's screens.
+package presentation
+
+import (
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/core/constants"
+)
+
+// AccountScreen shows the app's settings.
+type AccountScreen struct{}
+
+func (AccountScreen) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	mode := "Light"
+	if th.Dark {
+		mode = "Dark"
+	}
+	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: th.SpaceL},
+		ui.Text(constants.AppName, ui.Style{FontSize: th.Title, FontWeight: 700}),
+		ui.View(ui.Style{Background: th.Surface, Radius: th.Radius, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
+			row(th, "Server", constants.APIBaseURL),
+			row(th, "Appearance", mode+" (follows the system)"),
+		),
+		ui.Text("Built with Nimbus Native: Go on the phone, native views on screen.",
+			ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+	)
+}
+
+func row(th ui.Theme, label, value string) *ui.Element {
+	return ui.View(ui.Style{Gap: 2},
+		ui.Text(label, ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+		ui.Text(value, ui.Style{FontSize: th.Body}),
+	)
+}

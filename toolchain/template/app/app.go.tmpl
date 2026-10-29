@@ -1,0 +1,24 @@
+// Package app is the root of the __NAME__ UI: the component every platform
+// mounts. It holds no screens of its own; those live in features.
+package app
+
+import "github.com/CodeSyncr/nimbus-native/ui"
+
+// App is the root component: a tab per top-level route, each with its own
+// navigation stack.
+type App struct{}
+
+func (App) Render(c *ui.Ctx) *ui.Element {
+	tabs := make([]ui.Tab, len(Routes))
+	for i, r := range Routes {
+		tabs[i] = ui.Tab{Title: r.Title, Icon: r.Icon, Screen: tab{r}}
+	}
+	return ui.Tabs(ui.Flex(1), tabs...)
+}
+
+// tab is one route's navigation stack.
+type tab struct{ r Route }
+
+func (t tab) Render(c *ui.Ctx) *ui.Element {
+	return ui.Stack(t.r.Title, t.r.Screen, ui.Flex(1))
+}

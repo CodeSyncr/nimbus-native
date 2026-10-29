@@ -1,0 +1,16 @@
+/build/
+.DS_Store
+
+# Xcode
+native/ios/build/
+xcuserdata/
+*.xcuserstate
+native/ios/NimbusNativeKit/.swiftpm/
+
+# Gradle / Android Studio
+native/android/.gradle/
+native/android/.idea/
+native/android/local.properties
+native/android/**/build/
+*.iml
+.kotlin/

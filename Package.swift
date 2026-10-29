@@ -1,7 +1,7 @@
 // swift-tools-version:5.9
-// NimbusNativeKit, the iOS host for Nimbus Native apps. Xcode projects made
-// by `nimbus native new` use it; the Go side is built by the project's
-// "Build Go" phase (`nimbus native lib ios`).
+// NimbusNativeKit, the iOS host for Nimbus Native apps, as a Swift package.
+// Projects made by `nimbus native new` hold a copy of it (native/ios/
+// NimbusNativeKit) that `nimbus native lib ios` keeps at the go.mod version.
 import PackageDescription
 
 let package = Package(

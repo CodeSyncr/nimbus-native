@@ -49,7 +49,6 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 	if err := os.MkdirAll(obj, 0o755); err != nil {
 		return "", err
 	}
-	host := filepath.Join(e.NDK, "toolchains/llvm/prebuilt", ndkHost())
 
 	// 0. Wire schemas → Go, Java.
 	generated, err := e.Gen(a)
@@ -57,8 +56,7 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 		return "", err
 	}
 
-	// 1. Go → libnimbusapp.so for each ABI. Pages are 16 KB-aligned: Google
-	// Play requires it for apps targeting Android 15+.
+	// 1. Go → libnimbusapp.so for each ABI.
 	libs := map[string]string{}
 	for _, name := range abis {
 		abi, ok := AndroidABIs[name]
@@ -67,12 +65,7 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 		}
 		e.step("go → %s (android/%s)", androidLib, abi.Name)
 		lib := filepath.Join(obj, "lib", abi.Name, androidLib)
-		env := []string{"GOOS=android", "GOARCH=" + abi.GOARCH, "CGO_ENABLED=1",
-			fmt.Sprintf("CC=%s/bin/%s%d-clang", host, abi.Clang, MinAndroidAPI)}
-		if abi.GOARM != "" {
-			env = append(env, "GOARM="+abi.GOARM)
-		}
-		if err := e.goBuild(a.goDir(), env, "c-shared", lib, "-extldflags=-Wl,-z,max-page-size=16384"); err != nil {
+		if err := e.goAndroid(a, abi, lib); err != nil {
 			return "", err
 		}
 		libs["lib/"+abi.Name+"/"+androidLib] = lib
@@ -150,6 +143,19 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 	return apk, nil
 }
 
+// goAndroid builds the app's Go code into libnimbusapp.so for one ABI with
+// the NDK's clang. Pages are 16 KB-aligned: Google Play requires it for apps
+// targeting Android 15+.
+func (e *Env) goAndroid(a *App, abi AndroidABI, out string) error {
+	host := filepath.Join(e.NDK, "toolchains/llvm/prebuilt", ndkHost())
+	env := []string{"GOOS=android", "GOARCH=" + abi.GOARCH, "CGO_ENABLED=1",
+		fmt.Sprintf("CC=%s/bin/%s%d-clang", host, abi.Clang, MinAndroidAPI)}
+	if abi.GOARM != "" {
+		env = append(env, "GOARM="+abi.GOARM)
+	}
+	return e.goBuild(a.goDir(), env, "c-shared", out, "-extldflags=-Wl,-z,max-page-size=16384")
+}
+
 // RunAndroid installs the APK on a connected device or emulator (booting
 // the first AVD if none is connected), launches it and streams its logs.
 func (e *Env) RunAndroid(a *App, apk string) error {
@@ -160,6 +166,9 @@ func (e *Env) RunAndroid(a *App, apk string) error {
 	e.step("install %s", filepath.Base(apk))
 	if err := e.run(nil, adb, "install", "-r", "-t", "--no-incremental", apk); err != nil {
 		return err
+	}
+	if a.Root != "" {
+		e.reverseServerPort(adb)
 	}
 	_ = exec.Command(adb, "logcat", "-c").Run()
 	e.step("launch %s", a.ID)

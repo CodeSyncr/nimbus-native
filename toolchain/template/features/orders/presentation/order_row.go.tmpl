@@ -1,0 +1,56 @@
+package presentation
+
+import (
+	"fmt"
+
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/core/utils"
+	"__MODULE__/features/orders/domain"
+	"__MODULE__/shared/widgets"
+)
+
+// OrderRow is one order in the list.
+type OrderRow struct{ O domain.Order }
+
+func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
+	th, nav := ui.UseTheme(c), ui.Navigation(c)
+	o := r.O
+	fg, bg := statusColors(th, o.Status)
+	return ui.Pressable(func() { nav.Push(fmt.Sprintf("Order #%d", o.ID), OrderScreen{ID: o.ID}) },
+		ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: th.SpaceM, Padding: ui.XY(th.SpaceL, 14),
+			Background: th.Surface, Margin: ui.Edges{Bottom: 1}},
+		ui.View(ui.Style{Width: ui.Pt(40), Height: ui.Pt(40), Radius: 20, Background: th.Primary, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter},
+			ui.Text(utils.Initial(o.Customer), ui.Style{Color: th.OnPrimary, FontWeight: 700})),
+		ui.View(ui.Style{Grow: 1, Shrink: 1, Gap: 2},
+			ui.Text(o.Customer, ui.Style{FontSize: th.Body, FontWeight: 600}).TestID(fmt.Sprint("order-", o.ID)),
+			ui.Text(fmt.Sprintf("%d items · %s", o.Items, money(o.Total)), ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+		),
+		widgets.Badge(string(o.Status), fg, bg),
+	).TestID(fmt.Sprint("row-", o.ID))
+}
+
+func money(v float64) string { return utils.Money(v) }
+
+func statusColors(th ui.Theme, s domain.Status) (fg, bg ui.Color) {
+	if th.Dark {
+		switch s {
+		case domain.Delivered:
+			return ui.Hex("#86efac"), ui.Hex("#14532d")
+		case domain.Shipped:
+			return ui.Hex("#c4b5fd"), ui.Hex("#3b0764")
+		case domain.Packed:
+			return ui.Hex("#fde68a"), ui.Hex("#713f12")
+		}
+		return ui.Hex("#93c5fd"), ui.Hex("#1e3a8a")
+	}
+	switch s {
+	case domain.Delivered:
+		return ui.Hex("#166534"), ui.Hex("#dcfce7")
+	case domain.Shipped:
+		return ui.Hex("#5b21b6"), ui.Hex("#ede9fe")
+	case domain.Packed:
+		return ui.Hex("#92400e"), ui.Hex("#fef3c7")
+	}
+	return ui.Hex("#1e40af"), ui.Hex("#dbeafe")
+}

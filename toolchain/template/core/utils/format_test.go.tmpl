@@ -1,0 +1,11 @@
+package utils
+
+import "testing"
+
+func TestMoney(t *testing.T) {
+	for in, want := range map[float64]string{0: "₹0.00", 399: "₹399.00", 1249.5: "₹1,249.50", 1234567.891: "₹1,234,567.89"} {
+		if got := Money(in); got != want {
+			t.Errorf("Money(%v) = %q, want %q", in, got, want)
+		}
+	}
+}

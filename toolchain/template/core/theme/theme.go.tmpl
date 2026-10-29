@@ -1,0 +1,12 @@
+// Package theme is the app's look: colors, type and spacing for light and
+// dark mode. Screens read the active theme with ui.UseTheme.
+package theme
+
+import "github.com/CodeSyncr/nimbus-native/ui"
+
+// Apply installs the app's themes. Call it before ui.Mount.
+func Apply() {
+	light, dark := ui.LightTheme, ui.DarkTheme
+	light.Primary, dark.Primary = ui.Hex("#4f46e5"), ui.Hex("#818cf8")
+	ui.SetTheme(light, dark)
+}

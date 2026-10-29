@@ -1,0 +1,72 @@
+// Package server is the orders feature on the server: the handlers behind
+// the domain package's endpoints, and the rules new orders must meet. Only
+// the Nimbus app (main.go) imports it; the phone app can't.
+package server
+
+import (
+	"strconv"
+	"sync"
+
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus/router"
+	"github.com/CodeSyncr/nimbus/validation"
+
+	"__MODULE__/features/orders/domain"
+)
+
+// newOrder is domain.NewOrder with the server's rules attached.
+type newOrder domain.NewOrder
+
+func (newOrder) Rules() validation.Schema {
+	return validation.Schema{
+		"customer": validation.String().Required().Min(2),
+		"phone":    validation.String().Required().Regex(`^[0-9 ]{10,14}$`),
+	}
+}
+
+// store keeps orders in memory; swap it for a database model.
+type store struct {
+	mu     sync.Mutex
+	orders []domain.Order
+}
+
+var orders = &store{orders: []domain.Order{
+	{ID: 3, Customer: "Meera Iyer", Phone: "99887 76655", Items: 4, Total: 2150, Status: domain.Delivered},
+	{ID: 2, Customer: "Vikram Shah", Phone: "91234 56780", Items: 1, Total: 399, Status: domain.Shipped},
+	{ID: 1, Customer: "Asha Rao", Phone: "98765 43210", Items: 3, Total: 1249.5, Status: domain.Paid},
+}}
+
+// Routes registers the orders endpoints.
+func Routes(r *router.Router) {
+	r.Get(domain.ListOrders.Path, func(c *nhttp.Context) error {
+		orders.mu.Lock()
+		defer orders.mu.Unlock()
+		return c.JSON(200, orders.orders)
+	})
+	r.Get(domain.GetOrder.Path, func(c *nhttp.Context) error {
+		id, _ := strconv.Atoi(c.Param("id"))
+		orders.mu.Lock()
+		defer orders.mu.Unlock()
+		for _, o := range orders.orders {
+			if o.ID == id {
+				return c.JSON(200, o)
+			}
+		}
+		return c.JSON(404, map[string]string{"error": "no such order"})
+	})
+	r.Post(domain.CreateOrder.Path, func(c *nhttp.Context) error {
+		var req newOrder
+		errs, err := validation.BindAndValidateSchema(c, &req)
+		if err != nil {
+			return err
+		}
+		if len(errs) > 0 {
+			return c.ValidationErrors(errs)
+		}
+		orders.mu.Lock()
+		o := domain.Order{ID: len(orders.orders) + 1, Customer: req.Customer, Phone: req.Phone, Items: 1, Total: 499, Status: domain.Paid}
+		orders.orders = append([]domain.Order{o}, orders.orders...)
+		orders.mu.Unlock()
+		return c.JSON(201, o)
+	})
+}

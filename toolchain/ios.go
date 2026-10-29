@@ -30,10 +30,6 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("iOS SDK %s not found (run doctor)", t.SDK)
 	}
-	clang, err := xcrun(t.SDK, "--find", "clang")
-	if err != nil {
-		return "", fmt.Errorf("clang for %s not found", t.SDK)
-	}
 
 	out := filepath.Join(a.BuildDir("ios"), t.SDK)
 	obj := filepath.Join(out, "obj")
@@ -56,10 +52,7 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 
 	// 1. Go → static library. cgo compiles with Xcode's clang for the target.
 	e.step("go → libapp.a (ios/arm64, %s)", t.SDK)
-	lib := filepath.Join(obj, "libapp.a")
-	cc := fmt.Sprintf("%s -isysroot %s -target %s", clang, sdkPath, t.Triple)
-	goEnv := []string{"GOOS=ios", "GOARCH=arm64", "CGO_ENABLED=1", "CC=" + cc}
-	if err := e.goBuild(a.goDir(), goEnv, "c-archive", lib); err != nil {
+	if err := e.goIOS(a, t.SDK, "arm64", MinIOS, filepath.Join(obj, "libapp.a")); err != nil {
 		return "", err
 	}
 
@@ -89,6 +82,29 @@ func (e *Env) BuildIOS(a *App, t IOSTarget) (string, error) {
 		return "", err
 	}
 	return app, nil
+}
+
+// goIOS builds the app's Go code into a static library for one SDK and
+// architecture, compiling cgo with Xcode's clang.
+func (e *Env) goIOS(a *App, sdk, arch, minOS, out string) error {
+	sdkPath, err := xcrun(sdk, "--show-sdk-path")
+	if err != nil {
+		return fmt.Errorf("iOS SDK %s not found (run doctor)", sdk)
+	}
+	clang, err := xcrun(sdk, "--find", "clang")
+	if err != nil {
+		return fmt.Errorf("clang for %s not found", sdk)
+	}
+	goarch, triple := "arm64", "arm64-apple-ios"+minOS
+	if arch == "x86_64" {
+		goarch, triple = "amd64", "x86_64-apple-ios"+minOS
+	}
+	if sdk == "iphonesimulator" {
+		triple += "-simulator"
+	}
+	cc := fmt.Sprintf("%s -isysroot %s -target %s", clang, sdkPath, triple)
+	env := []string{"GOOS=ios", "GOARCH=" + goarch, "CGO_ENABLED=1", "CC=" + cc}
+	return e.goBuild(a.goDir(), env, "c-archive", out)
 }
 
 // RunIOS installs the app on a simulator (booting one if needed), launches

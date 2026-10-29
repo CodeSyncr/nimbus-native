@@ -1,0 +1,12 @@
+// Package services holds the app's connections to the outside world.
+package services
+
+import (
+	"github.com/CodeSyncr/nimbus-native/api"
+
+	"__MODULE__/core/constants"
+)
+
+// API calls the app's server. Feature data packages use it with the
+// endpoints their domain package declares.
+var API = api.New(constants.APIBaseURL)

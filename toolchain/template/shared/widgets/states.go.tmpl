@@ -1,0 +1,30 @@
+package widgets
+
+import "github.com/CodeSyncr/nimbus-native/ui"
+
+// Loading fills its space with a spinner.
+func Loading() *ui.Element {
+	return ui.View(ui.Style{Grow: 1, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter}, ui.Spinner(ui.Style{}))
+}
+
+// Problem says what went wrong, with a button to try again.
+type Problem struct {
+	Message string
+	Retry   func()
+}
+
+func (p Problem) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	return ui.View(ui.Style{Grow: 1, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
+		ui.Text("Something went wrong", ui.Style{FontSize: th.Heading, FontWeight: 600}),
+		ui.Text(p.Message, ui.Style{FontSize: th.Caption, Color: th.TextMuted}),
+		ui.Pressable(p.Retry, ui.Style{Padding: ui.XY(16, 10)},
+			ui.Text("Try again", ui.Style{Color: th.Primary, FontWeight: 600})),
+	).TestID("problem")
+}
+
+// Badge is a small colored label.
+func Badge(text string, fg, bg ui.Color) *ui.Element {
+	return ui.View(ui.Style{Background: bg, Radius: 999, Padding: ui.XY(10, 4)},
+		ui.Text(text, ui.Style{Color: fg, FontSize: 12, FontWeight: 600}))
+}
