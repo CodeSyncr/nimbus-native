@@ -84,7 +84,11 @@ func (rt *runtime) reconcileModals() {
 				h -= rt.viewport.SafeTop + 10
 			}
 		}
-		el := &Element{kind: render.KindModal, key: m.key, style: Style{Width: Pt(w), Height: Pt(h)},
+		style := Style{Width: Pt(w), Height: Pt(h)}
+		if rt.hostLayout != nil {
+			style = Style{Grow: 1} // the host sizes its sheet
+		}
+		el := &Element{kind: render.KindModal, key: m.key, style: style,
 			children: []*Element{Stack(m.title, m.comp, Flex(1))}}
 		m.inst = rt.reconcile(m.inst, el, nil)
 		if !m.presented {

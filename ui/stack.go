@@ -134,8 +134,11 @@ func (rt *runtime) reconcileStack(in *instance) {
 	bg := rt.theme().Background
 	els := make([]*Element, len(st.screens))
 	for i, sc := range st.screens {
-		els[i] = View(Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(w), Height: Pt(h), Background: bg},
-			C(sc.comp)).Key(sc.key)
+		style := Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(w), Height: Pt(h), Background: bg}
+		if rt.hostLayout != nil {
+			style = Style{Grow: 1, Shrink: 1, Background: bg} // under the host's bar; it shows the top screen
+		}
+		els[i] = View(style, C(sc.comp)).Key(sc.key)
 	}
 	rt.reconcileChildren(in, els)
 	for i, c := range in.children {

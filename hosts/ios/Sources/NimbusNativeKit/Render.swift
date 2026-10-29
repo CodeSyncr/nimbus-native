@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x8421a4ec545bd939
+    public static let schemaHash: UInt64 = 0x9bd2b188a7064150
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -210,8 +210,9 @@ public enum Render {
         public var clip: Bool
         public var label: String
         public var testID: String
+        public var href: String
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "") {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "") {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -221,6 +222,7 @@ public enum Render {
             self.clip = clip
             self.label = label
             self.testID = testID
+            self.href = href
         }
 
         public func write(to w: inout WireWriter) {
@@ -233,6 +235,7 @@ public enum Render {
             w.bool(self.clip)
             w.string(self.label)
             w.string(self.testID)
+            w.string(self.href)
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -246,6 +249,7 @@ public enum Render {
             m.clip = try r.bool()
             m.label = try r.string()
             m.testID = try r.string()
+            m.href = try r.string()
             return m
         }
     }

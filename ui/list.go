@@ -132,6 +132,9 @@ func (rt *runtime) reconcileList(in *instance) {
 	}
 	ls := in.list
 	first, last, top, bottom := ls.window(spec, rt.viewport.H)
+	if rt.hostLayout != nil {
+		first, last, top, bottom = 0, spec.count, 0, 0 // the host scrolls and lays out every item
+	}
 	els := make([]*Element, 0, last-first+2)
 	els = append(els, View(Style{Height: Pt(top)}).Key(listTopKey))
 	ls.keys = ls.keys[:0]

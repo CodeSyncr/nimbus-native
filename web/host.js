@@ -1,0 +1,215 @@
+// host.js: the browser side of a Nimbus Native page. It adopts the HTML the
+// server rendered, applies the DOM updates the page's session streams
+// (web/dom.go documents them), and sends taps, typing and navigation back.
+(() => {
+  "use strict";
+  const sid = document.currentScript.dataset.session;
+  const root = document.getElementById("nn");
+  const els = new Map(); // tag → element
+  const parts = new Map(); // tag → {l, b, x}: the inline style's parts
+  for (const el of root.querySelectorAll("[data-t]")) els.set(+el.dataset.t, el);
+
+  // ---- sending ----
+
+  let gone = false;
+  function send(m) {
+    if (gone) return;
+    fetch("/_nn/send?s=" + sid, { method: "POST", body: JSON.stringify(m), keepalive: true,
+      headers: { "Content-Type": "application/json" } })
+      .then((r) => { if (r.status === 410) expired(); })
+      .catch(() => {});
+  }
+  function expired() {
+    if (gone) return;
+    gone = true;
+    location.reload(); // the session ended: start a fresh one
+  }
+  const dark = matchMedia("(prefers-color-scheme: dark)");
+  function viewport() {
+    send({ t: "viewport", w: innerWidth, h: innerHeight, scale: devicePixelRatio || 1, dark: dark.matches });
+  }
+
+  // ---- applying updates ----
+
+  const tagOf = (el) => +el.dataset.t;
+
+  function style(tag, el) {
+    const p = parts.get(tag);
+    if (p) el.style.cssText = p.l + p.b + p.x;
+  }
+
+  function create(tag, name, cls) {
+    const el = document.createElement(name);
+    el.className = cls;
+    el.dataset.t = tag;
+    const old = els.get(tag);
+    if (old) { // replaced (an input became a textarea): keep its place
+      for (const a of old.attributes) if (a.name !== "class" && a.name !== "type") el.setAttribute(a.name, a.value);
+      old.replaceWith(el);
+    }
+    els.set(tag, el);
+    style(tag, el);
+  }
+
+  function children(el, tags) {
+    const want = tags.map((t) => els.get(t)).filter(Boolean);
+    const have = [...el.children].filter((c) => c.dataset.t);
+    if (want.length === have.length && want.every((c, i) => c === have[i])) return;
+    for (const c of have) if (!want.includes(c)) c.remove();
+    let ref = null; // keep host chrome (bars) where it is: insert after the last placed child
+    for (const c of want) {
+      const next = ref ? ref.nextElementSibling : firstViewChild(el);
+      if (c !== next) el.insertBefore(c, next);
+      ref = c;
+    }
+  }
+  function firstViewChild(el) {
+    for (const c of el.children) if (c.dataset.t) return c;
+    return el.querySelector(":scope > .tabbar");
+  }
+
+  function present(tag) {
+    const el = els.get(tag);
+    if (!el || el.parentElement?.classList.contains("ov")) return;
+    const ov = document.createElement("div");
+    ov.className = "ov";
+    ov.dataset.for = tag;
+    ov.addEventListener("click", (e) => { if (e.target === ov) send({ t: "dismissed", tag }); });
+    ov.appendChild(el);
+    root.appendChild(ov);
+  }
+
+  function apply(list) {
+    for (const i of list) {
+      if (i.c) create(i.c[0], i.c[1], i.c[2]);
+      else if (i.k) { const el = els.get(i.k[0]); if (el) children(el, i.k[1]); }
+      else if (i.s) {
+        const [tag, k, css] = i.s;
+        const p = parts.get(tag) || { l: "", b: "", x: "" };
+        p[k] = css;
+        parts.set(tag, p);
+        const el = els.get(tag);
+        if (el) style(tag, el);
+      } else if (i.a) {
+        const el = els.get(i.a[0]);
+        if (el) i.a[2] == null ? el.removeAttribute(i.a[1]) : el.setAttribute(i.a[1], i.a[2]);
+      } else if (i.p) {
+        const el = els.get(i.p[0]);
+        if (el && el[i.p[1]] !== i.p[2]) el[i.p[1]] = i.p[2];
+      } else if (i.t) { const el = els.get(i.t[0]); if (el && el.textContent !== i.t[1]) el.textContent = i.t[1]; }
+      else if (i.d) {
+        for (const tag of i.d) {
+          const el = els.get(tag);
+          if (el) {
+            const ov = el.parentElement?.classList.contains("ov") ? el.parentElement : null;
+            el.remove();
+            ov?.remove();
+          }
+          els.delete(tag);
+          parts.delete(tag);
+        }
+      } else if (i.r) {
+        const el = els.get(i.r);
+        if (el && el.parentElement !== root) root.prepend(el);
+        for (const c of [...root.children]) if (c !== el && c.dataset.t) c.remove();
+      } else if (i.m) present(i.m);
+      else if (i.th) {
+        const s = document.documentElement.style;
+        for (const k of ["bg", "fg", "muted", "ac", "bar", "barfg", "border"]) s.setProperty("--" + k, i.th[k]);
+        document.documentElement.style.colorScheme = i.th.dark ? "dark" : "light";
+      }
+    }
+    chrome();
+  }
+
+  // Stacks get a bar with the top screen's title and a back button; tabs
+  // get a tab bar.
+  function chrome() {
+    for (const st of root.querySelectorAll(".st")) {
+      const screens = [...st.children].filter((c) => c.dataset.t);
+      let bar = st.querySelector(":scope > .bar");
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.className = "bar";
+        st.prepend(bar);
+      }
+      const top = screens[screens.length - 1];
+      const button = (label, onclick) => {
+        const b = document.createElement("button");
+        b.textContent = label;
+        b.onclick = onclick;
+        return b;
+      };
+      const title = document.createElement("span");
+      title.textContent = top?.dataset.title || "";
+      const sheet = st.closest(".ov > .md");
+      bar.replaceChildren(
+        screens.length > 1 ? button("‹ Back", () => send({ t: "popped", tag: tagOf(st), depth: screens.length - 1 }))
+          : document.createElement("span"),
+        title,
+        sheet ? button("Close", () => send({ t: "dismissed", tag: tagOf(sheet) })) : document.createElement("span"));
+    }
+    for (const tb of root.querySelectorAll(".tb")) {
+      const tabs = [...tb.children].filter((c) => c.dataset.t);
+      const sel = +(tb.dataset.sel || 0);
+      tabs.forEach((c, i) => c.classList.toggle("sel", i === sel));
+      let bar = tb.querySelector(":scope > .tabbar");
+      if (!bar) {
+        bar = document.createElement("div");
+        bar.className = "tabbar";
+        tb.appendChild(bar);
+      }
+      bar.replaceChildren(...tabs.map((c, i) => {
+        const b = document.createElement("button");
+        b.textContent = c.dataset.title || "";
+        b.className = i === sel ? "on" : "";
+        b.onclick = () => { tb.dataset.sel = i; chrome(); send({ t: "selected", tag: tagOf(tb), index: i }); };
+        return b;
+      }));
+    }
+  }
+
+  // ---- events ----
+
+  root.addEventListener("click", (e) => {
+    const p = e.target.closest("a.p[data-t]");
+    if (!p) return;
+    // A link opened in a new tab or window is the browser's business.
+    if (p.hasAttribute("href") && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)) return;
+    e.preventDefault();
+    send({ t: "press", tag: tagOf(p) });
+  });
+  root.addEventListener("keydown", (e) => {
+    const p = e.target.closest("a.p[role=button]");
+    if (p && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      send({ t: "press", tag: tagOf(p) });
+    }
+  });
+  root.addEventListener("input", (e) => {
+    if (e.target.classList?.contains("in")) send({ t: "changed", tag: tagOf(e.target), text: e.target.value });
+  });
+  root.addEventListener("change", (e) => {
+    if (e.target.classList?.contains("sw")) send({ t: "toggled", tag: tagOf(e.target), on: e.target.checked });
+  });
+  let resize;
+  addEventListener("resize", () => { clearTimeout(resize); resize = setTimeout(viewport, 100); });
+  dark.addEventListener?.("change", viewport);
+  addEventListener("popstate", () => send({ t: "navigate", path: location.pathname + location.search }));
+
+  // ---- the stream ----
+
+  const es = new EventSource("/_nn/events?s=" + sid);
+  es.onopen = viewport;
+  es.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    apply(m.i || []);
+    if (m.nav) {
+      if (m.nav.push && location.pathname + location.search !== m.nav.path) history.pushState(null, "", m.nav.path);
+      if (m.nav.title) document.title = m.nav.title;
+      if (m.nav.push) root.querySelector(".sc")?.scrollTo(0, 0);
+    }
+  };
+  es.onerror = () => { if (es.readyState === EventSource.CLOSED) expired(); };
+  chrome();
+})();

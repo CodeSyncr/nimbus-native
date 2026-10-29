@@ -84,6 +84,11 @@ type runtime struct {
 	seq          uint64
 	measures     uint32
 
+	// Sessions (session.go).
+	hostLayout func(tag uint32, s layout.Style)
+	values     map[any]any
+	closed     bool
+
 	// Dev reloads (navstate.go).
 	navFile            string
 	navSaved           *navState
@@ -99,6 +104,10 @@ func newRuntime(root Component) *runtime {
 // do runs f on the UI loop. Safe from any goroutine, including the loop.
 func (rt *runtime) do(f func()) {
 	rt.mu.Lock()
+	if rt.closed {
+		rt.mu.Unlock()
+		return
+	}
 	rt.queue = append(rt.queue, f)
 	rt.mu.Unlock()
 	select {
@@ -110,6 +119,9 @@ func (rt *runtime) do(f func()) {
 func (rt *runtime) loop() {
 	for range rt.wake {
 		rt.drain()
+		if rt.closed {
+			return
+		}
 	}
 }
 
@@ -127,6 +139,9 @@ func (rt *runtime) drain() {
 		for _, f := range q {
 			guard("update", f)
 		}
+	}
+	if rt.closed {
+		return
 	}
 	// A List measures its items after layout and may need another pass to
 	// place them; a few passes always settle.
@@ -271,14 +286,16 @@ func (rt *runtime) commit() {
 		rt.rootTag, c.Root = host.tag, host.tag
 	}
 	t1 := time.Now()
-	if host != nil {
+	if host != nil && rt.hostLayout == nil {
 		host.node.Calculate(rt.viewport.W, rt.viewport.H)
 		if rt.measureLists() {
 			rt.dirty = true // drain renders again with the measured heights
 		}
 		rt.emitFrames(host)
 	}
-	rt.layoutModals()
+	if rt.hostLayout == nil {
+		rt.layoutModals()
+	}
 	t2 := time.Now()
 	if len(rt.destroyed) > 0 {
 		rt.ops = append(rt.ops, &render.Destroy{Tags: rt.destroyed})
@@ -533,13 +550,16 @@ func (rt *runtime) props(in *instance, first bool) {
 	el, s := in.el, &in.el.style
 	ls := s.layout()
 	ls.Scroll = el.kind == render.KindScroll
-	if ls != in.node.Style {
+	if ls != in.node.Style || (first && rt.hostLayout != nil) {
 		in.node.Style = ls
 		in.node.MarkDirty()
+		if rt.hostLayout != nil {
+			rt.hostLayout(in.tag, ls)
+		}
 	}
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
-		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID}
+		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href}
 	if box != in.sent.box && !(first && box == (render.Box{Tag: in.tag, Opacity: 1})) {
 		rt.op(&box)
 	}

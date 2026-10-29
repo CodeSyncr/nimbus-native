@@ -1,5 +1,6 @@
-// The __NAME__ server: a Nimbus app serving the API the phone app calls.
-// Each feature registers its own routes from its server package.
+// The __NAME__ server: a Nimbus app serving the API the phone app calls,
+// and the same app's pages to browsers. Each feature registers its own API
+// routes from its server package; every other path is a page.
 //
 //	go run .
 package main
@@ -8,13 +9,25 @@ import (
 	"log"
 
 	"github.com/CodeSyncr/nimbus"
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus-native/web"
 
+	shop "__MODULE__/app"
+	"__MODULE__/core/constants"
 	orders "__MODULE__/features/orders/server"
 )
 
 func main() {
 	app := nimbus.New()
 	orders.Routes(app.Router)
+
+	// The app's pages (pages/), rendered here for browsers and search engines.
+	site := web.Handler(web.Options{SiteName: constants.AppName, Layout: shop.WebLayout, Home: shop.Tabs[0].Path})
+	app.Router.Fallback(func(c *nhttp.Context) error {
+		site.ServeHTTP(c.Response, c.Request)
+		return nil
+	})
+
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}

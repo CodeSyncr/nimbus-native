@@ -32,6 +32,7 @@ type Element struct {
 	onToggle    func(bool) // a Switch's handler; nil disables it
 	onRefresh   func()     // pull to refresh on a Scroll or List
 	refreshing  bool
+	href        string
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec
@@ -117,6 +118,11 @@ func (e *Element) Fit(f render.Fit) *Element { e.fit = f; return e }
 
 // Horizontal makes a Scroll scroll sideways.
 func (e *Element) Horizontal() *Element { e.horizontal = true; return e }
+
+// Href is where a Pressable leads, for hosts with addresses: the web host
+// makes it a link crawlers and new tabs can follow. Taps still run its
+// handler. router.Link sets it.
+func (e *Element) Href(path string) *Element { e.href = path; return e }
 
 // Multiline lets a TextInput wrap and take new lines; it is three lines
 // tall unless its style sets a height.

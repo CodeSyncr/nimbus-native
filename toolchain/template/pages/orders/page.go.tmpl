@@ -2,11 +2,18 @@
 package orders
 
 import (
+	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 
 	"__MODULE__/features/orders/presentation"
 )
 
 type Page struct{}
+
+// Head is the page's title and description for search engines and link
+// previews (the web host puts it in <head>).
+func (Page) Head() router.Head {
+	return router.Head{Title: "Orders", Description: "Every order, newest first."}
+}
 
 func (Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrdersScreen{}) }

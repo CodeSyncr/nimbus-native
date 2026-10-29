@@ -45,8 +45,9 @@ navigation, tabs, modals, safe areas, forms, theming and dark mode, a
 typed client for Nimbus servers with data-loading hooks, `nimbus native new`
 projects that open in Xcode and Android Studio, folder routing, native
 plugins (secure storage, app info, links, key-value storage), switches,
-multiline inputs, pull to refresh, keyboard avoidance and native dialogs.
-Not yet: flex-wrap, animations and gestures.
+multiline inputs, pull to refresh, keyboard avoidance and native dialogs,
+and the same app on the web with server rendering for search engines.
+Not yet: flex-wrap, animations and gestures, plugins on the web.
 
 ## Layout
 
@@ -74,6 +75,7 @@ Not yet: flex-wrap, animations and gestures.
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
 | `router/` | Path → page matching and `router.Push`; the table comes from `pages/` (`toolchain/routes.go`) |
 | `plugin/` | Calls native code: `plugin.Call` to a Swift/Kotlin plugin (`hosts/*/Plugins.*`) |
+| `web/` | The app's pages for browsers: server rendering, SEO tags, sitemap, and `host.js` |
 | `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, `dialog`, and `storage` (a key-value file) |
 
 ## Start a project
@@ -169,6 +171,32 @@ day, ok, _ := dialog.PickDate(ctx, dialog.Date, time.Now())        // Date, Time
 
 `SafeArea` keeps clear of the on-screen keyboard: its bottom padding grows
 by however much of the keyboard reaches below it.
+
+## The web
+
+A project's Nimbus server also serves its pages to browsers (`main.go`
+mounts `web.Handler` as the router's fallback):
+
+- **Server rendering.** A request runs the page's components on the
+  server, waits for its `UseQuery` data (up to 3 s), and answers with plain
+  HTML: content, links (`router.Link`, `.Href`), and the page's `<title>`,
+  description, Open Graph tags and canonical URL from its `Head()` method.
+  `/sitemap.xml` lists the pages without parameters; `/robots.txt` points to it.
+- **Then live.** `host.js` (8 KB, 3 KB gzipped) adopts that HTML. Taps and typing go to
+  the page's UI session on the server, and what it renders comes back as DOM
+  changes over Server-Sent Events. Layout is the browser's own flexbox.
+- **Navigation.** On the web the shell is `app.WebLayout`, a header with a
+  link per tab, instead of tabs and stacks. `router.Push` changes the page
+  and the address; Back and Forward work; every page has its own URL.
+
+```go
+func (p Page) Head() router.Head {
+	return router.Head{Title: fmt.Sprintf("Order #%d", p.ID), Description: "…", Image: "https://…/og.png"}
+}
+```
+
+Each open tab holds a small UI session on the server, closed a minute after
+the tab goes away. Native plugins answer `unavailable` on the web.
 
 ## Plugins: calling native code
 

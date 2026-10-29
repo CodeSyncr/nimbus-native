@@ -151,15 +151,84 @@ func Match(path string) (ui.Component, Params, bool) {
 }
 
 // Push shows the page at path on top of the Stack the component is in,
-// titled by its Title method or else its last static path segment. It
-// reports false, and changes nothing, when no route matches.
+// titled by its Title method or else its last static path segment. Outside
+// a Stack, on the web, it goes to that page and its URL. It reports false,
+// and changes nothing, when no route matches.
 func Push(c *ui.Ctx, path string) bool {
 	comp, _, ok := Match(path)
 	if !ok {
 		return false
 	}
-	ui.Navigation(c).PushPath(TitleOf(comp, path), path, comp)
-	return true
+	if nav := ui.Navigation(c); nav != nil {
+		nav.PushPath(TitleOf(comp, path), path, comp)
+		return true
+	}
+	if n, ok := ui.SessionValue(c, NavigatorKey).(Navigator); ok {
+		return n.Navigate(path)
+	}
+	ui.Navigation(c).PushPath(TitleOf(comp, path), path, comp) // logs: no Stack here
+	return false
+}
+
+// Navigator moves between pages where there is no Stack: the web host
+// implements it to change the page and the browser's URL. A session puts it
+// in its values under NavigatorKey.
+type Navigator interface{ Navigate(path string) bool }
+
+type navigatorKey struct{}
+
+// NavigatorKey is the ui.SessionValue key of a session's Navigator.
+var NavigatorKey any = navigatorKey{}
+
+// Head is what a page tells search engines and link previews: the web
+// host puts it in the page's <head>. Pages provide it with a method:
+//
+//	func (p Page) Head() router.Head {
+//		return router.Head{Title: "Order #42", Description: "…"}
+//	}
+type Head struct {
+	Title       string
+	Description string
+	Image       string // absolute URL of a preview image (og:image)
+	NoIndex     bool   // keep the page out of search results
+}
+
+// HeadOf is a page's Head: its Head method, else its title.
+func HeadOf(comp ui.Component, path string) Head {
+	if h, ok := comp.(interface{ Head() Head }); ok {
+		return h.Head()
+	}
+	return Head{Title: TitleOf(comp, path)}
+}
+
+// Link is a pressable that goes to path: router.Push when tapped, and on
+// the web a real link that crawlers and new tabs follow.
+//
+//	router.Link("/orders/42", ui.Style{}, ui.Text("Order #42", ui.Style{}))
+func Link(path string, s ui.Style, children ...*ui.Element) *ui.Element {
+	return ui.C(link{path: path, style: s, children: children})
+}
+
+type link struct {
+	path     string
+	style    ui.Style
+	children []*ui.Element
+}
+
+func (l link) Render(c *ui.Ctx) *ui.Element {
+	return ui.Pressable(func() { Push(c, l.path) }, l.style, l.children...).Href(l.path)
+}
+
+// Patterns lists the routes' patterns, most specific first: the web host
+// builds its sitemap from the ones without parameters.
+func Patterns() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]string, len(routes))
+	for i, r := range routes {
+		out[i] = r.Pattern
+	}
+	return out
 }
 
 // TitleOf is a page's title: its Title method, else its path's last

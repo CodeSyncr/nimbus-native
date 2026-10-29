@@ -1,0 +1,44 @@
+package app
+
+import (
+	"strings"
+
+	"github.com/CodeSyncr/nimbus-native/router"
+	"github.com/CodeSyncr/nimbus-native/ui"
+
+	"__MODULE__/core/constants"
+)
+
+// WebLayout is the app on the web: where the phones have tabs and stacks,
+// the browser gets a header with a link per tab, and the page below it. The
+// Nimbus server (main.go) serves it with package web.
+func WebLayout(path string, page ui.Component) ui.Component { return webShell{path, page} }
+
+type webShell struct {
+	path string
+	page ui.Component
+}
+
+func (s webShell) Render(c *ui.Ctx) *ui.Element {
+	th := ui.UseTheme(c)
+	links := []*ui.Element{
+		ui.Text(constants.AppName, ui.Style{FontSize: th.Heading, FontWeight: 700, Margin: ui.Edges{Right: th.SpaceL}}),
+	}
+	for _, t := range Tabs {
+		page, _, ok := router.Match(t.Path)
+		if !ok {
+			continue
+		}
+		color, weight := th.TextMuted, uint16(500)
+		if strings.HasPrefix(s.path, t.Path) {
+			color, weight = th.Primary, 700
+		}
+		links = append(links, router.Link(t.Path, ui.Style{Padding: ui.XY(10, 8)},
+			ui.Text(router.TitleOf(page, t.Path), ui.Style{Color: color, FontWeight: weight})))
+	}
+	header := ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Padding: ui.XY(th.SpaceL, th.SpaceM),
+		Background: th.Bar, BorderWidth: 1, BorderColor: th.Border}, links...)
+	body := ui.View(ui.Style{Grow: 1, Shrink: 1, Width: ui.Pct(100), MaxWidth: ui.Pt(760), AlignSelf: ui.AlignCenter},
+		ui.C(s.page))
+	return ui.View(ui.Style{Grow: 1}, header, body)
+}

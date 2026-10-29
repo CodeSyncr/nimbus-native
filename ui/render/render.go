@@ -94,6 +94,7 @@ type Box struct {
 	Clip        bool
 	Label       string // accessibility label
 	TestID      string // accessibilityIdentifier / view tag, for tests
+	Href        string // where a pressable leads (the web host makes it a link)
 }
 
 // Align is horizontal text alignment.

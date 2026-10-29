@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x8421a4ec545bd939uL.toLong()
+    val SCHEMA_HASH: Long = 0x9bd2b188a7064150uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -182,6 +182,7 @@ object Render {
         var clip: Boolean = false,
         var label: String = "",
         var testID: String = "",
+        var href: String = "",
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -193,6 +194,7 @@ object Render {
             w.bool(this.clip)
             w.string(this.label)
             w.string(this.testID)
+            w.string(this.href)
         }
 
         companion object {
@@ -207,6 +209,7 @@ object Render {
                 m.clip = r0.bool()
                 m.label = r0.string()
                 m.testID = r0.string()
+                m.href = r0.string()
                 return m
             }
         }
