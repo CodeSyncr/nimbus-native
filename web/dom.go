@@ -284,6 +284,9 @@ func layoutCSS(kind render.Kind, s layout.Style) string {
 
 func fontCSS(f render.Font, color uint32) string {
 	s := ""
+	if f.Family != "" {
+		s += "font-family:\"" + strings.ReplaceAll(f.Family, `"`, "") + "\",system-ui,sans-serif;"
+	}
 	if f.Size > 0 {
 		s += "font-size:" + num(f.Size) + "px;"
 	}

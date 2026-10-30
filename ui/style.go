@@ -113,6 +113,7 @@ type Style struct {
 	// Text and inputs
 	FontSize   float32 // 0 means 16
 	FontWeight uint16  // 100..900; 0 means 400
+	FontFamily string  // a font the app bundles (`nimbus native font add`); "" is the system font
 	Color      Color   // text color; 0 means the platform default
 	TextAlign  Align   // AlignStart, AlignCenter, AlignEnd
 	Lines      uint32  // 0 = unlimited
@@ -180,6 +181,9 @@ func (s Style) With(o Style) Style {
 	s.Opacity = pick(s.Opacity, o.Opacity)
 	s.Clip = s.Clip || o.Clip
 	s.FontSize = pick(s.FontSize, o.FontSize)
+	if o.FontFamily != "" {
+		s.FontFamily = o.FontFamily
+	}
 	if o.FontWeight != 0 {
 		s.FontWeight = o.FontWeight
 	}

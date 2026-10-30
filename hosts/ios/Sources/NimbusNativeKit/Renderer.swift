@@ -1,3 +1,4 @@
+import CoreText
 import UIKit
 
 /// The root of a Nimbus Native app's UI. Make it the window's root view
@@ -454,8 +455,33 @@ public final class Renderer {
     static func font(_ f: Render.Font) -> UIFont {
         let weights: [UIFont.Weight] = [.ultraLight, .thin, .light, .regular, .medium, .semibold, .bold, .heavy, .black]
         let w = f.weight == 0 ? 400 : Int(f.weight)
-        return .systemFont(ofSize: CGFloat(f.size), weight: weights[max(0, min(8, w / 100 - 1))])
+        let weight = weights[max(0, min(8, w / 100 - 1))]
+        if !f.family.isEmpty, let family = Fonts.families[f.family] {
+            let desc = UIFontDescriptor(fontAttributes: [.family: family,
+                                                         .traits: [UIFontDescriptor.TraitKey.weight: weight]])
+            return UIFont(descriptor: desc, size: CGFloat(f.size))
+        }
+        return .systemFont(ofSize: CGFloat(f.size), weight: weight)
     }
+}
+
+/// The fonts the app bundles (`nimbus native font add` puts them in
+/// Runner/Fonts), registered at first use: by file name (what Style.FontFamily
+/// names) to the family name inside the file.
+enum Fonts {
+    static let families: [String: String] = {
+        var map: [String: String] = [:]
+        let urls = (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
+            + (Bundle.main.urls(forResourcesWithExtension: "otf", subdirectory: nil) ?? [])
+        for url in urls {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+            if let descs = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL) as? [CTFontDescriptor],
+               let family = descs.first.flatMap({ CTFontDescriptorCopyAttribute($0, kCTFontFamilyNameAttribute) as? String }) {
+                map[url.deletingPathExtension().lastPathComponent] = family
+            }
+        }
+        return map
+    }()
 }
 
 /// 0xRRGGBBAA → UIColor; 0 means unset.

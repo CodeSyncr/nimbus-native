@@ -20,7 +20,8 @@ func main() {
 	app := nimbus.New()
 
 	// The app's pages (pages/), rendered here for browsers and search engines.
-	site := web.Handler(web.Options{SiteName: constants.AppName})
+	site := web.Handler(web.Options{SiteName: constants.AppName,
+		FontDir: "native/android/app/src/main/assets/fonts"}) // fonts from `nimbus native font add`
 	app.Router.Fallback(func(c *nhttp.Context) error {
 		site.ServeHTTP(c.Response, c.Request)
 		return nil

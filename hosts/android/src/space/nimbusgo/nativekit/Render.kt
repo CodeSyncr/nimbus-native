@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xffdf5d119a78f240uL.toLong()
+    val SCHEMA_HASH: Long = 0x26a5a34b860b593euL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -226,10 +226,12 @@ object Render {
     data class Font(
         var size: Float = 0f,
         var weight: Int = 0,
+        var family: String = "",
     ) {
         fun write(w: WireWriter) {
             w.f32(this.size)
             w.uint(this.weight.toLong())
+            w.string(this.family)
         }
 
         companion object {
@@ -237,6 +239,7 @@ object Render {
                 val m = Font()
                 m.size = r0.f32()
                 m.weight = r0.uintMax(65535L).toInt()
+                m.family = r0.string()
                 return m
             }
         }

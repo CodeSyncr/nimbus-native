@@ -343,7 +343,7 @@ class Renderer internal constructor(private val root: NimbusView) {
     private fun text(t: TextView, o: Render.Text) {
         t.text = o.text
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, o.font.size * density)
-        t.typeface = fontFor(o.font.weight)
+        t.typeface = fontFor(o.font, ctx)
         if (o.color != 0L) t.setTextColor(argb(o.color))
         val g = when (o.align) {
             Render.Align.CENTER -> Gravity.CENTER_HORIZONTAL
@@ -423,7 +423,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             applying = false
             hint = o.placeholder.ifEmpty { null }
             setTextSize(TypedValue.COMPLEX_UNIT_PX, o.font.size * d)
-            typeface = fontFor(o.font.weight)
+            typeface = fontFor(o.font, context)
             if (o.color != 0L) setTextColor(argb(o.color))
             var type = when (o.keyboard) {
                 Render.Keyboard.NUMBER -> InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
@@ -526,7 +526,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         private fun measure(mt: Render.MeasureText, d: Float): ByteArray {
             val p = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
                 textSize = mt.font.size * d
-                typeface = fontFor(mt.font.weight)
+                typeface = fontFor(mt.font, Plugins.context)
             }
             val text = mt.text
             val desired = ceil(Layout.getDesiredWidth(text, p)).toInt()
@@ -545,10 +545,25 @@ class Renderer internal constructor(private val root: NimbusView) {
             return Render.encode(Render.TextSize(w = ceil(w) / d, h = l.height / d))
         }
 
-        fun fontFor(weight: Int): Typeface {
-            val w = if (weight == 0) 400 else weight
-            if (Build.VERSION.SDK_INT >= 28) return Typeface.create(Typeface.DEFAULT, w, false)
-            return if (w >= 600) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        private val families = HashMap<String, Typeface?>()
+
+        /** The typeface for a font: a family the app bundles (assets/fonts/<family>.ttf or
+         *  .otf, added by `nimbus native font add`) or the system's, at the weight. */
+        fun fontFor(f: Render.Font, c: Context): Typeface {
+            val w = if (f.weight == 0) 400 else f.weight
+            val base = if (f.family.isEmpty()) Typeface.DEFAULT else synchronized(families) {
+                families.getOrPut(f.family) {
+                    listOf("ttf", "otf").firstNotNullOfOrNull { ext ->
+                        try {
+                            Typeface.createFromAsset(c.assets, "fonts/${f.family}.$ext")
+                        } catch (e: RuntimeException) {
+                            null
+                        }
+                    }
+                }
+            } ?: Typeface.DEFAULT
+            if (Build.VERSION.SDK_INT >= 28) return Typeface.create(base, w, false)
+            return Typeface.create(base, if (w >= 600) Typeface.BOLD else Typeface.NORMAL)
         }
 
         /** 0xRRGGBBAA → Android's 0xAARRGGBB. */

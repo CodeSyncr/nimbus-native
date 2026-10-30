@@ -235,6 +235,12 @@ a view's changes of position, opacity and background over 250 ms.
 `SafeArea` keeps clear of the on-screen keyboard: its bottom padding grows
 by however much of the keyboard reaches below it.
 
+### Fonts
+
+`nimbus native font add Inter.ttf` bundles a font in the iOS and Android
+apps (and serves it to the web); use it as `ui.Style{FontFamily: "Inter"}`.
+The family is the file name; weights come from `FontWeight`.
+
 ### Links into the app
 
 Every project has a URL scheme, its module name: `myapp://orders/42` opens

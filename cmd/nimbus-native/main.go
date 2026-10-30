@@ -76,6 +76,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
+	case "font":
+		if err := font(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	case "icon":
 		if err := icon(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
@@ -336,6 +341,29 @@ func keystore(args []string) error {
 	return nil
 }
 
+// font adds a bundled font to the project's apps.
+func font(args []string) error {
+	fs := flag.NewFlagSet("font", flag.ExitOnError)
+	name := fs.String("name", "", "the family name to use in Style.FontFamily (default: the file name)")
+	_ = fs.Parse(reorder(args))
+	if fs.NArg() < 2 || fs.Arg(0) != "add" {
+		return fmt.Errorf("usage: nimbus native font add [-name Family] <font.ttf|font.otf> [project-dir]")
+	}
+	dir := "."
+	if fs.NArg() > 2 {
+		dir = fs.Arg(2)
+	}
+	if !toolchain.IsProject(dir) {
+		return inModule(dir)
+	}
+	family, err := toolchain.AddFont(dir, fs.Arg(1), *name)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("› added %q to the iOS and Android apps (and the web)\n  use it: ui.Style{FontFamily: %q}\n", family, family)
+	return nil
+}
+
 // icon makes a project's app icons and launch screens from one picture.
 func icon(args []string) error {
 	fs := flag.NewFlagSet("icon", flag.ExitOnError)
@@ -504,6 +532,7 @@ func usage() {
   nimbus native icon [-background #hex] [-launch #hex] <image>   app icons and launch screens
   nimbus native build ios|android -release [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
   nimbus native keystore                               the Android release key
+  nimbus native font add [-name Family] <font.ttf>     a font for Style.FontFamily
   nimbus native doctor
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]

@@ -118,6 +118,7 @@ const (
 type Font struct {
 	Size   float32
 	Weight uint16 // 100..900; 0 means 400
+	Family string // a font the app bundles (nimbus native font add); "" is the system font
 }
 
 // Text sets a text view's content and style.

@@ -265,3 +265,34 @@ func LaunchColor(root string) color.RGBA {
 	}
 	return color.RGBA{255, 255, 255, 255}
 }
+
+// AddFont copies a .ttf or .otf into the project's iOS app (Runner/Fonts,
+// registered at launch) and Android app (assets/fonts, also served to the
+// web), named family. It returns the family name to use in
+// Style.FontFamily.
+func AddFont(root, file, family string) (string, error) {
+	ext := strings.ToLower(filepath.Ext(file))
+	if ext != ".ttf" && ext != ".otf" {
+		return "", fmt.Errorf("%s: fonts are .ttf or .otf files", file)
+	}
+	if family == "" {
+		family = strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9 _-]*$`).MatchString(family) {
+		return "", fmt.Errorf("%q: name fonts with letters, digits, spaces, - and _", family)
+	}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return "", err
+	}
+	for _, dir := range []string{"native/ios/Runner/Fonts", "native/android/app/src/main/assets/fonts"} {
+		p := filepath.Join(root, dir, family+ext)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(p, b, 0o644); err != nil {
+			return "", err
+		}
+	}
+	return family, nil
+}

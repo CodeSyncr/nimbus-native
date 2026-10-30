@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xffdf5d119a78f240
+    public static let schemaHash: UInt64 = 0x26a5a34b860b593e
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -267,21 +267,25 @@ public enum Render {
     public struct Font: Equatable {
         public var size: Float
         public var weight: UInt16
+        public var family: String
 
-        public init(size: Float = 0, weight: UInt16 = 0) {
+        public init(size: Float = 0, weight: UInt16 = 0, family: String = "") {
             self.size = size
             self.weight = weight
+            self.family = family
         }
 
         public func write(to w: inout WireWriter) {
             w.float32(self.size)
             w.uint(UInt64(self.weight))
+            w.string(self.family)
         }
 
         public static func read(from r: inout WireReader) throws -> Font {
             var m = Font()
             m.size = try r.float32()
             m.weight = UInt16(try r.uint(max: 65535))
+            m.family = try r.string()
             return m
         }
     }

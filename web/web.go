@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
@@ -54,6 +56,10 @@ type Options struct {
 	// SettleTimeout bounds how long a page waits for its data before the
 	// HTML goes out anyway (default 3s).
 	SettleTimeout time.Duration
+	// FontDir holds the app's bundled fonts (<family>.ttf or .otf), served
+	// to browsers for Style.FontFamily. New projects use the Android app's
+	// font folder.
+	FontDir string
 }
 
 // Handler serves pages, the host script and the session endpoints.
@@ -90,6 +96,14 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // the URL carries its version
 		w.Write(hostJS)
+	case strings.HasPrefix(r.URL.Path, prefix+"fonts/") && s.o.FontDir != "":
+		name := path.Base(r.URL.Path)
+		if ext := path.Ext(name); ext != ".ttf" && ext != ".otf" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.ServeFile(w, r, filepath.Join(s.o.FontDir, name))
 	case r.URL.Path == prefix+"events":
 		s.events(w, r)
 	case r.URL.Path == prefix+"send" && r.Method == http.MethodPost:
@@ -156,14 +170,34 @@ func (s *site) page(w http.ResponseWriter, r *http.Request) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 %s
-<style>%s%s</style>
+<style>%s%s%s</style>
 </head>
 <body>
 <div id="nn">%s</div>
 <script src="%shost.js?v=%s" data-session="%s" defer></script>
 </body>
 </html>
-`, html.EscapeString(s.o.Lang), s.headTags(head, s.base(r)+path), baseCSS, theme, body.String(), prefix, hostVersion, sess.id)
+`, html.EscapeString(s.o.Lang), s.headTags(head, s.base(r)+path), s.fontFaces(), baseCSS, theme, body.String(), prefix, hostVersion, sess.id)
+}
+
+// fontFaces declares the app's bundled fonts.
+func (s *site) fontFaces() string {
+	if s.o.FontDir == "" {
+		return ""
+	}
+	files, _ := filepath.Glob(filepath.Join(s.o.FontDir, "*"))
+	var b strings.Builder
+	for _, f := range files {
+		name := filepath.Base(f)
+		ext := filepath.Ext(name)
+		if ext != ".ttf" && ext != ".otf" {
+			continue
+		}
+		format := map[string]string{".ttf": "truetype", ".otf": "opentype"}[ext]
+		fmt.Fprintf(&b, "@font-face{font-family:\"%s\";src:url(%sfonts/%s) format(\"%s\");font-weight:100 900;font-display:swap}\n",
+			strings.TrimSuffix(name, ext), prefix, name, format)
+	}
+	return b.String()
 }
 
 // headTags is the page's title and meta tags.

@@ -597,7 +597,7 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 	in.sent.box = box
 
-	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight}
+	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight, Family: s.FontFamily}
 	theme := rt.theme()
 	textColor := s.Color
 	if textColor == 0 {

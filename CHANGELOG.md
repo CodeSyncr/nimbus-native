@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.9 (2026-10-30)
+
+- Flex-wrap: `Style{Wrap: true}` breaks rows (and columns) into lines,
+  `LineGap` apart; checked against Chromium.
+- Links into the app: every project has a URL scheme, its module name;
+  `myapp://orders/42` opens `/orders/42`, pushed on the visible stack or as a
+  sheet, at launch or while running. `ui.HandleURL` takes over.
+- `ui.Slider`, `Pressable.OnLongPress`, and `Style.Transition` (animated
+  changes of position, opacity and background).
+- Fonts: `nimbus native font add <font.ttf>` and `Style.FontFamily`, on iOS,
+  Android and the web.
+
 ## 0.0.8 (2026-10-30)
 
 - Store builds: `nimbus native build ios -release` archives and exports an
