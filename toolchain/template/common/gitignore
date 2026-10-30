@@ -16,3 +16,6 @@ native/android/*.keystore
 native/android/**/build/
 *.iml
 .kotlin/
+
+# The Nimbus server's local database
+/database.sqlite*

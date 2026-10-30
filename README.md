@@ -15,8 +15,8 @@ backend included.
 ```sh
 go install github.com/CodeSyncr/nimbus/cmd/nimbus@latest   # Nimbus v1.16.0 or later
 nimbus native new myapp
-cd myapp && go run .            # the server and the web app on :3333
-nimbus native run ios            # in another terminal; or open native/ios in Xcode
+cd myapp
+nimbus native dev ios            # the app, plus the server and web app on :3333; reloads on save
 ```
 
 ```go
@@ -99,9 +99,11 @@ Not yet: gestures beyond long press, plugins on the web.
 ```sh
 nimbus native new myapp
 cd myapp
-go run .                        # the Nimbus server and the web app, on :3333
-nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
-nimbus native run android       # or open native/android in Android Studio
+nimbus native dev ios           # the app on a phone or simulator, plus the Nimbus
+                                # server and web app on :3333, reloading on save
+nimbus native dev android       # the same on Android
+nimbus native run ios           # a normal build, installed and opened; or open
+                                # native/ios/Runner.xcodeproj in Xcode
 ```
 
 The generated app is a counter, ready to grow: one polished screen (a
@@ -431,13 +433,19 @@ last good build keeps running. A wire-schema change rebuilds the shell. The
 relay caches the device's text measurements, so a reload re-measures
 nothing. Android reaches the relay through `adb reverse`.
 
+In a project, `dev` also runs the Nimbus server (`go run .`) and restarts it
+on every save, so the web app and your API stay current too; it takes the
+next free port when 3333 is busy, `o` opens it in the browser, and
+`-no-server` leaves it out. On Android the app reaches it through `adb
+reverse`, at the device's own `127.0.0.1`.
+
 While it runs, the terminal shows the app's output (`app │` lines from the
 Go process, `device │` lines from the simulator or emulator), panics and
 errors in red, a line when an app process stops, and how long each reload
 took to reach the screen. Single keys work as well as saving:
 
 ```
-r  reload    R  restart (rebuild and reinstall)    c  clear    q  quit    h  help
+r  reload    R  restart (rebuild and reinstall)    o  open the web app    c  clear    q  quit    h  help
 ```
 
 Measured on the gallery (1,000 rows): a save is on screen in **1.9–3.5 s on

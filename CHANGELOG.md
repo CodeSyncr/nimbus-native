@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.11 (2026-10-30)
+
+- `nimbus native dev ios|android` also runs the project's Nimbus server and
+  web app, restarted on every save: no separate `go run .`. It takes the
+  next free port when 3333 is busy, `o` opens the web app, and
+  `-no-server` leaves it out. On Android the port is reversed through adb.
+- New projects ignore the server's `database.sqlite`.
+- Boolean flags (`-sim`, `-release`, `-no-server`) no longer swallow the
+  argument after them.
+
 ## 0.0.10 (2026-10-30)
 
 - A dev console: `nimbus native dev` says where the app runs, colors panics

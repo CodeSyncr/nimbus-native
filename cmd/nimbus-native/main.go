@@ -283,9 +283,10 @@ func newProject(args []string) error {
 created %s (%s, %s)
 
   cd %s
-  go run .                          start the server (http://127.0.0.1:3333)
-  nimbus native run ios             build and run on the iOS simulator
-  nimbus native run android         build and run on an Android emulator
+  nimbus native dev ios             the app on your iPhone or the simulator, plus the
+                                    server and web app on http://127.0.0.1:3333,
+                                    all reloading on every save
+  nimbus native dev android         the same on Android
 
   open native/ios/Runner.xcodeproj  or open native/android in Android Studio
 `, p.Dir, p.Name, p.ID, fs.Arg(0))
@@ -530,6 +531,7 @@ func dev(platform string, args []string) error {
 	sim := fs.Bool("sim", false, "use the simulator / emulator even when a phone is connected")
 	udid := fs.String("udid", "", "which phone (or emulator), by name, id or serial")
 	team := fs.String("team", "", "iOS: the Apple team that signs the phone build")
+	noServer := fs.Bool("no-server", false, "don't run the project's Nimbus server (go run .) alongside")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(reorder(args))
 	dir := "."
@@ -582,6 +584,7 @@ func dev(platform string, args []string) error {
 			return err
 		}
 	}
+	target.NoServer = *noServer
 	return env.Dev(app, platform, *port, target)
 }
 
@@ -597,7 +600,7 @@ func usage() {
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
   nimbus native run   ios|android [...same flags] [app-dir]
-  nimbus native dev   ios|android [-sim|-device -udid D -team ID] [-port N] [app-dir]   reload on save
+  nimbus native dev   ios|android [-sim|-device -udid D -team ID] [-no-server] [app-dir]   app + server, reload on save
   nimbus native lib   ios|android [flags] [project-dir]   the Go side of a project build (Xcode and Gradle run it)`)
 	os.Exit(2)
 }
@@ -621,7 +624,13 @@ func reorder(args []string) []string {
 	return append(flags, rest...)
 }
 
-func boolFlag(a string) bool { return a == "-v" || a == "--v" || a == "-device" || a == "--device" }
+func boolFlag(a string) bool {
+	switch strings.TrimLeft(a, "-") {
+	case "v", "device", "sim", "release", "no-server":
+		return true
+	}
+	return false
+}
 
 // inModule refuses to go on outside a Go module, with what to do instead.
 func inModule(dir string) error {

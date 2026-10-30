@@ -94,10 +94,15 @@ func (c *console) clear() {
 	}
 }
 
-func (c *console) help(app, target string) {
+func (c *console) help(app, target, web string) {
 	c.say(good, "\n  ✓ %s is running on %s.", app, target)
+	keys := "    r  reload    R  restart (rebuild and reinstall)    c  clear    q  quit    h  help"
+	if web != "" {
+		c.say(good, "  ✓ The server and web app are on %s", web)
+		keys = "    r  reload    R  restart (rebuild and reinstall)    o  open the web app    c  clear    q  quit    h  help"
+	}
 	c.say(plain, "  Save a .go file to reload, or press a key:")
-	c.say(dim, "    r  reload    R  restart (rebuild and reinstall)    c  clear    q  quit    h  help\n")
+	c.say(dim, "%s\n", keys)
 }
 
 // keys reads single key presses from the terminal, if there is one, until

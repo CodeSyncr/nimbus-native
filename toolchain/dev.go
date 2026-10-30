@@ -57,8 +57,18 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 
 	// The app process starts when the shell connects (deviceConnected).
 	con.say(plain, "\n  Launching %s on %s…", a.Name, d.where())
+	if !t.NoServer {
+		d.server = newDevServer(d)
+	}
 	if err := d.buildShell(); err != nil {
 		return err
+	}
+	if d.server != nil {
+		if platform == "android" {
+			// The app reaches the server at the device's own 127.0.0.1.
+			_ = e.run(nil, e.adbPath(), e.adbArgs("reverse", "tcp:"+d.server.port, "tcp:"+d.server.port)...)
+		}
+		go d.server.restart()
 	}
 
 	stop := make(chan os.Signal, 1)
@@ -69,6 +79,9 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
 	quit := func() error {
+		if d.server != nil {
+			d.server.stop()
+		}
 		d.stopApp()
 		d.stopDeviceLogs()
 		restore()
@@ -80,6 +93,8 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 		if err := d.reload(time.Now()); err != nil {
 			con.say(bad, "%v", err)
 			con.say(warn, "  (still running the last good build)\n")
+		} else if d.server != nil {
+			go d.server.restart()
 		}
 		snap = snapshot(a.root())
 	}
@@ -103,8 +118,12 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 				snap = snapshot(a.root())
 			case 'c':
 				con.clear()
+			case 'o':
+				if d.server != nil {
+					d.server.open()
+				}
 			case 'h', '?':
-				con.help(a.Name, d.where())
+				d.help()
 			case 'q', 'Q':
 				return quit()
 			}
@@ -114,6 +133,14 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 			}
 		}
 	}
+}
+
+func (d *devSession) help() {
+	web := ""
+	if d.server != nil {
+		web = d.server.url()
+	}
+	d.con.help(d.a.Name, d.where(), web)
 }
 
 // where names the device dev mode runs on.
@@ -134,6 +161,8 @@ func (d *devSession) where() string {
 type DevTarget struct {
 	Phone *IOSPhone
 	Team  string // signs the phone build
+	// NoServer leaves a project's Nimbus server (go run .) out of dev mode.
+	NoServer bool
 }
 
 type devSession struct {
@@ -145,6 +174,7 @@ type devSession struct {
 	target    DevTarget
 	relay     *relay
 	con       *console
+	server    *devServer // nil: no project server to run
 
 	shellSchema uint64 // combined hash the installed shell was built with
 
@@ -368,7 +398,7 @@ func (d *devSession) deviceConnected() {
 	d.connected = true
 	d.appMu.Unlock()
 	if first {
-		d.con.help(d.a.Name, d.where())
+		d.help()
 	} else {
 		d.con.say(dim, "  The app reconnected.")
 	}
