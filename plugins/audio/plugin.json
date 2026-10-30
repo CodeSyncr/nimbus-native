@@ -1,0 +1,15 @@
+{
+  "description": "The microphone, one spoken turn at a time, and a player",
+  "handler": "Audio",
+  "ios": {
+    "info": {
+      "NSMicrophoneUsageDescription": "This app listens when you talk to it."
+    }
+  },
+  "android": {
+    "permissions": [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.MODIFY_AUDIO_SETTINGS"
+    ]
+  }
+}

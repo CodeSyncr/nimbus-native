@@ -13,11 +13,9 @@
 //	audio.Play(ctx, reply, setLevel)
 //	audio.Release()           // other apps' audio comes back
 //
-// The app has to ask for the microphone itself. On iOS, add
-// NSMicrophoneUsageDescription to native/ios/Runner/Info.plist; on Android,
-// add RECORD_AUDIO and MODIFY_AUDIO_SETTINGS to the app's manifest. Without
-// them the calls fail with plugin.Unavailable. There is no audio on the web
-// yet: the calls fail the same way there.
+// Add it to a project with `nimbus native plugin add audio`, which also
+// asks for the microphone in the app's Info.plist and manifest. There is no
+// audio on the web yet: the calls fail with plugin.Unavailable there.
 package audio
 
 import (

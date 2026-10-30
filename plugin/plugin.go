@@ -110,7 +110,8 @@ func CallJSON(ctx context.Context, name, method string, args any) (json.RawMessa
 	}
 	if m, err := render.Decode(reply); err == nil {
 		if ack, ok := m.(*render.PluginAck); ok && ack.Err != "" {
-			return nil, &Error{Plugin: name, Method: method, Code: Unavailable, Message: ack.Err}
+			return nil, &Error{Plugin: name, Method: method, Code: Unavailable,
+				Message: ack.Err + " (if it comes with Nimbus Native, `nimbus native plugin add " + name + "` adds it)"}
 		}
 	}
 

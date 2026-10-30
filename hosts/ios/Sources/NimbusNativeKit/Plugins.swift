@@ -71,7 +71,6 @@ public enum Plugins {
         "linking": Linking.handle,
         "dialog": Dialogs.handle,
         "haptics": Haptics.handle,
-        "audio": Audio.handle,
     ]
 
     /// Makes `name` callable from Go, replacing any plugin of that name.
@@ -81,8 +80,11 @@ public enum Plugins {
         lock.unlock()
     }
 
+    private static let enabled: Void = EnabledPlugins.register()
+
     /// Starts a call from Go (on a Go thread): accepted unless no plugin has the name.
     static func start(_ c: Render.PluginCall) -> Render.PluginAck {
+        _ = enabled
         lock.lock()
         let handler = handlers[c.plugin]
         lock.unlock()

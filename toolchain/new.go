@@ -263,11 +263,11 @@ func (e *Env) Sync(a *App) (bool, error) {
 	if e.Repo == "" {
 		return false, fmt.Errorf("nimbus-native module not found from %s", a.Root)
 	}
-	ios, err := e.syncIOSKit(filepath.Join(a.Root, "native/ios/NimbusNativeKit"))
+	ios, err := e.syncIOSKit(filepath.Join(a.Root, "native/ios/NimbusNativeKit"), a.Root)
 	if err != nil {
 		return false, err
 	}
-	android, err := e.syncAndroidKit(filepath.Join(a.Root, "native/android/nimbusnativekit/src/main/kotlin"))
+	android, err := e.syncAndroidKit(filepath.Join(a.Root, "native/android/nimbusnativekit/src/main/kotlin"), a.Root)
 	if err != nil {
 		return false, err
 	}

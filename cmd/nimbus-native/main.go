@@ -12,6 +12,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -82,6 +83,11 @@ func main() {
 		}
 	case "keystore":
 		if err := keystore(os.Args[2:]); err != nil {
+			toolchain.Errorf(os.Stderr, "%v", err)
+			os.Exit(1)
+		}
+	case "plugin":
+		if err := pluginCmd(os.Args[2:]); err != nil {
 			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
@@ -338,6 +344,35 @@ open native/ios/Runner.xcodeproj  or open native/android in Android Studio
 The app reaches your backend (Node, Go, anything that speaks HTTP and JSON)
 with api.New("https://your-server"): see features/ for where calls go.`, fs.Arg(0)))
 	return nil
+}
+
+// pluginCmd adds and removes the project's optional plugins.
+func pluginCmd(args []string) error {
+	const use = "usage: nimbus native plugin add|remove <name>...  or  nimbus native plugin list"
+	if len(args) == 0 {
+		return errors.New(use)
+	}
+	if err := inModule("."); err != nil {
+		return err
+	}
+	if !toolchain.IsProject(".") {
+		return fmt.Errorf("plugins go in a project made by `nimbus native new`")
+	}
+	app, err := toolchain.LoadProject(".", "app/mobile", "")
+	if err != nil {
+		return err
+	}
+	env := toolchain.Detect(app.Root)
+	verb, names := args[0], args[1:]
+	switch {
+	case verb == "list":
+		return env.ListPlugins(app, os.Stdout)
+	case verb == "add" && len(names) > 0:
+		return env.AddPlugins(app, names, os.Stdout)
+	case verb == "remove" && len(names) > 0:
+		return env.RemovePlugins(app, names, os.Stdout)
+	}
+	return errors.New(use)
 }
 
 // upgrade moves the project to the latest release, or the one named.
@@ -646,6 +681,7 @@ func usage() {
   nimbus native build ios|android -release -server URL [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
   nimbus native keystore                               the Android release key
   nimbus native font add [-name Family] <font.ttf>     a font for Style.FontFamily
+  nimbus native plugin add|remove <name>...            an optional plugin in the project; plugin list shows them
   nimbus native upgrade [version]                      move the project to the latest (or that) release
   nimbus native doctor
   nimbus native gen [app-dir]

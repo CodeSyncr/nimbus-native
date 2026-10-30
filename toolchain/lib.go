@@ -44,7 +44,7 @@ func (e *Env) LibIOS(a *App, o IOSLib) error {
 	if err := e.checkPhoneDeps(a); err != nil {
 		return err
 	}
-	kitChanged, err := e.syncIOSKit(o.Kit)
+	kitChanged, err := e.syncIOSKit(o.Kit, a.Root)
 	if err != nil {
 		return err
 	}
@@ -117,7 +117,7 @@ func (e *Env) LibAndroid(a *App, o AndroidLib) error {
 	if err := e.checkPhoneDeps(a); err != nil {
 		return err
 	}
-	kitChanged, err := e.syncAndroidKit(o.Kit)
+	kitChanged, err := e.syncAndroidKit(o.Kit, a.Root)
 	if err != nil {
 		return err
 	}
@@ -155,8 +155,9 @@ func (e *Env) LibAndroid(a *App, o AndroidLib) error {
 	return nil
 }
 
-// syncIOSKit makes dir a Swift package of the iOS kit in this module.
-func (e *Env) syncIOSKit(dir string) (bool, error) {
+// syncIOSKit makes dir a Swift package of the iOS kit in this module, with
+// the plugins the project at root enabled.
+func (e *Env) syncIOSKit(dir, root string) (bool, error) {
 	if dir == "" {
 		return false, nil
 	}
@@ -184,11 +185,15 @@ func (e *Env) syncIOSKit(dir string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if err := e.addPluginSources(root, "ios", "*.swift", "Sources/NimbusNativeKit/Plugins", enabledSwift, "Sources/NimbusNativeKit/EnabledPlugins.swift", files); err != nil {
+		return false, err
+	}
 	return syncKit(dir, files)
 }
 
-// syncAndroidKit makes dir (a Kotlin source root) hold the Android kit.
-func (e *Env) syncAndroidKit(dir string) (bool, error) {
+// syncAndroidKit makes dir (a Kotlin source root) hold the Android kit and
+// the plugins the project at root enabled.
+func (e *Env) syncAndroidKit(dir, root string) (bool, error) {
 	if dir == "" {
 		return false, nil
 	}
@@ -199,6 +204,9 @@ func (e *Env) syncAndroidKit(dir string) (bool, error) {
 			return false, err
 		}
 		files[filepath.Join("space/nimbusgo/nativekit", filepath.Base(p))] = b
+	}
+	if err := e.addPluginSources(root, "android", "*.kt", "space/nimbusgo/nativekit/plugins", enabledKotlin, "space/nimbusgo/nativekit/EnabledPlugins.kt", files); err != nil {
+		return false, err
 	}
 	return syncKit(dir, files)
 }
