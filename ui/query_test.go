@@ -85,6 +85,29 @@ func TestQuery(t *testing.T) {
 	}
 }
 
+// queryThenState uses a hook after UseQuery: it must keep its place on
+// every render (UseQuery used to add its Effect only on the first).
+type queryThenState struct{}
+
+func (queryThenState) Render(c *Ctx) *Element {
+	q := UseQuery(c, "orders", fetchOrders)
+	on, setOn := State(c, false)
+	label := fmt.Sprint(q.Loaded, on)
+	return View(Style{}, Text(label, Style{}).TestID("label"),
+		Pressable(func() { setOn(!on) }, Style{Height: Pt(44)}).TestID("toggle"))
+}
+
+func TestQueryKeepsHookOrder(t *testing.T) {
+	failNext.Store(false)
+	h := start(t, queryThenState{})
+	h.settle() // the data arrives: a second render
+	h.send(&render.Press{Tag: h.tagOf("toggle")})
+	h.settle()
+	if got := h.lastText(h.tagOf("label")).Text; got != "true true" {
+		t.Fatalf("after the data and a toggle: %q", got)
+	}
+}
+
 var placed []string
 
 type placeOrder struct{}

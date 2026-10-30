@@ -347,6 +347,10 @@ func (d *devSession) restartApp(t0 time.Time) error {
 	cmd := exec.Command(bin)
 	cmd.Dir = d.a.Dir
 	cmd.Env = append(os.Environ(), "NIMBUS_DEV_ADDR="+d.addr, "NIMBUS_DEV_STATE="+d.navFile())
+	if d.server != nil {
+		// The app runs here, so it reaches the server here (api.ServerURL).
+		cmd.Env = append(cmd.Env, "NIMBUS_SERVER_URL="+d.server.url())
+	}
 	out, _ := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
 	d.relay.expectReload(t0, built)

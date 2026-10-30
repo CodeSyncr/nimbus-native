@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -64,6 +65,16 @@ type Client struct {
 	Token func() string
 	// Header adds headers to every request.
 	Header http.Header
+}
+
+// ServerURL is the address of the project's Nimbus server: under
+// `nimbus native dev`, the server it runs alongside the app (wherever its
+// port landed); otherwise fallback, the server a build talks to.
+func ServerURL(fallback string) string {
+	if u := os.Getenv("NIMBUS_SERVER_URL"); u != "" {
+		return u
+	}
+	return fallback
 }
 
 // New is a client for the server at baseURL, with a 30-second timeout.

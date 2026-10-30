@@ -35,13 +35,12 @@ func UseQuery[T any](c *Ctx, key string, fetch func(ctx context.Context) (T, err
 		rt.queries[key] = e
 	}
 	e.fetch = func(ctx context.Context) (any, error) { return fetch(ctx) }
-	if !e.subs[in] {
-		e.subs[in] = true
-		// Leave the cache's subscribers when the component goes.
-		Effect(c, func(context.Context) func() {
-			return func() { rt.do(func() { delete(e.subs, in) }) }
-		}, Once)
-	}
+	e.subs[in] = true
+	// Leave the cache's subscribers when the component goes. Called on every
+	// render, so the hooks after this one keep their places.
+	Effect(c, func(context.Context) func() {
+		return func() { rt.do(func() { delete(e.subs, in) }) }
+	}, Once)
 	if !e.loading && (!e.started || (e.loaded && time.Since(e.at) > StaleAfter)) {
 		rt.startQuery(e)
 	}
