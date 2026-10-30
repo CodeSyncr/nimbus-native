@@ -681,6 +681,12 @@ final class Decor {
             b.frame = v.bounds
             b.layer.cornerRadius = r
             b.layer.maskedCorners = masked
+            if glass, #available(iOS 26.0, *) {
+                // Liquid Glass follows the view's corner configuration, not its layer mask.
+                func at(_ c: CACornerMask) -> UICornerRadius { .fixed(masked.contains(c) ? Double(r) : 0) }
+                b.cornerConfiguration = .corners(topLeftRadius: at(.layerMinXMinYCorner), topRightRadius: at(.layerMaxXMinYCorner),
+                                                 bottomLeftRadius: at(.layerMinXMaxYCorner), bottomRightRadius: at(.layerMaxXMaxYCorner))
+            }
         }
         if let g = gradient {
             g.frame = v.bounds
