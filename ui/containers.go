@@ -11,32 +11,32 @@ import (
 type AppBar struct {
 	Title    string
 	Subtitle string
-	OnBack   func()     // adds a back arrow
-	Leading  *Element   // or anything else at the start
-	Actions  []*Element // at the end
-	Large    bool       // the title on its own line, larger
+	OnBack   func()      // adds a back arrow
+	Leading  Component   // or anything else at the start
+	Actions  []Component // at the end
+	Large    bool        // the title on its own line, larger
 }
 
 func (b AppBar) Render(c *Ctx) *Element {
 	th, vp := UseTheme(c), Viewport(c)
-	lead := b.Leading
+	lead := element(b.Leading)
 	if b.OnBack != nil {
 		lead = C(IconButton{Icon: "arrow-left", Label: "Back", OnPress: b.OnBack})
 	}
-	words := []*Element{}
+	words := []Component{}
 	if !b.Large {
 		words = append(words, Text(b.Title, Style{FontSize: th.Heading + 1, FontWeight: 600, Color: th.Text, Lines: 1}))
 		if b.Subtitle != "" {
 			words = append(words, Text(b.Subtitle, Style{FontSize: th.Caption, Color: th.TextMuted, Lines: 1}))
 		}
 	}
-	row := []*Element{}
+	row := []Component{}
 	if lead != nil {
 		row = append(row, lead)
 	}
 	row = append(row, View(Style{Grow: 1, Shrink: 1}, words...))
 	row = append(row, b.Actions...)
-	kids := []*Element{View(Style{Direction: Row, AlignItems: AlignCenter, Gap: 8, MinHeight: Pt(52), Padding: XY(8, 0)}, row...)}
+	kids := []Component{View(Style{Direction: Row, AlignItems: AlignCenter, Gap: 8, MinHeight: Pt(52), Padding: XY(8, 0)}, row...)}
 	if b.Large {
 		kids = append(kids, View(Style{Padding: Edges{Left: 16, Right: 16, Bottom: 10}, Gap: 2},
 			Text(b.Title, Style{FontSize: th.Title + 6, FontWeight: 700, LetterSpacing: -0.5, Color: th.Text}),
@@ -51,7 +51,7 @@ func (b AppBar) Render(c *Ctx) *Element {
 type Grid struct {
 	Columns int // 0 means 2
 	Gap     float32
-	Items   []*Element
+	Items   []Component
 }
 
 func (g Grid) Render(c *Ctx) *Element {
@@ -59,11 +59,11 @@ func (g Grid) Render(c *Ctx) *Element {
 	if n == 0 {
 		n = 2
 	}
-	var rows []*Element
+	var rows []Component
 	for i := 0; i < len(g.Items); i += n {
-		cells := make([]*Element, n)
+		cells := make([]Component, n)
 		for k := range cells {
-			var item *Element
+			var item Component
 			if i+k < len(g.Items) {
 				item = g.Items[i+k]
 			}
@@ -77,7 +77,7 @@ func (g Grid) Render(c *Ctx) *Element {
 // AccordionItem is a heading and what it opens.
 type AccordionItem struct {
 	Title   string
-	Content *Element
+	Content Component
 }
 
 // Accordion is a list of headings that open in place. With Single, opening
@@ -91,7 +91,7 @@ type Accordion struct {
 func (a Accordion) Render(c *Ctx) *Element {
 	th := UseTheme(c)
 	open, setOpen := State(c, map[int]bool{a.Open: a.Open >= 0})
-	kids := make([]*Element, 0, len(a.Items)*2)
+	kids := make([]Component, 0, len(a.Items)*2)
 	for i, it := range a.Items {
 		turn := float32(0)
 		if open[i] {
@@ -110,11 +110,11 @@ func (a Accordion) Render(c *Ctx) *Element {
 		}, Style{Direction: Row, AlignItems: AlignCenter, Gap: 12, Padding: XY(0, 14)},
 			View(Style{Grow: 1, Shrink: 1}, Text(it.Title, Style{FontSize: th.Body + 1, FontWeight: 500, Color: th.Text})),
 			View(Style{Rotate: turn, Transition: 200}, Icon("chevron-down", 19, th.TextMuted))).Label(it.Title)
-		var body *Element
+		var body Component
 		if open[i] {
 			body = View(Style{Padding: Edges{Bottom: 14}}, it.Content)
 		}
-		kids = append(kids, View(Style{}, head, body, C(Divider{})).Key(fmt.Sprint(i)))
+		kids = append(kids, View(Style{}, head, body, Divider{}).Key(fmt.Sprint(i)))
 	}
 	return View(Style{}, kids...)
 }
@@ -122,7 +122,7 @@ func (a Accordion) Render(c *Ctx) *Element {
 // Carousel shows one page at a time; swipe sideways for the next, with dots
 // to show where you are.
 type Carousel struct {
-	Pages    []*Element
+	Pages    []Component
 	Height   float32
 	Width    float32 // 0 means the screen's width
 	OnChange func(int)
@@ -140,7 +140,7 @@ func (r Carousel) Render(c *Ctx) *Element {
 	if drag != 0 {
 		move = 0
 	}
-	pages := make([]*Element, len(r.Pages))
+	pages := make([]Component, len(r.Pages))
 	for i, p := range r.Pages {
 		pages[i] = View(Style{Width: Pt(w), Height: Pt(r.Height)}, p).Key(fmt.Sprint(i))
 	}
@@ -166,7 +166,7 @@ func (r Carousel) Render(c *Ctx) *Element {
 			}
 		}
 	})
-	dots := make([]*Element, len(r.Pages))
+	dots := make([]Component, len(r.Pages))
 	for i := range dots {
 		s := Style{Width: Pt(7), Height: Pt(7), Radius: 3.5, Background: th.Border, Transition: 200}
 		if i == at {
@@ -188,7 +188,7 @@ type SwipeAction struct {
 // SwipeRow reveals actions when its content is swiped to the left. It works
 // inside a list: an up or down drag still scrolls.
 type SwipeRow struct {
-	Content *Element
+	Content Component
 	Actions []SwipeAction
 }
 
@@ -208,7 +208,7 @@ func (r SwipeRow) Render(c *Ctx) *Element {
 	if dragging {
 		move = 0
 	}
-	buttons := make([]*Element, len(r.Actions))
+	buttons := make([]Component, len(r.Actions))
 	for i, a := range r.Actions {
 		color := a.Tone.color(th)
 		if a.Tone == Neutral {

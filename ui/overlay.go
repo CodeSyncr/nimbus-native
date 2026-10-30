@@ -28,7 +28,7 @@ var (
 type overlayRoot struct{ app Component }
 
 func (o overlayRoot) Render(c *Ctx) *Element {
-	kids := []*Element{C(o.app).Key("app")}
+	kids := []Component{C(o.app).Key("app")}
 	for _, e := range overlayList.Use(c) {
 		id := e.id
 		kids = append(kids, e.show(func() { removeOverlay(c, id) }).Key(fmt.Sprint(id)))
@@ -113,7 +113,7 @@ func (t toastView) Render(c *Ctx) *Element {
 		top, opacity = vp.H-vp.SafeBottom-84, 1
 	}
 	icon := map[Tone]string{Good: "check", Caution: "alert", Bad: "alert", Accent: "info"}[t.tone]
-	kids := []*Element{}
+	kids := []Component{}
 	if icon != "" {
 		kids = append(kids, Icon(icon, 19, t.tone.color(th)))
 	}
@@ -179,7 +179,7 @@ func (s sheetView) Render(c *Ctx) *Element {
 	if dragging {
 		move = 0
 	}
-	kids := []*Element{View(Style{AlignItems: AlignCenter, Padding: Edges{Top: 10, Bottom: 8}},
+	kids := []Component{View(Style{AlignItems: AlignCenter, Padding: Edges{Top: 10, Bottom: 8}},
 		View(Style{Width: Pt(38), Height: Pt(5), Radius: 2.5, Background: th.Border}))}
 	if s.Title != "" {
 		kids = append(kids, View(Style{Padding: Edges{Left: 20, Right: 20, Bottom: 10}}, Text(s.Title, Style{FontSize: th.Heading + 1, FontWeight: 600, Color: th.Text})))
@@ -244,7 +244,7 @@ type actionList struct {
 
 func (a actionList) Render(c *Ctx) *Element {
 	th := UseTheme(c)
-	rows := make([]*Element, len(a.actions))
+	rows := make([]Component, len(a.actions))
 	for i, x := range a.actions {
 		rows[i] = actionRow(th, x, a.close, 54).Key(x.Label)
 	}
@@ -256,7 +256,7 @@ func actionRow(th Theme, x MenuAction, close func(), height float32) *Element {
 	if x.Destructive {
 		color = th.Danger
 	}
-	kids := []*Element{}
+	kids := []Component{}
 	if x.Icon != "" {
 		kids = append(kids, Icon(x.Icon, 21, color))
 	}
@@ -307,7 +307,7 @@ func anchored(c *Ctx, f func(x, y, w, h float32)) {
 //		{Label: "Delete", Icon: "trash", Destructive: true, OnPress: remove},
 //	}})
 type Menu struct {
-	Trigger *Element
+	Trigger Component
 	Items   []MenuAction
 	Label   string // what the trigger does, for screen readers
 }
@@ -354,7 +354,7 @@ func (m menuView) Render(c *Ctx) *Element {
 	if in {
 		opacity, scale = 1, 1
 	}
-	rows := make([]*Element, len(m.items))
+	rows := make([]Component, len(m.items))
 	for i, x := range m.items {
 		rows[i] = actionRow(th, x, m.close, 46).Key(x.Label)
 	}
@@ -367,7 +367,7 @@ func (m menuView) Render(c *Ctx) *Element {
 // Tooltip explains what its child is: tap it for a short note above it.
 type Tooltip struct {
 	Text  string
-	Child *Element
+	Child Component
 }
 
 func (t Tooltip) Render(c *Ctx) *Element {
@@ -421,14 +421,14 @@ func (b Banner) Render(c *Ctx) *Element {
 	if icon == "" {
 		icon = "info"
 	}
-	words := []*Element{Text(b.Title, Style{FontSize: th.Body, FontWeight: 600, Color: th.Text})}
+	words := []Component{Text(b.Title, Style{FontSize: th.Body, FontWeight: 600, Color: th.Text})}
 	if b.Message != "" {
 		words = append(words, Text(b.Message, Style{FontSize: th.Caption + 0.5, Color: th.TextMuted}))
 	}
 	if b.Action != "" {
 		words = append(words, Pressable(b.OnAction, Style{Margin: Edges{Top: 4}, AlignSelf: AlignStart}, Text(b.Action, Style{FontSize: th.Caption + 0.5, FontWeight: 600, Color: color})).Label(b.Action))
 	}
-	kids := []*Element{Icon(icon, 21, color), View(Style{Grow: 1, Shrink: 1, Gap: 2}, words...)}
+	kids := []Component{Icon(icon, 21, color), View(Style{Grow: 1, Shrink: 1, Gap: 2}, words...)}
 	if b.OnClose != nil {
 		kids = append(kids, Pressable(b.OnClose, Style{}, Icon("close", 18, th.TextMuted)).Label("Dismiss"))
 	}

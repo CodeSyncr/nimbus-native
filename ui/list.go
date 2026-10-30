@@ -15,7 +15,7 @@ import (
 //	}, ui.Flex(1)).ItemKey(func(i int) string { return orders[i].ID })
 //
 // Scrolling renders no components but the items coming into view.
-func List(count int, item func(i int) *Element, s Style) *Element {
+func List(count int, item func(i int) Component, s Style) *Element {
 	return &Element{kind: render.KindScroll, style: scrollFill(s), list: &listSpec{count: count, item: item}}
 }
 
@@ -40,7 +40,7 @@ func (e *Element) EstimatedItemHeight(h float32) *Element {
 
 type listSpec struct {
 	count    int
-	item     func(i int) *Element
+	item     func(i int) Component
 	key      func(i int) string
 	estimate float32
 }
@@ -139,7 +139,7 @@ func (rt *runtime) reconcileList(in *instance) {
 	els = append(els, View(Style{Height: Pt(top)}).Key(listTopKey))
 	ls.keys = ls.keys[:0]
 	for i := first; i < last; i++ {
-		el := spec.item(i)
+		el := element(spec.item(i))
 		if el == nil {
 			continue
 		}

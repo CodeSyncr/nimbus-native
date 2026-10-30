@@ -8,13 +8,13 @@ package ui
 // above the bar. While the keyboard is up, the bottom pads clear of it.
 //
 //	ui.SafeArea(ui.Style{Padding: ui.All(16)}, ui.Text("Hello", ui.Style{}))
-func SafeArea(s Style, children ...*Element) *Element {
+func SafeArea(s Style, children ...Component) *Element {
 	return C(safeArea{style: s, children: children})
 }
 
 type safeArea struct {
 	style    Style
-	children []*Element
+	children []Component
 }
 
 func (a safeArea) Render(c *Ctx) *Element {

@@ -120,7 +120,7 @@ func TestFirstRenderAndTap(t *testing.T) {
 type list struct{ items *[]string }
 
 func (l list) Render(c *Ctx) *Element {
-	var rows []*Element
+	var rows []Component
 	for _, it := range *l.items {
 		rows = append(rows, C(row{it}).Key(it))
 	}
@@ -224,7 +224,7 @@ type page struct{}
 
 func (page) Render(c *Ctx) *Element {
 	n, setN := State(c, 0)
-	rows := []*Element{Pressable(func() { setN(n + 1) }, Style{}, Text(fmt.Sprint(n), Style{})).TestID("button")}
+	rows := []Component{Pressable(func() { setN(n + 1) }, Style{}, Text(fmt.Sprint(n), Style{})).TestID("button")}
 	for i := 0; i < 100; i++ {
 		rows = append(rows, C(countedRow{i}).Key(fmt.Sprint(i)))
 	}

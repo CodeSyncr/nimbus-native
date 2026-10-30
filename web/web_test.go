@@ -31,7 +31,7 @@ func (ordersPage) Render(c *ui.Ctx) *ui.Element {
 	if !q.Loaded {
 		return ui.Spinner(ui.Style{})
 	}
-	rows := []*ui.Element{}
+	rows := []ui.Component{}
 	for i, name := range q.Data {
 		rows = append(rows, router.Link(fmt.Sprintf("/orders/%d", i+1), ui.Style{}, ui.Text(name, ui.Style{})).TestID(fmt.Sprint("row-", i+1)))
 	}

@@ -14,7 +14,7 @@ type feed struct{ varied bool } // comparable props, so scrolling can skip it
 func (f feed) Render(c *Ctx) *Element {
 	appRenders++
 	return View(Style{},
-		List(1000, func(i int) *Element {
+		List(1000, func(i int) Component {
 			h := fixed(i)
 			if f.varied {
 				h = varied(i)

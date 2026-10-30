@@ -215,10 +215,10 @@ func (componentsApp) Render(c *Ctx) *Element {
 		C(ListRow{Title: "Orders", Icon: "cart", OnPress: func() {}}),
 		C(ProgressBar{Value: 0.4}),
 		C(EmptyState{Title: "Nothing yet"}),
-		C(Grid{Items: []*Element{Text("a", Style{}), Text("b", Style{}), Text("c", Style{})}}),
+		C(Grid{Items: []Component{Text("a", Style{}), Text("b", Style{}), Text("c", Style{})}}),
 		C(Accordion{Items: []AccordionItem{{"One", Text("inside", Style{})}, {"Two", Text("hidden", Style{})}}}),
 		C(SwipeRow{Content: Text("row", Style{}), Actions: []SwipeAction{{Label: "Delete", Icon: "trash", Tone: Bad}}}),
-		C(Carousel{Pages: []*Element{Text("p1", Style{})}, Height: 100}),
+		C(Carousel{Pages: []Component{Text("p1", Style{})}, Height: 100}),
 		C(Banner{Title: "Offline", Tone: Caution}),
 		C(AppBar{Title: "Orders", Large: true}))
 }
@@ -233,4 +233,44 @@ func TestComponentsRender(t *testing.T) {
 	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "hidden" }); len(got) != 0 {
 		t.Error("a closed accordion item rendered")
 	}
+}
+
+type label struct{ text string }
+
+func (l label) Render(c *Ctx) *Element { return Text(l.text, Style{}) }
+
+type directChildren struct{}
+
+func (directChildren) Render(c *Ctx) *Element {
+	var none *Element // a nil child, of either kind, draws nothing
+	return View(Style{},
+		Text("plain", Style{}),
+		label{"a component"},
+		none,
+		nil,
+		Key("row", label{"keyed"}),
+		View(Style{}, label{"nested"}),
+		C(C(label{"wrapped"})))
+}
+
+func TestChildrenTakeComponents(t *testing.T) {
+	h := start(t, directChildren{})
+	for _, want := range []string{"plain", "a component", "keyed", "nested", "wrapped"} {
+		if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == want }); len(got) == 0 {
+			t.Errorf("%q did not render", want)
+		}
+	}
+}
+
+func TestListTakesComponents(t *testing.T) {
+	h := start(t, listOfComponents{})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "row 1" }); len(got) == 0 {
+		t.Fatal("no list row")
+	}
+}
+
+type listOfComponents struct{}
+
+func (listOfComponents) Render(c *Ctx) *Element {
+	return List(3, func(i int) Component { return label{fmt.Sprint("row ", i)} }, Flex(1))
 }

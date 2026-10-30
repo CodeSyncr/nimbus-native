@@ -117,7 +117,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 				).TestID("new-order"),
 			),
 		),
-		ui.List(len(list), func(i int) *ui.Element { return ui.C(OrderRow{list[i]}) }, ui.Flex(1)).
+		ui.List(len(list), func(i int) ui.Component { return ui.C(OrderRow{list[i]}) }, ui.Flex(1)).
 			ItemKey(func(i int) string { return fmt.Sprint(list[i].id) }).TestID("list"),
 	)
 }

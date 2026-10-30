@@ -82,7 +82,7 @@ func (b Button) Render(c *Ctx) *Element {
 	if b.Disabled {
 		s.Opacity = 0.45
 	}
-	var kids []*Element
+	var kids []Component
 	switch {
 	case b.Loading:
 		kids = append(kids, Spinner(Style{Color: fg, Width: Pt(icon), Height: Pt(icon)}))
@@ -143,7 +143,7 @@ func (b FloatingButton) Render(c *Ctx) *Element {
 	s := Style{Absolute: true, Right: Pt(20), Bottom: Pt(20 + vp.SafeBottom), Height: Pt(58), Radius: 29, Background: th.Primary,
 		Direction: Row, AlignItems: AlignCenter, Justify: JustifyCenter, Gap: 10, Transition: 200,
 		Shadow: &Shadow{Color: fade(th.Primary, 0.4), Radius: 18, Y: 8}}
-	kids := []*Element{Icon(b.Icon, 24, th.OnPrimary)}
+	kids := []Component{Icon(b.Icon, 24, th.OnPrimary)}
 	if b.Extended {
 		s.Padding = XY(22, 0)
 		kids = append(kids, Text(b.Label, Style{Color: th.OnPrimary, FontSize: 15, FontWeight: 600}))

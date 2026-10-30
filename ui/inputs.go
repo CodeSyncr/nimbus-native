@@ -23,7 +23,7 @@ type Checkbox struct {
 func (b Checkbox) Render(c *Ctx) *Element {
 	th := UseTheme(c)
 	box := Style{Width: Pt(24), Height: Pt(24), Radius: 7, BorderWidth: 1.5, BorderColor: fade(th.Text, 0.35), Justify: JustifyCenter, AlignItems: AlignCenter, Transition: 140}
-	var tick *Element
+	var tick Component
 	if b.Checked {
 		box.Background, box.BorderColor = th.Primary, th.Primary
 		tick = Icon("check", 17, th.OnPrimary)
@@ -52,7 +52,7 @@ type RadioGroup struct {
 
 func (r RadioGroup) Render(c *Ctx) *Element {
 	th := UseTheme(c)
-	rows := make([]*Element, len(r.Options))
+	rows := make([]Component, len(r.Options))
 	for i, o := range r.Options {
 		ring := Style{Width: Pt(24), Height: Pt(24), Radius: 12, BorderWidth: 1.5, BorderColor: fade(th.Text, 0.35), Justify: JustifyCenter, AlignItems: AlignCenter, Transition: 140}
 		dot := Style{Width: Pt(12), Height: Pt(12), Radius: 6, Scale: 0.01, Background: th.Primary, Transition: 140}
@@ -82,7 +82,7 @@ func (g SegmentedControl) Render(c *Ctx) *Element {
 	if th.Dark {
 		thumb = th.Background
 	}
-	kids := []*Element{View(Style{Absolute: true, Top: Pt(0), Bottom: Pt(0), Left: Pct(share * float32(g.Selected)), Width: Pct(share),
+	kids := []Component{View(Style{Absolute: true, Top: Pt(0), Bottom: Pt(0), Left: Pct(share * float32(g.Selected)), Width: Pct(share),
 		Radius: th.Radius - 3, Background: thumb, Transition: 220, Shadow: &Shadow{Color: Hex("#00000022"), Radius: 4, Y: 1}})}
 	for i, o := range g.Options {
 		weight, color := uint16(500), th.TextMuted
@@ -153,7 +153,7 @@ func (b SearchBar) Render(c *Ctx) *Element {
 	if b.OnSubmit != nil {
 		input = input.OnSubmit(b.OnSubmit)
 	}
-	kids := []*Element{Icon("search", 20, th.TextMuted), input}
+	kids := []Component{Icon("search", 20, th.TextMuted), input}
 	if b.Value != "" {
 		kids = append(kids, Pressable(func() { b.OnChange("") }, Style{}, Icon("close", 18, th.TextMuted)).Label("Clear"))
 	}
@@ -175,7 +175,7 @@ func (o OTPInput) Render(c *Ctx) *Element {
 	if n == 0 {
 		n = 6
 	}
-	cells := make([]*Element, n)
+	cells := make([]Component, n)
 	for i := range cells {
 		ch, border := "", th.Border
 		if i < len(o.Value) {

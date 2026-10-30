@@ -39,7 +39,7 @@ func (CounterScreen) Render(c *ui.Ctx) *ui.Element {
 		ui.Scroll(ui.Style{Grow: 1, Shrink: 1},
 			ui.View(ui.Style{Padding: ui.XY(24, 20), Gap: 28, AlignItems: ui.AlignCenter},
 				header(th),
-				ui.C(countCard{counter.Count}),
+				countCard{counter.Count},
 				ui.View(ui.Style{Direction: ui.Row, AlignItems: ui.AlignCenter, Gap: 22},
 					round(th, "−", 64, false, "minus", change(func(x data.Counter) data.Counter { return x.Add(-1) })),
 					round(th, "+", 96, true, "plus", change(func(x data.Counter) data.Counter { return x.Add(1) })),
@@ -103,7 +103,7 @@ func round(th ui.Theme, label string, size float32, filled bool, id string, onPr
 }
 
 func stepPicker(th ui.Theme, current int, pick func(int) func()) *ui.Element {
-	chips := []*ui.Element{ui.Text("Step", ui.Style{FontSize: th.Caption, FontWeight: 700, Color: th.TextMuted, Margin: ui.Edges{Right: 4}})}
+	chips := []ui.Component{ui.Text("Step", ui.Style{FontSize: th.Caption, FontWeight: 700, Color: th.TextMuted, Margin: ui.Edges{Right: 4}})}
 	for _, s := range data.Steps {
 		bg, fg, border := th.Surface, th.Text, th.Border
 		if s == current {

@@ -67,12 +67,53 @@ type Component interface {
 	Render(c *Ctx) *Element
 }
 
-// C places a component in the tree.
-func C(comp Component) *Element { return &Element{comp: comp} }
+// Render makes an Element a Component, so children can be either:
+//
+//	ui.View(ui.Style{}, ui.Text("Total", ui.Style{}), ui.Badge{Label: "Paid"}, Orders{})
+func (e *Element) Render(*Ctx) *Element { return e }
+
+// C wraps a component in an Element. Children don't need it; use it for
+// what only an Element has, such as Label, or to return a component from
+// Render.
+func C(comp Component) *Element {
+	if e, ok := comp.(*Element); ok {
+		return e
+	}
+	return &Element{comp: comp}
+}
+
+// Key gives a child its identity among its siblings, so that a list keeps
+// each row's state when rows move:
+//
+//	rows = append(rows, ui.Key(o.ID, OrderRow{o}))
+func Key(key string, child Component) *Element { return element(child).Key(key) }
+
+// element is a child as the tree holds it. An empty child, either kind of
+// nil, draws nothing.
+func element(c Component) *Element {
+	switch v := c.(type) {
+	case nil:
+		return nil
+	case *Element:
+		return v
+	}
+	return C(c)
+}
+
+func elements(children []Component) []*Element {
+	if children == nil {
+		return nil
+	}
+	out := make([]*Element, len(children))
+	for i, c := range children {
+		out[i] = element(c)
+	}
+	return out
+}
 
 // View is a container: a flex column unless its style says otherwise.
-func View(s Style, children ...*Element) *Element {
-	return &Element{kind: render.KindView, style: s, children: children}
+func View(s Style, children ...Component) *Element {
+	return &Element{kind: render.KindView, style: s, children: elements(children)}
 }
 
 // Text shows a string.
@@ -87,15 +128,15 @@ func Image(url string, s Style) *Element {
 
 // Pressable is a container that calls onPress when tapped, dimming while
 // pressed.
-func Pressable(onPress func(), s Style, children ...*Element) *Element {
-	return &Element{kind: render.KindPressable, style: s, children: children, onPress: onPress}
+func Pressable(onPress func(), s Style, children ...Component) *Element {
+	return &Element{kind: render.KindPressable, style: s, children: elements(children), onPress: onPress}
 }
 
 // Scroll scrolls its children vertically (Horizontal() for sideways). Give
 // it a size, or Grow to fill the space: its content is as long as its
 // children.
-func Scroll(s Style, children ...*Element) *Element {
-	return &Element{kind: render.KindScroll, style: scrollFill(s), children: children}
+func Scroll(s Style, children ...Component) *Element {
+	return &Element{kind: render.KindScroll, style: scrollFill(s), children: elements(children)}
 }
 
 // scrollFill makes a growing scroll view fill the space it is given rather

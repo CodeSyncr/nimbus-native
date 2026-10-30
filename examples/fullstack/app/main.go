@@ -48,7 +48,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 		body = ui.View(ui.Style{Padding: ui.All(th.SpaceL)}, ui.Spinner(ui.Style{}))
 	default:
 		orders := q.Data
-		body = ui.List(len(orders), func(i int) *ui.Element { return ui.C(orderRow{orders[i]}) }, ui.Flex(1)).
+		body = ui.List(len(orders), func(i int) ui.Component { return ui.C(orderRow{orders[i]}) }, ui.Flex(1)).
 			ItemKey(func(i int) string { return fmt.Sprint(orders[i].ID) })
 	}
 	return ui.SafeArea(ui.Style{Grow: 1}, header, body)

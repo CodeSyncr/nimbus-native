@@ -107,7 +107,7 @@ func (p Chip) Render(c *Ctx) *Element {
 	if p.Selected {
 		bg, fg, border = fade(th.Primary, 0.12), th.Primary, th.Primary
 	}
-	var kids []*Element
+	var kids []Component
 	if p.Icon != "" {
 		kids = append(kids, Icon(p.Icon, 16, fg))
 	}
@@ -134,29 +134,29 @@ func (d Divider) Render(c *Ctx) *Element {
 type ListRow struct {
 	Title    string
 	Subtitle string
-	Icon     string   // an Icon name, in a tinted square
-	Leading  *Element // anything else at the start: an Avatar, say
-	Trailing *Element // at the end: a Switch, a Badge, a price
-	OnPress  func()   // adds a chevron unless there is a Trailing
+	Icon     string    // an Icon name, in a tinted square
+	Leading  Component // anything else at the start: an Avatar, say
+	Trailing Component // at the end: a Switch, a Badge, a price
+	OnPress  func()    // adds a chevron unless there is a Trailing
 }
 
 func (r ListRow) Render(c *Ctx) *Element {
 	th := UseTheme(c)
-	var kids []*Element
+	var kids []Component
 	switch {
-	case r.Leading != nil:
+	case element(r.Leading) != nil:
 		kids = append(kids, r.Leading)
 	case r.Icon != "":
 		kids = append(kids, View(Style{Width: Pt(36), Height: Pt(36), Radius: 10, Background: fade(th.Primary, 0.12), Justify: JustifyCenter, AlignItems: AlignCenter},
 			Icon(r.Icon, 20, th.Primary)))
 	}
-	words := []*Element{Text(r.Title, Style{FontSize: th.Body + 1, FontWeight: 500, Color: th.Text, Lines: 1})}
+	words := []Component{Text(r.Title, Style{FontSize: th.Body + 1, FontWeight: 500, Color: th.Text, Lines: 1})}
 	if r.Subtitle != "" {
 		words = append(words, Text(r.Subtitle, Style{FontSize: th.Caption, Color: th.TextMuted, Lines: 2}))
 	}
 	kids = append(kids, View(Style{Grow: 1, Shrink: 1, Gap: 2}, words...))
 	switch {
-	case r.Trailing != nil:
+	case element(r.Trailing) != nil:
 		kids = append(kids, r.Trailing)
 	case r.OnPress != nil:
 		kids = append(kids, Icon("chevron-right", 18, th.TextMuted))
@@ -255,7 +255,7 @@ type EmptyState struct {
 
 func (e EmptyState) Render(c *Ctx) *Element {
 	th := UseTheme(c)
-	kids := []*Element{}
+	kids := []Component{}
 	if e.Icon != "" {
 		kids = append(kids, View(Style{Width: Pt(72), Height: Pt(72), Radius: 36, Background: fade(th.Primary, 0.1), Justify: JustifyCenter, AlignItems: AlignCenter, Margin: Edges{Bottom: 8}},
 			Icon(e.Icon, 34, th.Primary)))
@@ -265,7 +265,7 @@ func (e EmptyState) Render(c *Ctx) *Element {
 		kids = append(kids, Text(e.Message, Style{FontSize: th.Body, Color: th.TextMuted, TextAlign: AlignCenter}))
 	}
 	if e.Action != "" {
-		kids = append(kids, View(Style{Margin: Edges{Top: 10}}, C(Button{Label: e.Action, OnPress: e.OnAction})))
+		kids = append(kids, View(Style{Margin: Edges{Top: 10}}, Button{Label: e.Action, OnPress: e.OnAction}))
 	}
 	return View(Style{Grow: 1, Justify: JustifyCenter, AlignItems: AlignCenter, Gap: 6, Padding: XY(32, 24)}, kids...)
 }

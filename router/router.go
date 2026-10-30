@@ -205,14 +205,14 @@ func HeadOf(comp ui.Component, path string) Head {
 // the web a real link that crawlers and new tabs follow.
 //
 //	router.Link("/orders/42", ui.Style{}, ui.Text("Order #42", ui.Style{}))
-func Link(path string, s ui.Style, children ...*ui.Element) *ui.Element {
+func Link(path string, s ui.Style, children ...ui.Component) *ui.Element {
 	return ui.C(link{path: path, style: s, children: children})
 }
 
 type link struct {
 	path     string
 	style    ui.Style
-	children []*ui.Element
+	children []ui.Component
 }
 
 func (l link) Render(c *ui.Ctx) *ui.Element {
