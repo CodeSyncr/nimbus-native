@@ -189,6 +189,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                     }
                 }
                 is Render.Slider -> (views[op.tag.toInt()] as? NNSlider)?.apply(op)
+                is Render.Draw -> (views[op.tag.toInt()] as? NNCanvas)?.set(op)
                 is Render.Box -> box(op)
                 is Render.Text -> (views[op.tag.toInt()] as? TextView)?.let { text(it, op) }
                 is Render.Image -> (views[op.tag.toInt()] as? NNImage)?.load(op)
@@ -246,6 +247,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
             Render.Kind.SWITCH -> NNSwitch(ctx, tag)
             Render.Kind.SLIDER -> NNSlider(ctx, tag)
+            Render.Kind.CANVAS -> NNCanvas(ctx)
             else -> NNGroup(ctx, this)
         }
         v.id = tag
@@ -335,16 +337,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         } else if (v !is ProgressBar) {
             v.background = null
         }
-        // A shadow: elevation over the outline, in the asked color (Android 9+).
-        if (o.shadowColor != 0L) {
-            v.elevation = o.shadowRadius * density / 2
-            if (Build.VERSION.SDK_INT >= 28) {
-                v.outlineSpotShadowColor = argb(o.shadowColor)
-                v.outlineAmbientShadowColor = argb(o.shadowColor)
-            }
-        } else {
-            v.elevation = 0f
-        }
+
         if (v is NNPressable) v.baseAlpha = o.opacity
         if (ms > 0 && v.isAttachedToWindow) v.animate().alpha(o.opacity).setDuration(ms).start() else v.alpha = o.opacity
         v.clipToOutline = o.clip

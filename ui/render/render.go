@@ -32,6 +32,8 @@ const (
 	KindSwitch
 	// KindSlider picks a number in a range: UISlider, Android's SeekBar.
 	KindSlider
+	// KindCanvas draws shapes Go describes (Draw).
+	KindCanvas
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -280,6 +282,37 @@ type Scroll struct {
 	Refreshable bool
 	Refreshing  bool
 }
+
+// Draw sets what a canvas draws: commands in a W×H space fitted to the
+// view (centred, keeping its aspect, like an SVG viewBox). Each command takes
+// its numbers from Nums and its colors from Colors, in order:
+//
+//	DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y
+//	DrawCubicTo c1x c1y c2x c2y x y · DrawClose
+//	DrawCircle cx cy r · DrawRect x y w h radius   (add to the path)
+//	DrawFill color · DrawStroke width color        (paint the path, then start a new one)
+//
+//wire:variant Op
+type Draw struct {
+	Tag    uint32
+	W, H   float32
+	Cmds   []uint8
+	Nums   []float32
+	Colors []uint32
+}
+
+// The commands in Draw.Cmds.
+const (
+	DrawMoveTo uint8 = iota
+	DrawLineTo
+	DrawQuadTo
+	DrawCubicTo
+	DrawClose
+	DrawCircle
+	DrawRect
+	DrawFill
+	DrawStroke
+)
 
 // Slider sets a slider.
 //

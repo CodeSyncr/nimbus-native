@@ -9,6 +9,34 @@
   const parts = new Map(); // tag → {l, b, x}: the inline style's parts
   for (const el of root.querySelectorAll("[data-t]")) els.set(+el.dataset.t, el);
 
+  // ---- canvases (ui.Canvas): Go's shapes in a w×h space fitted to the box ----
+
+  function paint(el) {
+    let d;
+    try { d = JSON.parse(el.dataset.draw); } catch (_) { return; }
+    const dpr = devicePixelRatio || 1, W = el.clientWidth, H = el.clientHeight;
+    if (!W || !H || !d.w || !d.h) return;
+    el.width = Math.round(W * dpr); el.height = Math.round(H * dpr);
+    const g = el.getContext("2d"), s = Math.min(W / d.w, H / d.h);
+    g.setTransform(dpr * s, 0, 0, dpr * s, dpr * (W - d.w * s) / 2, dpr * (H - d.h * s) / 2);
+    let n = 0, c = 0, p = new Path2D();
+    const v = () => d.n[n++] || 0;
+    for (const k of d.k) {
+      if (k === 0) p.moveTo(v(), v());
+      else if (k === 1) p.lineTo(v(), v());
+      else if (k === 2) p.quadraticCurveTo(v(), v(), v(), v());
+      else if (k === 3) p.bezierCurveTo(v(), v(), v(), v(), v(), v());
+      else if (k === 4) p.closePath();
+      else if (k === 5) { const x = v(), y = v(), r = v(); p.moveTo(x + r, y); p.arc(x, y, r, 0, 2 * Math.PI); }
+      else if (k === 6) { const x = v(), y = v(), w = v(), h = v(), r = Math.min(v(), w / 2, h / 2); p.roundRect(x, y, w, h, Math.max(r, 0)); }
+      else if (k === 7) { g.fillStyle = d.c[c++]; g.fill(p); p = new Path2D(); }
+      else if (k === 8) { g.lineWidth = v(); g.lineCap = g.lineJoin = "round"; g.strokeStyle = d.c[c++]; g.stroke(p); p = new Path2D(); }
+      else break;
+    }
+  }
+  for (const el of root.querySelectorAll("canvas[data-draw]")) paint(el);
+  addEventListener("resize", () => { for (const el of root.querySelectorAll("canvas[data-draw]")) paint(el); });
+
   // ---- sending ----
 
   let gone = false;
@@ -93,6 +121,7 @@
       } else if (i.a) {
         const el = els.get(i.a[0]);
         if (el) i.a[2] == null ? el.removeAttribute(i.a[1]) : el.setAttribute(i.a[1], i.a[2]);
+        if (el && i.a[1] === "data-draw") paint(el);
       } else if (i.p) {
         const el = els.get(i.p[0]);
         if (el && el[i.p[1]] !== i.p[2]) el[i.p[1]] = i.p[2];

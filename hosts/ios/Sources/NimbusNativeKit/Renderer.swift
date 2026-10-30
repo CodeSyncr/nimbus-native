@@ -238,6 +238,7 @@ public final class Renderer {
                     decor[o.tag]?.layout(v)
                 }
             case .box(let o): box(o)
+            case .draw(let o): (views[o.tag] as? NNCanvas)?.set(o)
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
             case .image(let o): (views[o.tag] as? NNImageView)?.load(o)
             case .input(let o): (views[o.tag] as? NNInput)?.apply(o)
@@ -315,6 +316,7 @@ public final class Renderer {
                 self?.send(.toggled(Render.Toggled(tag: o.tag, on: sw.isOn)))
             }, for: .valueChanged)
             v = sw
+        case .canvas: v = NNCanvas()
         case .spinner:
             let s = UIActivityIndicatorView(style: .medium)
             s.startAnimating()
@@ -500,6 +502,60 @@ enum Fonts {
         }
         return map
     }()
+}
+
+/// A canvas (ui.Canvas): Go's shapes, drawn with Core Graphics in a W×H space
+/// fitted to the view.
+final class NNCanvas: UIView {
+    private var d = Render.Draw()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isOpaque = false
+        backgroundColor = .clear
+        contentMode = .redraw
+        isUserInteractionEnabled = false
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    func set(_ o: Render.Draw) {
+        d = o
+        setNeedsDisplay()
+    }
+
+    override func draw(_ rect: CGRect) {
+        guard let c = UIGraphicsGetCurrentContext(), d.w > 0, d.h > 0 else { return }
+        let s = min(bounds.width / CGFloat(d.w), bounds.height / CGFloat(d.h))
+        c.translateBy(x: (bounds.width - CGFloat(d.w) * s) / 2, y: (bounds.height - CGFloat(d.h) * s) / 2)
+        c.scaleBy(x: s, y: s)
+        var n = 0, k = 0
+        func num() -> CGFloat { defer { n += 1 }; return n < d.nums.count ? CGFloat(d.nums[n]) : 0 }
+        func col() -> CGColor { defer { k += 1 }; return (k < d.colors.count ? color(d.colors[k]) : nil)?.cgColor ?? UIColor.clear.cgColor }
+        var path = CGMutablePath()
+        for cmd in d.cmds {
+            switch cmd {
+            case 0: path.move(to: CGPoint(x: num(), y: num()))
+            case 1: path.addLine(to: CGPoint(x: num(), y: num()))
+            case 2: let cx = num(), cy = num(); path.addQuadCurve(to: CGPoint(x: num(), y: num()), control: CGPoint(x: cx, y: cy))
+            case 3:
+                let a = CGPoint(x: num(), y: num()), b = CGPoint(x: num(), y: num())
+                path.addCurve(to: CGPoint(x: num(), y: num()), control1: a, control2: b)
+            case 4: path.closeSubpath()
+            case 5: let x = num(), y = num(), r = num(); path.addEllipse(in: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2))
+            case 6:
+                let r = CGRect(x: num(), y: num(), width: num(), height: num()), rad = min(num(), min(r.width, r.height) / 2)
+                path.addRoundedRect(in: r, cornerWidth: max(rad, 0), cornerHeight: max(rad, 0))
+            case 7:
+                c.addPath(path); c.setFillColor(col()); c.fillPath()
+                path = CGMutablePath()
+            case 8:
+                let w = num()
+                c.addPath(path); c.setStrokeColor(col()); c.setLineWidth(w); c.setLineCap(.round); c.setLineJoin(.round); c.strokePath()
+                path = CGMutablePath()
+            default: return // a newer command: stop rather than draw it wrong
+            }
+        }
+    }
 }
 
 /// The blur under a view's children (Style.Blur): kept first among them.

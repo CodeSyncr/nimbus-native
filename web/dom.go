@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 	"math"
@@ -73,6 +74,7 @@ var elements = map[render.Kind][2]string{
 	render.KindModal:     {"div", "md"},
 	render.KindSwitch:    {"input", "sw"},
 	render.KindSlider:    {"input", "sl"},
+	render.KindCanvas:    {"canvas", "cv"},
 }
 
 func (t *translator) op(op render.Op) []instr {
@@ -101,6 +103,11 @@ func (t *translator) op(op render.Op) []instr {
 		return []instr{{"k": []any{o.Tag, o.Children}}}
 	case *render.Box:
 		return t.box(o)
+	case *render.Draw:
+		// The commands as an attribute (it survives server rendering);
+		// host.js paints any canvas that has one.
+		b, _ := json.Marshal(map[string]any{"w": o.W, "h": o.H, "k": o.Cmds, "n": o.Nums, "c": colorsCSS(o.Colors)})
+		return []instr{{"a": []any{o.Tag, "data-draw", string(b)}}}
 	case *render.Text:
 		x := fontCSS(o.Font, o.Color) + "text-align:" + [...]string{"left", "center", "right"}[o.Align%3] + ";"
 		if o.Lines > 0 {
@@ -329,6 +336,15 @@ func length(v layout.Value) string {
 func num(f float32) string { return strconv.FormatFloat(float64(f), 'f', -1, 32) }
 
 // cssColor turns 0xRRGGBBAA into a CSS color.
+// colorsCSS is a list of colors as CSS.
+func colorsCSS(cs []uint32) []string {
+	out := make([]string, len(cs))
+	for i, c := range cs {
+		out[i] = cssColor(c)
+	}
+	return out
+}
+
 // gradientCSS is a Box's gradient as a CSS image: the same points, in the
 // box's unit square, as the native hosts draw.
 func gradientCSS(o *render.Box) string {

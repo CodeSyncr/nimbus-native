@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x6b6c89dbc543bcd4uL.toLong()
+    val SCHEMA_HASH: Long = 0x3ec9d8f5160dc8e3uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -21,6 +21,7 @@ object Render {
         const val MODAL: Int = 9
         const val SWITCH: Int = 10
         const val SLIDER: Int = 11
+        const val CANVAS: Int = 12
     }
 
     /** Blur is how strongly what is behind a view is blurred: the platform's materials on iOS, a blur radius elsewhere. */
@@ -547,6 +548,44 @@ object Render {
         }
     }
 
+    /** Draw sets what a canvas draws: commands in a W×H space fitted to the view (centred, keeping its aspect, like an SVG viewBox). Each command takes its numbers from Nums and its colors from Colors, in order:  DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y DrawCubicTo c1x c1y c2x c2y x y · DrawClose DrawCircle cx cy r · DrawRect x y w h radius   (add to the path) DrawFill color · DrawStroke width color        (paint the path, then start a new one) */
+    data class Draw(
+        var tag: Long = 0L,
+        var w: Float = 0f,
+        var h: Float = 0f,
+        var cmds: ByteArray = ByteArray(0),
+        var nums: MutableList<Float> = mutableListOf(),
+        var colors: MutableList<Long> = mutableListOf(),
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.f32(this.w)
+            w.f32(this.h)
+            w.bytes(this.cmds)
+            w.uint(this.nums.size.toLong())
+            for (v0 in this.nums) {
+                w.f32(v0)
+            }
+            w.uint(this.colors.size.toLong())
+            for (v0 in this.colors) {
+                w.uint(v0)
+            }
+        }
+
+        companion object {
+            fun read(r0: WireReader): Draw {
+                val m = Draw()
+                m.tag = r0.uintMax(4294967295L)
+                m.w = r0.f32()
+                m.h = r0.f32()
+                m.cmds = r0.bytes()
+                m.nums = r0.list { r1 -> r1.f32() }
+                m.colors = r0.list { r1 -> r1.uintMax(4294967295L) }
+                return m
+            }
+        }
+    }
+
     /** Slider sets a slider. */
     data class Slider(
         var tag: Long = 0L,
@@ -1060,9 +1099,10 @@ object Render {
             is Chrome -> { w.uint(12); v.write(w) }
             is Present -> { w.uint(13); v.write(w) }
             is Scroll -> { w.uint(14); v.write(w) }
-            is Slider -> { w.uint(15); v.write(w) }
-            is Switch -> { w.uint(16); v.write(w) }
-            is Spinner -> { w.uint(17); v.write(w) }
+            is Draw -> { w.uint(15); v.write(w) }
+            is Slider -> { w.uint(16); v.write(w) }
+            is Switch -> { w.uint(17); v.write(w) }
+            is Spinner -> { w.uint(18); v.write(w) }
         }
     }
 
@@ -1082,9 +1122,10 @@ object Render {
         12L -> Chrome.read(r0)
         13L -> Present.read(r0)
         14L -> Scroll.read(r0)
-        15L -> Slider.read(r0)
-        16L -> Switch.read(r0)
-        17L -> Spinner.read(r0)
+        15L -> Draw.read(r0)
+        16L -> Slider.read(r0)
+        17L -> Switch.read(r0)
+        18L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 

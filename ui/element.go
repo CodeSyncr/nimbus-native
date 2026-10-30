@@ -37,6 +37,7 @@ type Element struct {
 	value       float32 // a Slider's value
 	min, max    float32
 	onSlide     func(float32)
+	draw        *render.Draw // a Canvas's shapes
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec

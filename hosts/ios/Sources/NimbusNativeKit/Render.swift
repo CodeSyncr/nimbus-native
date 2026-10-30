@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x6b6c89dbc543bcd4
+    public static let schemaHash: UInt64 = 0x3ec9d8f5160dc8e3
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -21,6 +21,7 @@ public enum Render {
         public static let modal = Kind(rawValue: 9)
         public static let `switch` = Kind(rawValue: 10)
         public static let slider = Kind(rawValue: 11)
+        public static let canvas = Kind(rawValue: 12)
     }
 
     /// Blur is how strongly what is behind a view is blurred: the platform's
@@ -664,6 +665,57 @@ public enum Render {
         }
     }
 
+    /// Draw sets what a canvas draws: commands in a W×H space fitted to the
+    /// view (centred, keeping its aspect, like an SVG viewBox). Each command takes
+    /// its numbers from Nums and its colors from Colors, in order:
+    /// DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y
+    /// DrawCubicTo c1x c1y c2x c2y x y · DrawClose
+    /// DrawCircle cx cy r · DrawRect x y w h radius   (add to the path)
+    /// DrawFill color · DrawStroke width color        (paint the path, then start a new one)
+    public struct Draw: Equatable {
+        public var tag: UInt32
+        public var w: Float
+        public var h: Float
+        public var cmds: [UInt8]
+        public var nums: [Float]
+        public var colors: [UInt32]
+
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, cmds: [UInt8] = [], nums: [Float] = [], colors: [UInt32] = []) {
+            self.tag = tag
+            self.w = w
+            self.h = h
+            self.cmds = cmds
+            self.nums = nums
+            self.colors = colors
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.float32(self.w)
+            w.float32(self.h)
+            w.bytes(self.cmds)
+            w.uint(UInt64(self.nums.count))
+            for v0 in self.nums {
+                w.float32(v0)
+            }
+            w.uint(UInt64(self.colors.count))
+            for v0 in self.colors {
+                w.uint(UInt64(v0))
+            }
+        }
+
+        public static func read(from r: inout WireReader) throws -> Draw {
+            var m = Draw()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.w = try r.float32()
+            m.h = try r.float32()
+            m.cmds = try r.bytes()
+            m.nums = try r.list { r in try r.float32() }
+            m.colors = try r.list { r in UInt32(try r.uint(max: 4294967295)) }
+            return m
+        }
+    }
+
     /// Slider sets a slider.
     public struct Slider: Equatable {
         public var tag: UInt32
@@ -1268,6 +1320,7 @@ public enum Render {
         case chrome(Chrome)
         case present(Present)
         case scroll(Scroll)
+        case draw(Draw)
         case slider(Slider)
         case `switch`(Switch)
         case spinner(Spinner)
@@ -1318,14 +1371,17 @@ public enum Render {
             case .scroll(let x)?:
                 w.uint(14)
                 x.write(to: &w)
-            case .slider(let x)?:
+            case .draw(let x)?:
                 w.uint(15)
                 x.write(to: &w)
-            case .switch(let x)?:
+            case .slider(let x)?:
                 w.uint(16)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .switch(let x)?:
                 w.uint(17)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(18)
                 x.write(to: &w)
             }
         }
@@ -1363,10 +1419,12 @@ public enum Render {
             case 14:
                 return .scroll(try Scroll.read(from: &r))
             case 15:
-                return .slider(try Slider.read(from: &r))
+                return .draw(try Draw.read(from: &r))
             case 16:
-                return .switch(try Switch.read(from: &r))
+                return .slider(try Slider.read(from: &r))
             case 17:
+                return .switch(try Switch.read(from: &r))
+            case 18:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant

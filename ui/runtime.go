@@ -273,6 +273,7 @@ type sentProps struct {
 	spin   render.Spinner
 	toggle render.Switch
 	slider render.Slider
+	draw   render.Draw
 	frame  render.Frame
 }
 
@@ -662,6 +663,16 @@ func (rt *runtime) props(in *instance, first bool) {
 		if first || sw != in.sent.toggle {
 			in.sent.toggle = sw
 			rt.op(&sw)
+		}
+	case render.KindCanvas:
+		if d := el.draw; d != nil {
+			d.Tag = in.tag
+			old := in.sent.draw
+			if first || d.W != old.W || d.H != old.H || !slices.Equal(d.Cmds, old.Cmds) ||
+				!slices.Equal(d.Nums, old.Nums) || !slices.Equal(d.Colors, old.Colors) {
+				in.sent.draw = *d
+				rt.op(d)
+			}
 		}
 	case render.KindSlider:
 		tint := s.Color

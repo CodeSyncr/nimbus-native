@@ -27,6 +27,7 @@ internal class BoxDrawable(private val view: View, private val o: Render.Box, pr
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val shade = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
+    private val shadow = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
     private val rect = RectF()
     private val backdrop = if (o.blur != Render.Blur.NONE && Build.VERSION.SDK_INT >= 31) Backdrop(view, blurRadius(o.blur) * density) else null
@@ -50,6 +51,17 @@ internal class BoxDrawable(private val view: View, private val o: Render.Box, pr
         if (b.isEmpty) return
         path.reset()
         path.addPath(outline(b.width(), b.height()))
+        if (o.shadowColor != 0L) {
+            // The shadow, drawn here (not with elevation, which would lift the view above its
+            // siblings): the shape's shadow, outside the shape, as iOS and the web draw it.
+            val c = Renderer.argb(o.shadowColor)
+            shadow.color = c
+            shadow.setShadowLayer(maxOf(o.shadowRadius * density / 2, 0.5f), o.shadowX * density, o.shadowY * density, c)
+            canvas.save()
+            canvas.clipOutPath(path)
+            canvas.drawPath(path, shadow)
+            canvas.restore()
+        }
         backdrop?.draw(canvas, path)
         if (o.background != 0L) {
             fill.color = Renderer.argb(o.background)
@@ -195,5 +207,61 @@ internal class Backdrop(private val view: View, private val radius: Float) {
 
         /** The window is drawn at 1/SCALE size: the blur hides the difference. */
         private const val SCALE = 6
+    }
+}
+
+/** A canvas (ui.Canvas): Go's shapes, drawn in a W×H space fitted to the view. */
+internal class NNCanvas(c: android.content.Context) : View(c) {
+    private var d = Render.Draw()
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    fun set(o: Render.Draw) {
+        d = o
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        if (d.w <= 0f || d.h <= 0f) return
+        val s = min(width / d.w, height / d.h)
+        canvas.save()
+        canvas.translate((width - d.w * s) / 2, (height - d.h * s) / 2)
+        canvas.scale(s, s)
+        var n = 0
+        var k = 0
+        fun num(): Float = if (n < d.nums.size) d.nums[n++] else { n++; 0f }
+        fun col(): Int = if (k < d.colors.size) Renderer.argb(d.colors[k++]) else { k++; 0 }
+        var path = Path()
+        for (cmd in d.cmds) {
+            when (cmd.toInt()) {
+                0 -> path.moveTo(num(), num())
+                1 -> path.lineTo(num(), num())
+                2 -> path.quadTo(num(), num(), num(), num())
+                3 -> path.cubicTo(num(), num(), num(), num(), num(), num())
+                4 -> path.close()
+                5 -> path.addCircle(num(), num(), num(), Path.Direction.CW)
+                6 -> {
+                    val x = num(); val y = num(); val w = num(); val h = num()
+                    val r = min(num(), min(w, h) / 2).coerceAtLeast(0f)
+                    path.addRoundRect(RectF(x, y, x + w, y + h), r, r, Path.Direction.CW)
+                }
+                7 -> {
+                    paint.style = Paint.Style.FILL
+                    paint.color = col()
+                    canvas.drawPath(path, paint)
+                    path = Path()
+                }
+                8 -> {
+                    paint.style = Paint.Style.STROKE
+                    paint.strokeWidth = num()
+                    paint.strokeCap = Paint.Cap.ROUND
+                    paint.strokeJoin = Paint.Join.ROUND
+                    paint.color = col()
+                    canvas.drawPath(path, paint)
+                    path = Path()
+                }
+                else -> break // a newer command: stop rather than draw it wrong
+            }
+        }
+        canvas.restore()
     }
 }
