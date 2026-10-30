@@ -30,6 +30,8 @@ const (
 	KindModal
 	// KindSwitch is an on/off toggle: UISwitch, Android's Switch.
 	KindSwitch
+	// KindSlider picks a number in a range: UISlider, Android's SeekBar.
+	KindSlider
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -95,6 +97,10 @@ type Box struct {
 	Label       string // accessibility label
 	TestID      string // accessibilityIdentifier / view tag, for tests
 	Href        string // where a pressable leads (the web host makes it a link)
+	// Transition animates changes to this view's frame, opacity and
+	// background over this many milliseconds; 0 changes them at once.
+	Transition uint32
+	LongPress  bool // a pressable that reports long presses
 }
 
 // Align is horizontal text alignment.
@@ -232,6 +238,17 @@ type Scroll struct {
 	// keeps the indicator showing until Go clears it.
 	Refreshable bool
 	Refreshing  bool
+}
+
+// Slider sets a slider.
+//
+//wire:variant Op
+type Slider struct {
+	Tag      uint32
+	Value    float32
+	Min, Max float32
+	Enabled  bool
+	Tint     uint32
 }
 
 // Switch sets a toggle's state.
@@ -384,3 +401,22 @@ type Refresh struct{ Tag uint32 }
 //
 //wire:message
 type Reattach struct{ Reason string }
+
+// Open reports a link that opened the app (myapp://orders/42, or a web link
+// the app handles), at launch or while it runs.
+//
+//wire:message
+type Open struct{ URL string }
+
+// Slid reports the value the user dragged a slider to.
+//
+//wire:message
+type Slid struct {
+	Tag   uint32
+	Value float32
+}
+
+// LongPressed reports a long press on a pressable that asked for them.
+//
+//wire:message
+type LongPressed struct{ Tag uint32 }

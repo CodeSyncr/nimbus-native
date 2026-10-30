@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/CodeSyncr/nimbus-native/ui/render"
@@ -97,5 +98,34 @@ func TestSafeAreaClearsKeyboard(t *testing.T) {
 	h.send(&render.Viewport{W: 320, H: 480, Scale: 2, Platform: "ios", SafeBottom: 34})
 	if p := root.node.Style.Padding.Bottom; p != 34 {
 		t.Fatalf("bottom padding %v after the keyboard hid, want 34", p)
+	}
+}
+
+type volumeScreen struct{}
+
+func (volumeScreen) Render(c *Ctx) *Element {
+	v, setV := State(c, float32(0.25))
+	n, setN := State(c, 0)
+	return View(Style{},
+		Slider(v, 0, 1, setV, Style{}).TestID("volume"),
+		Text(fmt.Sprintf("%.2f %d", v, n), Style{}).TestID("value"),
+		Pressable(func() {}, Style{Height: Pt(44), Transition: 200}).OnLongPress(func() { setN(n + 1) }).TestID("hold"),
+	)
+}
+
+func TestSliderLongPressTransition(t *testing.T) {
+	h := start(t, volumeScreen{})
+	sl := h.all(func(o render.Op) bool { _, ok := o.(*render.Slider); return ok })
+	if len(sl) == 0 || sl[0].(*render.Slider).Max != 1 || !sl[0].(*render.Slider).Enabled {
+		t.Fatalf("slider op: %v", sl)
+	}
+	box := h.all(func(o render.Op) bool { b, ok := o.(*render.Box); return ok && b.LongPress && b.Transition == 200 })
+	if len(box) == 0 {
+		t.Fatal("the pressable's box has no long press or transition")
+	}
+	h.send(&render.Slid{Tag: h.tagOf("volume"), Value: 0.75})
+	h.send(&render.LongPressed{Tag: h.tagOf("hold")})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "0.75 1" }); len(got) == 0 {
+		t.Fatal("slide and long press did not reach their handlers")
 	}
 }

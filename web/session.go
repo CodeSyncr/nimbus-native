@@ -237,6 +237,7 @@ type clientMessage struct {
 	Scale float32 `json:"scale"`
 	Dark  bool    `json:"dark"`
 	Path  string  `json:"path"`
+	Value float32 `json:"value"`
 }
 
 func (s *session) receive(m clientMessage) {
@@ -250,6 +251,10 @@ func (s *session) receive(m clientMessage) {
 		msg = &render.Changed{Tag: m.Tag, Text: m.Text}
 	case "toggled":
 		msg = &render.Toggled{Tag: m.Tag, On: m.On}
+	case "slid":
+		msg = &render.Slid{Tag: m.Tag, Value: m.Value}
+	case "longpress":
+		msg = &render.LongPressed{Tag: m.Tag}
 	case "popped":
 		msg = &render.Popped{Tag: m.Tag, Depth: m.Depth}
 	case "selected":

@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x9f8e24ae5a72a614
+    public static let schemaHash: UInt64 = 0xffdf5d119a78f240
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -20,6 +20,7 @@ public enum Render {
         public static let tabs = Kind(rawValue: 8)
         public static let modal = Kind(rawValue: 9)
         public static let `switch` = Kind(rawValue: 10)
+        public static let slider = Kind(rawValue: 11)
     }
 
     /// Align is horizontal text alignment.
@@ -211,8 +212,10 @@ public enum Render {
         public var label: String
         public var testID: String
         public var href: String
+        public var transition: UInt32
+        public var longPress: Bool
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "") {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -223,6 +226,8 @@ public enum Render {
             self.label = label
             self.testID = testID
             self.href = href
+            self.transition = transition
+            self.longPress = longPress
         }
 
         public func write(to w: inout WireWriter) {
@@ -236,6 +241,8 @@ public enum Render {
             w.string(self.label)
             w.string(self.testID)
             w.string(self.href)
+            w.uint(UInt64(self.transition))
+            w.bool(self.longPress)
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -250,6 +257,8 @@ public enum Render {
             m.label = try r.string()
             m.testID = try r.string()
             m.href = try r.string()
+            m.transition = UInt32(try r.uint(max: 4294967295))
+            m.longPress = try r.bool()
             return m
         }
     }
@@ -573,6 +582,45 @@ public enum Render {
             m.report = try r.bool()
             m.refreshable = try r.bool()
             m.refreshing = try r.bool()
+            return m
+        }
+    }
+
+    /// Slider sets a slider.
+    public struct Slider: Equatable {
+        public var tag: UInt32
+        public var value: Float
+        public var min: Float
+        public var max: Float
+        public var enabled: Bool
+        public var tint: UInt32
+
+        public init(tag: UInt32 = 0, value: Float = 0, min: Float = 0, max: Float = 0, enabled: Bool = false, tint: UInt32 = 0) {
+            self.tag = tag
+            self.value = value
+            self.min = min
+            self.max = max
+            self.enabled = enabled
+            self.tint = tint
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.float32(self.value)
+            w.float32(self.min)
+            w.float32(self.max)
+            w.bool(self.enabled)
+            w.uint(UInt64(self.tint))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Slider {
+            var m = Slider()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.value = try r.float32()
+            m.min = try r.float32()
+            m.max = try r.float32()
+            m.enabled = try r.bool()
+            m.tint = UInt32(try r.uint(max: 4294967295))
             return m
         }
     }
@@ -1064,6 +1112,68 @@ public enum Render {
         }
     }
 
+    /// Open reports a link that opened the app (myapp://orders/42, or a web link
+    /// the app handles), at launch or while it runs.
+    public struct Open: Equatable {
+        public var url: String
+
+        public init(url: String = "") {
+            self.url = url
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.string(self.url)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Open {
+            var m = Open()
+            m.url = try r.string()
+            return m
+        }
+    }
+
+    /// Slid reports the value the user dragged a slider to.
+    public struct Slid: Equatable {
+        public var tag: UInt32
+        public var value: Float
+
+        public init(tag: UInt32 = 0, value: Float = 0) {
+            self.tag = tag
+            self.value = value
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.float32(self.value)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Slid {
+            var m = Slid()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.value = try r.float32()
+            return m
+        }
+    }
+
+    /// LongPressed reports a long press on a pressable that asked for them.
+    public struct LongPressed: Equatable {
+        public var tag: UInt32
+
+        public init(tag: UInt32 = 0) {
+            self.tag = tag
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+        }
+
+        public static func read(from r: inout WireReader) throws -> LongPressed {
+            var m = LongPressed()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            return m
+        }
+    }
+
     /// Op changes one native view.
     public indirect enum Op: Equatable {
         case create(Create)
@@ -1080,6 +1190,7 @@ public enum Render {
         case chrome(Chrome)
         case present(Present)
         case scroll(Scroll)
+        case slider(Slider)
         case `switch`(Switch)
         case spinner(Spinner)
 
@@ -1129,11 +1240,14 @@ public enum Render {
             case .scroll(let x)?:
                 w.uint(14)
                 x.write(to: &w)
-            case .switch(let x)?:
+            case .slider(let x)?:
                 w.uint(15)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .switch(let x)?:
                 w.uint(16)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(17)
                 x.write(to: &w)
             }
         }
@@ -1171,8 +1285,10 @@ public enum Render {
             case 14:
                 return .scroll(try Scroll.read(from: &r))
             case 15:
-                return .switch(try Switch.read(from: &r))
+                return .slider(try Slider.read(from: &r))
             case 16:
+                return .switch(try Switch.read(from: &r))
+            case 17:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -1199,6 +1315,9 @@ public enum Render {
         case toggled(Toggled)
         case refresh(Refresh)
         case reattach(Reattach)
+        case `open`(Open)
+        case slid(Slid)
+        case longPressed(LongPressed)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
             switch v {
@@ -1255,6 +1374,15 @@ public enum Render {
             case .reattach(let x)?:
                 w.uint(17)
                 x.write(to: &w)
+            case .open(let x)?:
+                w.uint(18)
+                x.write(to: &w)
+            case .slid(let x)?:
+                w.uint(19)
+                x.write(to: &w)
+            case .longPressed(let x)?:
+                w.uint(20)
+                x.write(to: &w)
             }
         }
 
@@ -1296,6 +1424,12 @@ public enum Render {
                 return .refresh(try Refresh.read(from: &r))
             case 17:
                 return .reattach(try Reattach.read(from: &r))
+            case 18:
+                return .open(try Open.read(from: &r))
+            case 19:
+                return .slid(try Slid.read(from: &r))
+            case 20:
+                return .longPressed(try LongPressed.read(from: &r))
             default:
                 throw WireError.variant
             }

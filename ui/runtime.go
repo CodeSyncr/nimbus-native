@@ -84,6 +84,8 @@ type runtime struct {
 	seq          uint64
 	measures     uint32
 
+	pendingLink string // a link that arrived before the first render (links.go)
+
 	// Stores (store.go).
 	storesMu sync.Mutex
 	stores   map[any]*storeState
@@ -200,6 +202,20 @@ func (rt *runtime) receive(b []byte) {
 			rt.dismissed(m.Tag)
 		case *render.Reattach:
 			rt.replay()
+		case *render.Open:
+			rt.openLink(m.URL)
+		case *render.Slid:
+			if in := rt.byTag[m.Tag]; in != nil {
+				in.sent.slider.Value = m.Value // what the host shows
+				if in.el.onSlide != nil {
+					in.el.onSlide(m.Value)
+				}
+				rt.dirty = true
+			}
+		case *render.LongPressed:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onLongPress != nil {
+				in.el.onLongPress()
+			}
 		case *render.Toggled:
 			if in := rt.byTag[m.Tag]; in != nil {
 				in.sent.toggle.On = m.On // what the host shows; Go's answer is diffed against it
@@ -255,6 +271,7 @@ type sentProps struct {
 	scroll render.Scroll
 	spin   render.Spinner
 	toggle render.Switch
+	slider render.Slider
 	frame  render.Frame
 }
 
@@ -315,6 +332,11 @@ func (rt *runtime) commit() {
 	rt.ops = rt.ops[:0]
 
 	rt.saveNav()
+	if rt.pendingLink != "" {
+		link := rt.pendingLink
+		rt.pendingLink = ""
+		rt.do(func() { rt.openLink(link) })
+	}
 
 	effects := rt.effects
 	rt.effects = nil
@@ -366,6 +388,8 @@ func (rt *runtime) mount(el *Element, parent *instance) *instance {
 		in.node.Measure = rt.spinnerMeasure
 	case render.KindSwitch:
 		in.node.Measure = rt.switchMeasure
+	case render.KindSlider:
+		in.node.Measure = rt.sliderMeasure
 	}
 	rt.props(in, true)
 	rt.children(in)
@@ -566,7 +590,8 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
-		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href}
+		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
+		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil}
 	if box != in.sent.box && !(first && box == (render.Box{Tag: in.tag, Opacity: 1})) {
 		rt.op(&box)
 	}
@@ -625,6 +650,16 @@ func (rt *runtime) props(in *instance, first bool) {
 		if first || sw != in.sent.toggle {
 			in.sent.toggle = sw
 			rt.op(&sw)
+		}
+	case render.KindSlider:
+		tint := s.Color
+		if tint == 0 {
+			tint = theme.Primary
+		}
+		sl := render.Slider{Tag: in.tag, Value: el.value, Min: el.min, Max: el.max, Enabled: el.onSlide != nil, Tint: uint32(tint)}
+		if first || sl != in.sent.slider {
+			in.sent.slider = sl
+			rt.op(&sl)
 		}
 	}
 }
@@ -695,6 +730,15 @@ func (rt *runtime) inputMeasure(in *instance) layout.MeasureFunc {
 		}
 		return width, sz.H + 2*fieldPadding
 	}
+}
+
+// sliderMeasure: as wide as offered (160 when free), the control's height.
+func (rt *runtime) sliderMeasure(w float32, wm layout.Mode, h float32, hm layout.Mode) (float32, float32) {
+	width := float32(160)
+	if wm != layout.Undefined {
+		width = w
+	}
+	return width, 32
 }
 
 // switchMeasure is the platform toggle's own size.

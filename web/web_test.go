@@ -96,10 +96,10 @@ func TestServerRendering(t *testing.T) {
 		"<title>Orders · Shop</title>",
 		`<meta name="description" content="Every order, newest first.">`,
 		`<link rel="canonical" href="` + srv.URL + `/orders">`,
-		">Shop</div>",                    // the layout
-		">Asha Rao</div>",                // data the page waited for
-		`href="/orders/2"`,               // links crawlers can follow
-		`data-testid="row-1"`,            // attributes
+		">Shop</div>",                  // the layout
+		">Asha Rao</div>",              // data the page waited for
+		`href="/orders/2"`,             // links crawlers can follow
+		`data-testid="row-1"`,          // attributes
 		"display:flex;flex-direction:", // layout as CSS
 		`<script src="/_nn/host.js?v=` + hostVersion + `" data-session="`,
 	} {

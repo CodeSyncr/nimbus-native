@@ -338,6 +338,17 @@ func (p *pass) layout(n *Node, availW float32, wMode Mode, availH float32, hMode
 		it.hyp = clamp(it.base, it.min, it.max)
 	}
 
+	if s.Wrap && len(items) > 1 && !s.Scroll {
+		limit := innerMain
+		if !defined(limit) && mainMode == AtMost && defined(mainLimit) {
+			limit = mainLimit - pbMain
+		}
+		if defined(limit) {
+			return p.wrapped(n, items, ax, cx, limit, mainSize, crossSize, crossAvail, crossLimit, pbMain, pbCross,
+				pctW, pctH, ownerW, ownerH, w, h, final)
+		}
+	}
+
 	gaps := float32(0)
 	if len(items) > 1 {
 		gaps = s.Gap * float32(len(items)-1)
@@ -471,6 +482,155 @@ func (p *pass) layout(n *Node, availW float32, wMode Mode, availH float32, hMode
 	}
 
 	// 5. Absolutely positioned children, against the padding box.
+	for _, c := range n.Children {
+		if !c.Style.Hidden && c.Style.Position == Absolute {
+			p.absolute(n, c, w, h, ax)
+		}
+	}
+	for _, c := range n.Children {
+		if c.Style.Hidden {
+			c.X, c.Y, c.W, c.H = 0, 0, 0, 0
+		}
+	}
+	return w, h
+}
+
+// wrapped lays out a wrapping container's flowing children in lines no
+// longer than limit along the main axis: each line flexes on its own, lines
+// stack along the cross axis at the start, LineGap apart.
+func (p *pass) wrapped(n *Node, items []item, ax, cx axis, limit, mainSize, crossSize, crossAvail, crossLimit,
+	pbMain, pbCross, pctW, pctH, ownerW, ownerH, w, h float32, final bool) (float32, float32) {
+	s := &n.Style
+	lineGap := s.LineGap
+	if lineGap == 0 {
+		lineGap = s.Gap
+	}
+
+	// Break into lines by hypothetical main size.
+	var lines [][]item
+	used := float32(0)
+	for i := range items {
+		need := items[i].hyp + items[i].marginMain
+		if k := len(lines); k > 0 && used+s.Gap+need <= limit+0.001 {
+			lines[k-1] = append(lines[k-1], items[i])
+			used += s.Gap + need
+			continue
+		}
+		lines = append(lines, []item{items[i]})
+		used = need
+	}
+
+	// The container's main size: the limit once anything wrapped, else what
+	// the single line needs.
+	if !defined(mainSize) {
+		need := limit
+		if len(lines) == 1 {
+			need = used
+		}
+		_, mn, mx := ax.styleSize(s)
+		ownerMain := ax.size(ownerW, ownerH)
+		mainSize = clamp(need+pbMain, max32orDef(mn.resolve(ownerMain), pbMain), mx.resolve(ownerMain))
+	}
+	innerMain := mainSize - pbMain
+
+	// Flex each line, then size its items' cross axis and the line itself.
+	lineCross := make([]float32, len(lines))
+	total := float32(0)
+	for li, line := range lines {
+		gaps := s.Gap * float32(len(line)-1)
+		resolveFlexible(line, innerMain-gaps)
+		for i := range line {
+			it := &line[i]
+			cs := &it.n.Style
+			cSize, cMin, cMax := cx.styleSize(cs)
+			ownerCross := cx.size(pctW, pctH)
+			if v := cSize.resolve(ownerCross); defined(v) {
+				it.cross = clamp(v, cMin.resolve(ownerCross), cMax.resolve(ownerCross))
+			} else {
+				crossOffer, crossMode := undefined, Undefined
+				if defined(crossAvail) {
+					crossOffer, crossMode = crossAvail-it.marginCross, AtMost
+				}
+				cw, ch := p.offer(it.n, ax, it.target, Exactly, crossOffer, crossMode, pctW, pctH, false)
+				it.cross = cx.size(cw, ch)
+			}
+			lineCross[li] = max32(lineCross[li], it.cross+it.marginCross)
+		}
+		for i := range line { // stretch to the line
+			if line[i].stretchCross {
+				_, cMin, cMax := cx.styleSize(&line[i].n.Style)
+				ownerCross := cx.size(pctW, pctH)
+				line[i].cross = clamp(lineCross[li]-line[i].marginCross, cMin.resolve(ownerCross), cMax.resolve(ownerCross))
+			}
+		}
+		total += lineCross[li]
+	}
+	total += lineGap * float32(len(lines)-1)
+
+	if !defined(crossSize) {
+		_, cMinV, cMaxV := cx.styleSize(s)
+		ownerC := ax.size(ownerH, ownerW)
+		crossSize = clamp(total+pbCross, max32orDef(cMinV.resolve(ownerC), pbCross), cMaxV.resolve(ownerC))
+		if defined(crossLimit) && crossSize > crossLimit {
+			crossSize = crossLimit
+		}
+	}
+	if ax.row {
+		w, h = mainSize, crossSize
+	} else {
+		w, h = crossSize, mainSize
+	}
+	if !final {
+		return w, h
+	}
+
+	// Place each line's items.
+	crossPos := cx.lead(s.Padding) + cx.lead(s.Border)
+	contentMain, contentCross := float32(0), float32(0)
+	for li, line := range lines {
+		used := s.Gap * float32(len(line)-1)
+		for _, it := range line {
+			used += it.target + it.marginMain
+		}
+		lead, between := justify(s.Justify, innerMain-used, len(line))
+		pos := ax.lead(s.Padding) + ax.lead(s.Border) + lead
+		for _, it := range line {
+			c := it.n
+			cs := &c.Style
+			if ax.row {
+				p.compute(c, it.target, Exactly, it.cross, Exactly, pctW, pctH, 0, true)
+			} else {
+				p.compute(c, it.cross, Exactly, it.target, Exactly, pctW, pctH, 0, true)
+			}
+			pos += ax.lead(cs.Margin)
+			ax.setPos(c, pos+relOffset(ax, cs, pctW, pctH))
+			pos += it.target + ax.trail(cs.Margin) + s.Gap + between
+
+			align := cs.AlignSelf
+			if align == AlignAuto {
+				align = s.AlignItems
+			}
+			room := lineCross[li] - it.cross - it.marginCross
+			off := float32(0)
+			switch align {
+			case AlignCenter:
+				off = room / 2
+			case AlignEnd:
+				off = room
+			}
+			cpos := crossPos + cx.lead(cs.Margin) + off
+			cx.setPos(c, cpos+relOffset(cx, cs, pctW, pctH))
+		}
+		contentMain = max32(contentMain, pos-s.Gap-between+ax.trail(s.Padding))
+		crossPos += lineCross[li] + lineGap
+		contentCross = crossPos - lineGap
+	}
+	contentCross += cx.trail(s.Padding)
+	if ax.row {
+		n.ContentW, n.ContentH = max32(contentMain, w-ax.trail(s.Border)), max32(contentCross, h-cx.trail(s.Border))
+	} else {
+		n.ContentW, n.ContentH = max32(contentCross, w-cx.trail(s.Border)), max32(contentMain, h-ax.trail(s.Border))
+	}
 	for _, c := range n.Children {
 		if !c.Style.Hidden && c.Style.Position == Absolute {
 			p.absolute(n, c, w, h, ax)

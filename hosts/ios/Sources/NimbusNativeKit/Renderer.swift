@@ -75,6 +75,7 @@ public final class Renderer {
 
     private var views: [UInt32: UIView] = [:]
     private var radii: [UInt32: CGFloat] = [:] // as asked; drawn at most half the short side
+    private var transitions: [UInt32: UInt32] = [:] // ms, for views whose changes animate
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
     private var lastViewport: Render.Viewport?
@@ -149,6 +150,12 @@ public final class Renderer {
         return true
     }
 
+    /// Opens a link to the app (myapp://orders/42): its page shows, pushed on
+    /// the navigation stack on screen, or as a sheet.
+    public func open(_ url: URL) {
+        send(.open(Render.Open(url: url.absoluteString)))
+    }
+
     /// Types into an input as the user would, replacing its text (for tests and demos).
     public func type(tag: UInt32, text: String) {
         (views[tag] as? NNInput)?.userTyped(text)
@@ -197,6 +204,7 @@ public final class Renderer {
                 let gone = Set(o.tags.compactMap { views[$0] }.map(ObjectIdentifier.init))
                 for t in o.tags {
                     radii.removeValue(forKey: t)
+                    transitions.removeValue(forKey: t)
                     let v = views.removeValue(forKey: t)
                     if let m = modals.removeValue(forKey: t) {
                         // Its controller keeps the views while it animates away.
@@ -212,8 +220,16 @@ public final class Renderer {
             case .children(let o): children(o)
             case .frame(let o):
                 guard let v = views[o.tag] else { break }
-                v.frame = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
-                if let r = radii[o.tag] { round(v, r) }
+                let f = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
+                if let ms = transitions[o.tag], v.frame != .zero {
+                    animate(ms) {
+                        v.frame = f
+                        if let r = self.radii[o.tag] { self.round(v, r) }
+                    }
+                } else {
+                    v.frame = f
+                    if let r = radii[o.tag] { round(v, r) }
+                }
             case .box(let o): box(o)
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
             case .image(let o): (views[o.tag] as? NNImageView)?.load(o)
@@ -227,6 +243,14 @@ public final class Renderer {
                     refresh(s, tag: o.tag, o)
                 }
             case .spinner(let o): (views[o.tag] as? UIActivityIndicatorView)?.color = color(o.color) ?? .gray
+            case .slider(let o):
+                if let sl = views[o.tag] as? UISlider {
+                    sl.minimumValue = o.min
+                    sl.maximumValue = o.max
+                    if !sl.isTracking, sl.value != o.value { sl.setValue(o.value, animated: sl.window != nil) }
+                    sl.isEnabled = o.enabled
+                    sl.minimumTrackTintColor = color(o.tint)
+                }
             case .switch(let o):
                 if let sw = views[o.tag] as? UISwitch {
                     if sw.isOn != o.on { sw.setOn(o.on, animated: sw.window != nil) }
@@ -270,6 +294,13 @@ public final class Renderer {
         case .scroll: v = UIScrollView()
         case .input:
             v = NNInput { [weak self] text in self?.send(.changed(Render.Changed(tag: o.tag, text: text))) }
+        case .slider:
+            let sl = UISlider()
+            sl.addAction(UIAction { [weak self, weak sl] _ in
+                guard let sl else { return }
+                self?.send(.slid(Render.Slid(tag: o.tag, value: sl.value)))
+            }, for: .valueChanged)
+            v = sl
         case .switch:
             let sw = UISwitch()
             sw.addAction(UIAction { [weak self, weak sw] _ in
@@ -325,16 +356,30 @@ public final class Renderer {
 
     private func box(_ o: Render.Box) {
         guard let v = views[o.tag] else { return }
-        v.backgroundColor = color(o.background) ?? .clear // nil paints some views (UILabel) black
+        let animated = transitions[o.tag] != nil && v.window != nil
+        transitions[o.tag] = o.transition > 0 ? o.transition : nil
+        let look = {
+            v.backgroundColor = color(o.background) ?? .clear // nil paints some views (UILabel) black
+            if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }
+        }
+        if animated, o.transition > 0 { animate(o.transition, look) } else { look() }
         radii[o.tag] = o.radius > 0 ? CGFloat(o.radius) : nil
         round(v, CGFloat(o.radius))
         v.layer.borderWidth = CGFloat(o.borderWidth)
         v.layer.borderColor = color(o.borderColor)?.cgColor
-        if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }
+        if o.longPress, let p = v as? NNPressable {
+            let tag = o.tag
+            p.reportLongPress { [weak self] in self?.send(.longPressed(Render.LongPressed(tag: tag))) }
+        }
         if !(v is UIScrollView) { v.clipsToBounds = o.clip }
         v.accessibilityLabel = o.label.isEmpty ? nil : o.label
         v.accessibilityIdentifier = o.testID.isEmpty ? nil : o.testID
         if !o.label.isEmpty { v.isAccessibilityElement = true }
+    }
+
+    /// Runs changes as an animation of ms milliseconds (Style.Transition).
+    private func animate(_ ms: UInt32, _ changes: @escaping () -> Void) {
+        UIView.animate(withDuration: Double(ms) / 1000, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState, .allowUserInteraction], animations: changes)
     }
 
     /// Core Animation draws nothing for a corner radius over half the short
@@ -433,6 +478,24 @@ final class NNLabel: UILabel {
 final class NNPressable: UIControl {
     var baseAlpha: CGFloat = 1 { didSet { alpha = isHighlighted ? baseAlpha * 0.6 : baseAlpha } }
     override var isHighlighted: Bool { didSet { alpha = isHighlighted ? baseAlpha * 0.6 : baseAlpha } }
+
+    private(set) var reportsLongPress = false
+    private var onLongPress: (() -> Void)?
+
+    /// Reports long presses (and keeps a long press from also being a tap).
+    func reportLongPress(_ f: @escaping () -> Void) {
+        guard !reportsLongPress else { return }
+        reportsLongPress = true
+        onLongPress = f
+        addGestureRecognizer(UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:))))
+    }
+
+    @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
+        guard g.state == .began else { return }
+        cancelTracking(with: nil) // the touch is a long press now, not a tap
+        isHighlighted = false
+        onLongPress?()
+    }
 }
 
 /// A text field with room around the text (the runtime measures inputs with

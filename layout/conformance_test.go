@@ -28,7 +28,8 @@ body { margin: 0 }
 section { position: relative; height: 600px }
 section > div { position: absolute; left: 0; top: 0 }
 div { box-sizing: border-box; display: flex; flex-direction: column; flex-shrink: 0;
-      position: relative; min-width: 0; min-height: 0; border: 0 solid black; align-items: stretch }
+      position: relative; min-width: 0; min-height: 0; border: 0 solid black; align-items: stretch;
+      align-content: flex-start }
 `
 
 // tolerance covers Chromium's 1/64 px LayoutUnit rounding.
@@ -179,6 +180,8 @@ func parseStyle(t *testing.T, css string) Style {
 			s.Right = val(v)
 		case "bottom":
 			s.Bottom = val(v)
+		case "flex-wrap":
+			s.Wrap = v == "wrap"
 		case "display":
 			s.Hidden = v == "none"
 		default:

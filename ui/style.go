@@ -89,6 +89,14 @@ type Style struct {
 	Padding Edges
 	Margin  Edges
 	Gap     float32
+	// Wrap moves children that don't fit onto new lines (rows of chips,
+	// grids of tags); LineGap spaces the lines, Gap when zero.
+	Wrap    bool
+	LineGap float32
+
+	// Transition animates this view's changes of position, size, opacity
+	// and background over this many milliseconds, instead of jumping.
+	Transition int
 
 	Absolute                 bool
 	Left, Top, Right, Bottom Value
@@ -153,6 +161,11 @@ func (s Style) With(o Style) Style {
 		s.Margin = o.Margin
 	}
 	s.Gap = pick(s.Gap, o.Gap)
+	s.LineGap = pick(s.LineGap, o.LineGap)
+	s.Wrap = s.Wrap || o.Wrap
+	if o.Transition != 0 {
+		s.Transition = o.Transition
+	}
 	s.Absolute = s.Absolute || o.Absolute
 	s.Left, s.Top = pickV(s.Left, o.Left), pickV(s.Top, o.Top)
 	s.Right, s.Bottom = pickV(s.Right, o.Right), pickV(s.Bottom, o.Bottom)
@@ -188,7 +201,7 @@ func (s *Style) layout() layout.Style {
 		Grow: s.Grow, Shrink: s.Shrink, Basis: s.Basis,
 		Width: s.Width, Height: s.Height, MinWidth: s.MinWidth, MinHeight: s.MinHeight,
 		MaxWidth: s.MaxWidth, MaxHeight: s.MaxHeight,
-		Padding: s.Padding, Margin: s.Margin, Gap: s.Gap,
+		Padding: s.Padding, Margin: s.Margin, Gap: s.Gap, Wrap: s.Wrap, LineGap: s.LineGap,
 		Left: s.Left, Top: s.Top, Right: s.Right, Bottom: s.Bottom, Hidden: s.Hidden,
 	}
 	if s.BorderWidth > 0 {

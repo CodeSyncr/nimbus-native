@@ -102,6 +102,13 @@ class Renderer internal constructor(private val root: NimbusView) {
     internal fun popped(tag: Int, depth: Int) =
         Bridge.send(Render.encode(Render.Popped(tag = tag.toLong(), depth = depth.toLong())))
 
+    /** Opens a link to the app (myapp://orders/42): its page shows, pushed on the navigation
+     *  stack on screen, or as a sheet. */
+    fun open(url: String) = Bridge.send(Render.encode(Render.Open(url = url)))
+
+    /** Tells Go about a long press on a pressable that asked for them. */
+    internal fun longPressed(tag: Int) = Bridge.send(Render.encode(Render.LongPressed(tag = tag.toLong())))
+
     /** Tells Go the user pulled a scroll view to refresh. */
     internal fun refreshPulled(tag: Int) = Bridge.send(Render.encode(Render.Refresh(tag = tag.toLong())))
 
@@ -164,12 +171,24 @@ class Renderer internal constructor(private val root: NimbusView) {
                 is Render.Destroy -> destroy(op)
                 is Render.Children -> children(op)
                 is Render.Frame -> {
-                    frames[op.tag.toInt()] = intArrayOf(
+                    val tag = op.tag.toInt()
+                    val f = intArrayOf(
                         (op.x * density).roundToInt(), (op.y * density).roundToInt(),
                         (op.w * density).roundToInt(), (op.h * density).roundToInt(),
                     )
-                    views[op.tag.toInt()]?.let(moved::add)
+                    val old = frames[tag]
+                    frames[tag] = f
+                    val v = views[tag]
+                    v?.let(moved::add)
+                    // Style.Transition: slide from where it was to where layout puts it.
+                    val ms = transitions[tag] ?: 0L
+                    if (v != null && ms > 0 && old != null && (old[0] != f[0] || old[1] != f[1])) {
+                        v.translationX += (old[0] - f[0]).toFloat()
+                        v.translationY += (old[1] - f[1]).toFloat()
+                        v.animate().translationX(0f).translationY(0f).setDuration(ms).start()
+                    }
                 }
+                is Render.Slider -> (views[op.tag.toInt()] as? NNSlider)?.apply(op)
                 is Render.Box -> box(op)
                 is Render.Text -> (views[op.tag.toInt()] as? TextView)?.let { text(it, op) }
                 is Render.Image -> (views[op.tag.toInt()] as? NNImage)?.load(op)
@@ -226,6 +245,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.MODAL -> NNModal(ctx, this, tag)
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
             Render.Kind.SWITCH -> NNSwitch(ctx, tag)
+            Render.Kind.SLIDER -> NNSlider(ctx, tag)
             else -> NNGroup(ctx, this)
         }
         v.id = tag
@@ -296,8 +316,13 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
     }
 
+    private val transitions = HashMap<Int, Long>() // ms, for views whose changes animate
+
     private fun box(o: Render.Box) {
         val v = views[o.tag.toInt()] ?: return
+        val ms = o.transition
+        if (ms > 0) transitions[o.tag.toInt()] = ms else transitions.remove(o.tag.toInt())
+        if (v is NNPressable) v.reportLongPress(o.longPress, o.tag.toInt())
         if (o.background != 0L || o.radius != 0f || o.borderWidth != 0f) {
             v.background = GradientDrawable().apply {
                 setColor(argb(o.background))
@@ -308,7 +333,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             v.background = null
         }
         if (v is NNPressable) v.baseAlpha = o.opacity
-        v.alpha = o.opacity
+        if (ms > 0 && v.isAttachedToWindow) v.animate().alpha(o.opacity).setDuration(ms).start() else v.alpha = o.opacity
         v.clipToOutline = o.clip
         if (v is NNGroup && v !is NNScroll) v.clipChildren = o.clip // scroll views always clip
         v.contentDescription = o.label.ifEmpty { null }
@@ -414,6 +439,47 @@ class Renderer internal constructor(private val root: NimbusView) {
                 isSingleLine = !multiline
                 gravity = if (multiline) Gravity.TOP or Gravity.START else Gravity.CENTER_VERTICAL or Gravity.START
             }
+        }
+    }
+
+    /** A slider: a SeekBar with 1000 steps over the range; reports the user's drags. */
+    private class NNSlider(c: Context, tag: Int) : android.widget.SeekBar(c) {
+        private var min = 0f
+        private var max = 1f
+        private var applying = false
+
+        init {
+            setMax(STEPS)
+            setOnSeekBarChangeListener(object : OnSeekBarChangeListener {
+                override fun onProgressChanged(s: android.widget.SeekBar, p: Int, fromUser: Boolean) {
+                    if (fromUser && !applying) {
+                        Bridge.send(Render.encode(Render.Slid(tag = tag.toLong(), value = min + (max - min) * p / STEPS)))
+                    }
+                }
+
+                override fun onStartTrackingTouch(s: android.widget.SeekBar) {}
+
+                override fun onStopTrackingTouch(s: android.widget.SeekBar) {}
+            })
+        }
+
+        fun apply(o: Render.Slider) {
+            min = o.min
+            max = if (o.max > o.min) o.max else o.min + 1
+            applying = true
+            val p = ((o.value - min) / (max - min) * STEPS).roundToInt().coerceIn(0, STEPS)
+            if (progress != p) progress = p
+            applying = false
+            isEnabled = o.enabled
+            if (o.tint != 0L) {
+                val t = ColorStateList.valueOf(argb(o.tint))
+                progressTintList = t
+                thumbTintList = t
+            }
+        }
+
+        private companion object {
+            const val STEPS = 1000
         }
     }
 

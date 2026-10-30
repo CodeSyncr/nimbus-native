@@ -1,6 +1,7 @@
 package __ID__
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import space.nimbusgo.nativekit.NimbusView
 
@@ -13,6 +14,13 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         nimbus = NimbusView(this, NimbusSchema.COMBINED)
         setContentView(nimbus)
+        intent?.data?.let { nimbus.renderer.open(it.toString()) } // opened by a link
+    }
+
+    /** Links to the app (__MODULE__://orders/42) open their page. */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.data?.let { nimbus.renderer.open(it.toString()) }
     }
 
     @Deprecated("Deprecated in Java")

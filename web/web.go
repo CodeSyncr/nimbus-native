@@ -303,6 +303,7 @@ textarea.in{line-height:1.3}
 .sp{width:20px;height:20px;border:2px solid rgba(127,127,127,.25);border-top-color:var(--ac,#2563eb);border-radius:50%;animation:nnspin .8s linear infinite}
 @keyframes nnspin{to{transform:rotate(360deg)}}
 .sw{width:40px;height:22px;margin:0;cursor:pointer}
+.sl{margin:0;min-width:0;cursor:pointer}
 .st>[data-t]:not(:last-of-type),.tb>[data-t]:not(.sel){display:none!important}
 .bar{display:flex;align-items:center;justify-content:space-between;gap:8px;height:52px;padding:0 12px;background:var(--bar,#fff);color:var(--barfg,#111);border-bottom:1px solid var(--border,#e5e7eb);font-weight:600;flex-shrink:0}
 .bar button,.tabbar button{background:none;border:0;font:inherit;color:var(--ac,#2563eb);cursor:pointer;padding:8px}

@@ -60,6 +60,12 @@ internal class NNPressable(c: Context, r: Renderer, tag: Int) : NNGroup(c, r) {
         setOnClickListener { r.press(tag) }
     }
 
+    /** Reports long presses too (a long press is then not also a tap). */
+    fun reportLongPress(on: Boolean, tag: Int) {
+        if (on) setOnLongClickListener { r.longPressed(tag); true } else setOnLongClickListener(null)
+        isLongClickable = on
+    }
+
     override fun setPressed(pressed: Boolean) {
         super.setPressed(pressed)
         alpha = if (pressed) baseAlpha * 0.6f else baseAlpha

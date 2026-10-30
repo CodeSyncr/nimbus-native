@@ -189,6 +189,16 @@
   root.addEventListener("input", (e) => {
     if (e.target.classList?.contains("in")) send({ t: "changed", tag: tagOf(e.target), text: e.target.value });
   });
+  root.addEventListener("input", (e) => {
+    if (e.target.classList?.contains("sl")) send({ t: "slid", tag: tagOf(e.target), value: +e.target.value });
+  });
+  // A long press: press and hold on touch screens, a right click with a mouse.
+  root.addEventListener("contextmenu", (e) => {
+    const p = e.target.closest("a.p[data-lp]");
+    if (!p) return;
+    e.preventDefault();
+    send({ t: "longpress", tag: tagOf(p) });
+  });
   root.addEventListener("change", (e) => {
     if (e.target.classList?.contains("sw")) send({ t: "toggled", tag: tagOf(e.target), on: e.target.checked });
   });

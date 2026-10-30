@@ -33,6 +33,10 @@ type Element struct {
 	onRefresh   func()     // pull to refresh on a Scroll or List
 	refreshing  bool
 	href        string
+	onLongPress func()
+	value       float32 // a Slider's value
+	min, max    float32
+	onSlide     func(float32)
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec
@@ -118,6 +122,19 @@ func (e *Element) Fit(f render.Fit) *Element { e.fit = f; return e }
 
 // Horizontal makes a Scroll scroll sideways.
 func (e *Element) Horizontal() *Element { e.horizontal = true; return e }
+
+// Slider picks a number between min and max: UISlider, Android's SeekBar,
+// colored with the theme's Primary (or s.Color). onChange gets each value
+// as the user drags; pass nil to disable it.
+//
+//	volume, setVolume := ui.State(c, float32(0.5))
+//	ui.Slider(volume, 0, 1, setVolume, ui.Style{})
+func Slider(value, min, max float32, onChange func(float32), s Style) *Element {
+	return &Element{kind: render.KindSlider, style: s, value: value, min: min, max: max, onSlide: onChange}
+}
+
+// OnLongPress makes a Pressable report long presses too.
+func (e *Element) OnLongPress(f func()) *Element { e.onLongPress = f; return e }
 
 // Href is where a Pressable leads, for hosts with addresses: the web host
 // makes it a link crawlers and new tabs can follow. Taps still run its

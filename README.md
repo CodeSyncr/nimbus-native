@@ -63,7 +63,7 @@ projects that open in Xcode and Android Studio, folder routing, native
 plugins (secure storage, app info, links, key-value storage), switches,
 multiline inputs, pull to refresh, keyboard avoidance and native dialogs,
 and the same app on the web with server rendering for search engines.
-Not yet: flex-wrap, animations and gestures, plugins on the web.
+Not yet: gestures beyond long press, plugins on the web.
 
 ## Layout
 
@@ -226,8 +226,21 @@ dialog.Toast(ctx, "Saved")
 day, ok, _ := dialog.PickDate(ctx, dialog.Date, time.Now())        // Date, Time or DateTime
 ```
 
+More: `ui.Slider(value, min, max, onChange, style)` (UISlider, SeekBar, a
+range input on the web); `.OnLongPress(fn)` on a Pressable (a right click on
+the web); `Style{Wrap: true}` for rows that wrap onto new lines (chips,
+tags), with `LineGap` between lines; and `Style{Transition: 250}` to animate
+a view's changes of position, opacity and background over 250 ms.
+
 `SafeArea` keeps clear of the on-screen keyboard: its bottom padding grows
 by however much of the keyboard reaches below it.
+
+### Links into the app
+
+Every project has a URL scheme, its module name: `myapp://orders/42` opens
+the app on `/orders/42`, at launch or while it runs, pushed on the
+navigation stack on screen (or as a sheet where there is none). Set
+`ui.HandleURL` to decide yourself.
 
 ## The web
 

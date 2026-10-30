@@ -108,6 +108,12 @@ type Style struct {
 	Border  Edges
 	Gap     float32 // between children on the main axis
 
+	// Wrap starts a new line when the children don't fit along the main
+	// axis (flex-wrap: wrap, lines packed at the start); LineGap is the
+	// space between lines, Gap when zero.
+	Wrap    bool
+	LineGap float32
+
 	Position                 Position
 	Left, Top, Right, Bottom Value // insets; Auto means unset
 

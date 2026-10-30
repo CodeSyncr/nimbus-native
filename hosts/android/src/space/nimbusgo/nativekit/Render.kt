@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x9f8e24ae5a72a614uL.toLong()
+    val SCHEMA_HASH: Long = 0xffdf5d119a78f240uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -20,6 +20,7 @@ object Render {
         const val TABS: Int = 8
         const val MODAL: Int = 9
         const val SWITCH: Int = 10
+        const val SLIDER: Int = 11
     }
 
     /** Align is horizontal text alignment. */
@@ -183,6 +184,8 @@ object Render {
         var label: String = "",
         var testID: String = "",
         var href: String = "",
+        var transition: Long = 0L,
+        var longPress: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -195,6 +198,8 @@ object Render {
             w.string(this.label)
             w.string(this.testID)
             w.string(this.href)
+            w.uint(this.transition)
+            w.bool(this.longPress)
         }
 
         companion object {
@@ -210,6 +215,8 @@ object Render {
                 m.label = r0.string()
                 m.testID = r0.string()
                 m.href = r0.string()
+                m.transition = r0.uintMax(4294967295L)
+                m.longPress = r0.bool()
                 return m
             }
         }
@@ -475,6 +482,38 @@ object Render {
                 m.report = r0.bool()
                 m.refreshable = r0.bool()
                 m.refreshing = r0.bool()
+                return m
+            }
+        }
+    }
+
+    /** Slider sets a slider. */
+    data class Slider(
+        var tag: Long = 0L,
+        var value: Float = 0f,
+        var min: Float = 0f,
+        var max: Float = 0f,
+        var enabled: Boolean = false,
+        var tint: Long = 0L,
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.f32(this.value)
+            w.f32(this.min)
+            w.f32(this.max)
+            w.bool(this.enabled)
+            w.uint(this.tint)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Slider {
+                val m = Slider()
+                m.tag = r0.uintMax(4294967295L)
+                m.value = r0.f32()
+                m.min = r0.f32()
+                m.max = r0.f32()
+                m.enabled = r0.bool()
+                m.tint = r0.uintMax(4294967295L)
                 return m
             }
         }
@@ -887,6 +926,60 @@ object Render {
         }
     }
 
+    /** Open reports a link that opened the app (myapp://orders/42, or a web link the app handles), at launch or while it runs. */
+    data class Open(
+        var url: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.string(this.url)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Open {
+                val m = Open()
+                m.url = r0.string()
+                return m
+            }
+        }
+    }
+
+    /** Slid reports the value the user dragged a slider to. */
+    data class Slid(
+        var tag: Long = 0L,
+        var value: Float = 0f,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.f32(this.value)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Slid {
+                val m = Slid()
+                m.tag = r0.uintMax(4294967295L)
+                m.value = r0.f32()
+                return m
+            }
+        }
+    }
+
+    /** LongPressed reports a long press on a pressable that asked for them. */
+    data class LongPressed(
+        var tag: Long = 0L,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+        }
+
+        companion object {
+            fun read(r0: WireReader): LongPressed {
+                val m = LongPressed()
+                m.tag = r0.uintMax(4294967295L)
+                return m
+            }
+        }
+    }
+
     /** Op changes one native view. */
     sealed interface Op
 
@@ -907,8 +1000,9 @@ object Render {
             is Chrome -> { w.uint(12); v.write(w) }
             is Present -> { w.uint(13); v.write(w) }
             is Scroll -> { w.uint(14); v.write(w) }
-            is Switch -> { w.uint(15); v.write(w) }
-            is Spinner -> { w.uint(16); v.write(w) }
+            is Slider -> { w.uint(15); v.write(w) }
+            is Switch -> { w.uint(16); v.write(w) }
+            is Spinner -> { w.uint(17); v.write(w) }
         }
     }
 
@@ -928,8 +1022,9 @@ object Render {
         12L -> Chrome.read(r0)
         13L -> Present.read(r0)
         14L -> Scroll.read(r0)
-        15L -> Switch.read(r0)
-        16L -> Spinner.read(r0)
+        15L -> Slider.read(r0)
+        16L -> Switch.read(r0)
+        17L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 
@@ -956,6 +1051,9 @@ object Render {
             is Toggled -> { w.uint(15); v.write(w) }
             is Refresh -> { w.uint(16); v.write(w) }
             is Reattach -> { w.uint(17); v.write(w) }
+            is Open -> { w.uint(18); v.write(w) }
+            is Slid -> { w.uint(19); v.write(w) }
+            is LongPressed -> { w.uint(20); v.write(w) }
         }
     }
 
@@ -978,6 +1076,9 @@ object Render {
         15L -> Toggled.read(r0)
         16L -> Refresh.read(r0)
         17L -> Reattach.read(r0)
+        18L -> Open.read(r0)
+        19L -> Slid.read(r0)
+        20L -> LongPressed.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

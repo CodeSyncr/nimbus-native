@@ -71,6 +71,7 @@ var elements = map[render.Kind][2]string{
 	render.KindTabs:      {"div", "tb"},
 	render.KindModal:     {"div", "md"},
 	render.KindSwitch:    {"input", "sw"},
+	render.KindSlider:    {"input", "sl"},
 }
 
 func (t *translator) op(op render.Op) []instr {
@@ -84,6 +85,9 @@ func (t *translator) op(op render.Op) []instr {
 		out := []instr{{"c": []any{o.Tag, e[0], e[1]}}}
 		if o.Kind == render.KindSwitch {
 			out = append(out, instr{"a": []any{o.Tag, "type", "checkbox"}}, instr{"a": []any{o.Tag, "role", "switch"}})
+		}
+		if o.Kind == render.KindSlider {
+			out = append(out, instr{"a": []any{o.Tag, "type", "range"}}, instr{"a": []any{o.Tag, "step", "any"}})
 		}
 		return out
 	case *render.Destroy:
@@ -148,6 +152,13 @@ func (t *translator) op(op render.Op) []instr {
 			out = append(out, instr{"s": []any{o.Tag, "x", "accent-color:" + cssColor(o.Tint) + ";"}})
 		}
 		return out
+	case *render.Slider:
+		out := []instr{{"a": []any{o.Tag, "min", num(o.Min)}}, {"a": []any{o.Tag, "max", num(o.Max)}},
+			{"p": []any{o.Tag, "value", num(o.Value)}}, {"a": []any{o.Tag, "disabled", boolAttr(!o.Enabled)}}}
+		if o.Tint != 0 {
+			out = append(out, instr{"s": []any{o.Tag, "x", "accent-color:" + cssColor(o.Tint) + ";"}})
+		}
+		return out
 	case *render.Screen:
 		return []instr{{"a": []any{o.Tag, "data-title", o.Title}}}
 	case *render.TabItem:
@@ -182,9 +193,13 @@ func (t *translator) box(o *render.Box) []instr {
 	if o.Clip && t.kinds[o.Tag] != render.KindScroll {
 		b.WriteString("overflow:hidden;")
 	}
+	if o.Transition > 0 {
+		fmt.Fprintf(&b, "transition:opacity %[1]dms,background-color %[1]dms,transform %[1]dms,width %[1]dms,height %[1]dms;", o.Transition)
+	}
 	out := []instr{{"s": []any{o.Tag, "b", b.String()}},
 		{"a": []any{o.Tag, "aria-label", nullable(o.Label)}},
-		{"a": []any{o.Tag, "data-testid", nullable(o.TestID)}}}
+		{"a": []any{o.Tag, "data-testid", nullable(o.TestID)}},
+		{"a": []any{o.Tag, "data-lp", boolAttr(o.LongPress)}}}
 	if t.kinds[o.Tag] == render.KindPressable {
 		out = append(out, instr{"a": []any{o.Tag, "href", nullable(o.Href)}})
 		if o.Href == "" {
@@ -239,8 +254,19 @@ func layoutCSS(kind render.Kind, s layout.Style) string {
 	edges("padding", s.Padding)
 	edges("margin", s.Margin)
 	edges("border-width", s.Border)
-	if s.Gap > 0 {
-		fmt.Fprintf(&b, "gap:%spx;", num(s.Gap))
+	if s.Wrap {
+		b.WriteString("flex-wrap:wrap;align-content:flex-start;")
+	}
+	if s.Gap > 0 || (s.Wrap && s.LineGap > 0) {
+		line := s.Gap
+		if s.Wrap && s.LineGap > 0 {
+			line = s.LineGap
+		}
+		if s.Direction == layout.Row { // gap is "row column": lines, then items
+			fmt.Fprintf(&b, "gap:%spx %spx;", num(line), num(s.Gap))
+		} else {
+			fmt.Fprintf(&b, "gap:%spx %spx;", num(s.Gap), num(line))
+		}
 	}
 	if s.Position == layout.Absolute {
 		b.WriteString("position:absolute;")
