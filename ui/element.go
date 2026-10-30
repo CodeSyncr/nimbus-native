@@ -38,6 +38,7 @@ type Element struct {
 	min, max    float32
 	onSlide     func(float32)
 	draw        *render.Draw // a Canvas's shapes
+	onScroll    func(x, y float32)
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec
@@ -98,6 +99,15 @@ func scrollFill(s Style) Style {
 		s.Basis, s.Shrink = Pt(0), 1
 	}
 	return s
+}
+
+// OnScroll calls f as a Scroll or List scrolls, with how far its content
+// has moved (x, y in points; y grows as you scroll down, and goes below 0
+// while a pull bounces). It runs often: keep it cheap, and set State only
+// when something changes (to tuck a bar away, say).
+func (e *Element) OnScroll(f func(x, y float32)) *Element {
+	e.onScroll = f
+	return e
 }
 
 // TextInput is a single-line text field showing value; onChange gets every

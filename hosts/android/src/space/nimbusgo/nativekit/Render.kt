@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x3ec9d8f5160dc8e3uL.toLong()
+    val SCHEMA_HASH: Long = 0xa70843207e81f783uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -31,6 +31,7 @@ object Render {
         const val THIN: Int = 2
         const val REGULAR: Int = 3
         const val THICK: Int = 4
+        const val GLASS: Int = 5
     }
 
     /** Align is horizontal text alignment. */

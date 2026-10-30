@@ -135,6 +135,7 @@ const (
 	BlurThin      = render.BlurThin
 	BlurRegular   = render.BlurRegular
 	BlurThick     = render.BlurThick
+	BlurGlass     = render.BlurGlass // Liquid Glass on iOS 26+; elsewhere a thin blur, tinted
 )
 
 // Corners picks the corners Style.Radius rounds.

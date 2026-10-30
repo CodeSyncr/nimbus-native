@@ -135,6 +135,9 @@ const (
 	BlurThin
 	BlurRegular
 	BlurThick
+	// BlurGlass is Liquid Glass on iOS 26+ (the tint is left out: glass
+	// takes its color from behind); elsewhere, BlurUltraThin with the tint.
+	BlurGlass
 )
 
 // The corners in Box.Corners.

@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x3ec9d8f5160dc8e3
+const SchemaHash uint64 = 0xa70843207e81f783
 
 func init() { wire.Register("render", SchemaHash) }
 

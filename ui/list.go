@@ -197,6 +197,9 @@ func (rt *runtime) measureLists() bool {
 // comes within half a screen of the rendered items' edge (or the end of the
 // list), so scrolling a few rows costs nothing.
 func (rt *runtime) scrolled(in *instance, m *render.Scrolled) {
+	if f := in.el.onScroll; f != nil {
+		f(m.X, m.Y)
+	}
 	ls := in.list
 	if ls == nil {
 		return

@@ -208,7 +208,7 @@ func (t *translator) box(o *render.Box) []instr {
 	if o.ShadowColor != 0 {
 		fmt.Fprintf(&b, "box-shadow:%spx %spx %spx %s;", num(o.ShadowX), num(o.ShadowY), num(o.ShadowRadius), cssColor(o.ShadowColor))
 	}
-	if px := [...]int{0, 8, 14, 22, 30}[min(int(o.Blur), 4)]; px > 0 {
+	if px := [...]int{0, 8, 14, 22, 30, 8}[min(int(o.Blur), 5)]; px > 0 {
 		fmt.Fprintf(&b, "backdrop-filter:blur(%[1]dpx) saturate(180%%);-webkit-backdrop-filter:blur(%[1]dpx) saturate(180%%);", px)
 	}
 	if o.BorderWidth > 0 {

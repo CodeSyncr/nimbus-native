@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x3ec9d8f5160dc8e3
+    public static let schemaHash: UInt64 = 0xa70843207e81f783
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -34,6 +34,7 @@ public enum Render {
         public static let thin = Blur(rawValue: 2)
         public static let regular = Blur(rawValue: 3)
         public static let thick = Blur(rawValue: 4)
+        public static let glass = Blur(rawValue: 5)
     }
 
     /// Align is horizontal text alignment.

@@ -696,7 +696,7 @@ func (rt *runtime) emitFrames(in *instance) {
 		rt.op(&f)
 	}
 	if in.el.kind == render.KindScroll {
-		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil,
+		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil || in.el.onScroll != nil,
 			Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing}
 		if sc != in.sent.scroll {
 			in.sent.scroll = sc

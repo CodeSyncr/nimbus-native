@@ -112,7 +112,7 @@ internal class BoxDrawable(private val view: View, private val o: Render.Box, pr
     companion object {
         /** Blur radius in dp for each strength, close to iOS's materials. */
         fun blurRadius(b: Int) = when (b) {
-            Render.Blur.ULTRA_THIN -> 8f
+            Render.Blur.ULTRA_THIN, Render.Blur.GLASS -> 8f
             Render.Blur.THIN -> 14f
             Render.Blur.REGULAR -> 22f
             else -> 30f

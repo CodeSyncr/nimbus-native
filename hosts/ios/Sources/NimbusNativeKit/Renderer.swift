@@ -375,7 +375,7 @@ public final class Renderer {
         let tint = color(o.background) ?? .clear // nil paints some views (UILabel) black
         let look = {
             // With a blur the tint goes over it, in the blur's own view.
-            if let b = d.blur { b.contentView.backgroundColor = tint; v.backgroundColor = .clear } else { v.backgroundColor = tint }
+            if let b = d.blur { b.contentView.backgroundColor = d.glass ? .clear : tint; v.backgroundColor = .clear } else { v.backgroundColor = tint }
             if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }
         }
         if animated, o.transition > 0 { animate(o.transition, look) } else { look() }
@@ -567,6 +567,7 @@ final class NNBackdrop: UIVisualEffectView {
 /// gradient and a shadow. Laid out again whenever the view's frame changes.
 final class Decor {
     var blur: NNBackdrop?
+    var glass = false // Liquid Glass: no tint over it
     var gradient: CAGradientLayer?
     private var shadow = false
     private var corners: UInt8 = 0
@@ -587,7 +588,7 @@ final class Decor {
         corners = o.corners
         // Blur: the system materials.
         let style: UIBlurEffect.Style? = switch o.blur {
-        case .ultraThin: .systemUltraThinMaterial
+        case .ultraThin, .glass: .systemUltraThinMaterial
         case .thin: .systemThinMaterial
         case .regular: .systemMaterial
         case .thick: .systemThickMaterial
@@ -600,7 +601,15 @@ final class Decor {
                 v.insertSubview(b, at: 0)
                 blur = b
             }
-            blur?.effect = UIBlurEffect(style: style)
+            glass = false
+            if o.blur == .glass, #available(iOS 26.0, *) {
+                let g = UIGlassEffect(style: .regular)
+                g.isInteractive = true
+                blur?.effect = g
+                glass = true
+            } else {
+                blur?.effect = UIBlurEffect(style: style)
+            }
         } else if let b = blur {
             b.removeFromSuperview()
             blur = nil
