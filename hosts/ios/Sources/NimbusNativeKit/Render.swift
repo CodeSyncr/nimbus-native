@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xdf834fabcbe66851
+    public static let schemaHash: UInt64 = 0x0ea9eb20363b5115
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -244,8 +244,10 @@ public enum Render {
         public var hidden: Bool
         public var scale: Float
         public var rotate: Float
+        public var pan: UInt8
+        public var pinch: Bool
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0) {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0, pan: UInt8 = 0, pinch: Bool = false) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -274,6 +276,8 @@ public enum Render {
             self.hidden = hidden
             self.scale = scale
             self.rotate = rotate
+            self.pan = pan
+            self.pinch = pinch
         }
 
         public func write(to w: inout WireWriter) {
@@ -311,6 +315,8 @@ public enum Render {
             w.bool(self.hidden)
             w.float32(self.scale)
             w.float32(self.rotate)
+            w.uint(UInt64(self.pan))
+            w.bool(self.pinch)
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -343,6 +349,8 @@ public enum Render {
             m.hidden = try r.bool()
             m.scale = try r.float32()
             m.rotate = try r.float32()
+            m.pan = UInt8(try r.uint(max: 255))
+            m.pinch = try r.bool()
             return m
         }
     }
@@ -1404,6 +1412,75 @@ public enum Render {
         }
     }
 
+    /// Panned reports a drag on a view that asked for them: how far it has come
+    /// from where it began (X, Y) and how fast it's going (VX, VY, per second),
+    /// in points. A view that moves with the finger doesn't change these.
+    public struct Panned: Equatable {
+        public var tag: UInt32
+        public var phase: UInt8
+        public var x: Float
+        public var y: Float
+        public var vx: Float
+        public var vy: Float
+
+        public init(tag: UInt32 = 0, phase: UInt8 = 0, x: Float = 0, y: Float = 0, vx: Float = 0, vy: Float = 0) {
+            self.tag = tag
+            self.phase = phase
+            self.x = x
+            self.y = y
+            self.vx = vx
+            self.vy = vy
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.uint(UInt64(self.phase))
+            w.float32(self.x)
+            w.float32(self.y)
+            w.float32(self.vx)
+            w.float32(self.vy)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Panned {
+            var m = Panned()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.phase = UInt8(try r.uint(max: 255))
+            m.x = try r.float32()
+            m.y = try r.float32()
+            m.vx = try r.float32()
+            m.vy = try r.float32()
+            return m
+        }
+    }
+
+    /// Pinched reports a two-finger pinch: Scale is the fingers' distance over
+    /// what it was at the start.
+    public struct Pinched: Equatable {
+        public var tag: UInt32
+        public var phase: UInt8
+        public var scale: Float
+
+        public init(tag: UInt32 = 0, phase: UInt8 = 0, scale: Float = 0) {
+            self.tag = tag
+            self.phase = phase
+            self.scale = scale
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.uint(UInt64(self.phase))
+            w.float32(self.scale)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Pinched {
+            var m = Pinched()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.phase = UInt8(try r.uint(max: 255))
+            m.scale = try r.float32()
+            return m
+        }
+    }
+
     /// Op changes one native view.
     public indirect enum Op: Equatable {
         case create(Create)
@@ -1555,6 +1632,8 @@ public enum Render {
         case `open`(Open)
         case slid(Slid)
         case longPressed(LongPressed)
+        case panned(Panned)
+        case pinched(Pinched)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
             switch v {
@@ -1623,6 +1702,12 @@ public enum Render {
             case .longPressed(let x)?:
                 w.uint(21)
                 x.write(to: &w)
+            case .panned(let x)?:
+                w.uint(22)
+                x.write(to: &w)
+            case .pinched(let x)?:
+                w.uint(23)
+                x.write(to: &w)
             }
         }
 
@@ -1672,6 +1757,10 @@ public enum Render {
                 return .slid(try Slid.read(from: &r))
             case 21:
                 return .longPressed(try LongPressed.read(from: &r))
+            case 22:
+                return .panned(try Panned.read(from: &r))
+            case 23:
+                return .pinched(try Pinched.read(from: &r))
             default:
                 throw WireError.variant
             }

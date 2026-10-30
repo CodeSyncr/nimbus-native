@@ -124,7 +124,27 @@ type Box struct {
 	// Scale (1 when 0) and Rotate (degrees) transform the view about its
 	// centre, after layout: its place among its siblings doesn't change.
 	Scale, Rotate float32
+	// Pan is the drags the view reports (PanAny, PanX, PanY; 0 for none):
+	// a one-way drag leaves the other way to whatever scrolls around it.
+	Pan uint8
+	// Pinch makes the view report two-finger pinches.
+	Pinch bool
 }
+
+// Which drags a view reports (Box.Pan).
+const (
+	PanAny uint8 = iota + 1
+	PanX
+	PanY
+)
+
+// The phases of a gesture (Panned, Pinched).
+const (
+	GestureBegan uint8 = iota
+	GestureChanged
+	GestureEnded
+	GestureCancelled
+)
 
 // Blur is how strongly what is behind a view is blurred: the platform's
 // materials on iOS, a blur radius elsewhere.
@@ -540,3 +560,24 @@ type Slid struct {
 //
 //wire:message
 type LongPressed struct{ Tag uint32 }
+
+// Panned reports a drag on a view that asked for them: how far it has come
+// from where it began (X, Y) and how fast it's going (VX, VY, per second),
+// in points. A view that moves with the finger doesn't change these.
+//
+//wire:message
+type Panned struct {
+	Tag          uint32
+	Phase        uint8
+	X, Y, VX, VY float32
+}
+
+// Pinched reports a two-finger pinch: Scale is the fingers' distance over
+// what it was at the start.
+//
+//wire:message
+type Pinched struct {
+	Tag   uint32
+	Phase uint8
+	Scale float32
+}

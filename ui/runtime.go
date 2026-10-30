@@ -221,6 +221,22 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onLongPress != nil {
 				in.el.onLongPress()
 			}
+		case *render.Panned:
+			if in := rt.byTag[m.Tag]; in != nil {
+				p := Pan{Phase(m.Phase), m.X, m.Y, m.VX, m.VY}
+				if in.el.onPan != nil {
+					in.el.onPan(p)
+				}
+				if in.el.onSwipe != nil && p.Phase == Ended {
+					if d := swipeOf(p); d != 0 {
+						in.el.onSwipe(d)
+					}
+				}
+			}
+		case *render.Pinched:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onPinch != nil {
+				in.el.onPinch(Pinch{Phase(m.Phase), m.Scale})
+			}
 		case *render.Toggled:
 			if in := rt.byTag[m.Tag]; in != nil {
 				in.sent.toggle.On = m.On // what the host shows; Go's answer is diffed against it
@@ -597,7 +613,7 @@ func (rt *runtime) props(in *instance, first bool) {
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
 		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
-		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden, Rotate: s.Rotate}
+		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden, Rotate: s.Rotate, Pan: el.panAxis, Pinch: el.onPinch != nil}
 	if s.Scale != 0 && s.Scale != 1 {
 		box.Scale = s.Scale
 	}

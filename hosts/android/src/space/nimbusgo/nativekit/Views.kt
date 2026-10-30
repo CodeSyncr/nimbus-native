@@ -50,6 +50,27 @@ internal open class NNGroup(c: Context, val r: Renderer) : ViewGroup(c) {
 
     override fun shouldDelayChildPressedState() = false
 
+    private var gestures: Gestures? = null
+
+    /** Reports this view's drags and pinches, as its Style asks. */
+    fun setGestures(pan: Int, pinch: Boolean, tag: Int) {
+        if (pan == 0 && !pinch) {
+            gestures = null
+            return
+        }
+        val g = gestures ?: Gestures(this, r, tag).also { gestures = it }
+        g.pan = pan
+        g.pinch = pinch
+    }
+
+    override fun onInterceptTouchEvent(e: MotionEvent): Boolean =
+        gestures?.intercept(e) == true || super.onInterceptTouchEvent(e)
+
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        val g = gestures ?: return super.onTouchEvent(e)
+        return g.touch(e) || super.onTouchEvent(e)
+    }
+
     /** While a backdrop draws the window, a view that blurs (and all it holds) stays out of it. */
     override fun draw(canvas: android.graphics.Canvas) {
         if (Backdrop.capturing && (background as? BoxDrawable)?.blurs == true) return

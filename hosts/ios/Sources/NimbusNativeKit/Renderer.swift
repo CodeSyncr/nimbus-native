@@ -413,6 +413,7 @@ public final class Renderer {
             let tag = o.tag
             p.reportLongPress { [weak self] in self?.send(.longPressed(Render.LongPressed(tag: tag))) }
         }
+        gestures(v, o)
         if !(v is UIScrollView) { v.clipsToBounds = o.clip }
         // Only a change of Style.Hidden touches isHidden.
         if o.hidden { if hidden.insert(o.tag).inserted { v.isHidden = true } }
@@ -449,6 +450,33 @@ public final class Renderer {
         // Shrink to fit (Style.MinScale): one line, smaller rather than cut.
         l.adjustsFontSizeToFitWidth = o.minScale > 0
         l.minimumScaleFactor = o.minScale > 0 ? CGFloat(o.minScale) : 0
+    }
+
+    /// Adds or removes a view's drag and pinch recognizers to match Style.
+    private func gestures(_ v: UIView, _ o: Render.Box) {
+        let tag = o.tag
+        let pan = v.gestureRecognizers?.first { $0 is NNPan } as? NNPan
+        if o.pan == 0 {
+            if let pan { v.removeGestureRecognizer(pan) }
+        } else if let pan {
+            pan.axis = o.pan
+        } else {
+            let g = NNPan { [weak self] phase, t, s in
+                self?.send(.panned(Render.Panned(tag: tag, phase: phase, x: Float(t.x), y: Float(t.y), vx: Float(s.x), vy: Float(s.y))))
+            }
+            g.axis = o.pan
+            v.addGestureRecognizer(g)
+            v.isUserInteractionEnabled = true
+        }
+        let pinch = v.gestureRecognizers?.first { $0 is NNPinch }
+        if !o.pinch {
+            if let pinch { v.removeGestureRecognizer(pinch) }
+        } else if pinch == nil {
+            v.addGestureRecognizer(NNPinch { [weak self] phase, scale in
+                self?.send(.pinched(Render.Pinched(tag: tag, phase: phase, scale: scale)))
+            })
+            v.isUserInteractionEnabled = true
+        }
     }
 
     fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
@@ -789,6 +817,60 @@ func color(_ c: UInt32) -> UIColor? {
 
 /// A label that draws its text at the top of its frame, as Go's layout and
 /// Android do (UILabel centres it vertically when the frame is taller).
+private func gesturePhase(_ s: UIGestureRecognizer.State) -> UInt8? {
+    switch s {
+    case .began: return 0
+    case .changed: return 1
+    case .ended: return 2
+    case .cancelled, .failed: return 3
+    default: return nil
+    }
+}
+
+/// Reports drags, measured in the window so a view that follows the finger
+/// doesn't change them. A one-way drag only starts going that way.
+final class NNPan: UIPanGestureRecognizer, UIGestureRecognizerDelegate {
+    var axis: UInt8 = 1
+    private let report: (UInt8, CGPoint, CGPoint) -> Void
+
+    init(_ report: @escaping (UInt8, CGPoint, CGPoint) -> Void) {
+        self.report = report
+        super.init(target: nil, action: nil)
+        addTarget(self, action: #selector(moved))
+        delegate = self
+    }
+
+    func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        let v = velocity(in: view?.window)
+        switch axis {
+        case 2: return abs(v.x) > abs(v.y)
+        case 3: return abs(v.y) > abs(v.x)
+        default: return true
+        }
+    }
+
+    @objc private func moved() {
+        guard let phase = gesturePhase(state) else { return }
+        report(phase, translation(in: view?.window), velocity(in: view?.window))
+    }
+}
+
+/// Reports two-finger pinches.
+final class NNPinch: UIPinchGestureRecognizer {
+    private let report: (UInt8, Float) -> Void
+
+    init(_ report: @escaping (UInt8, Float) -> Void) {
+        self.report = report
+        super.init(target: nil, action: nil)
+        addTarget(self, action: #selector(moved))
+    }
+
+    @objc private func moved() {
+        guard let phase = gesturePhase(state) else { return }
+        report(phase, Float(scale))
+    }
+}
+
 final class NNLabel: UILabel {
     override func drawText(in rect: CGRect) {
         let fit = textRect(forBounds: rect, limitedToNumberOfLines: numberOfLines)

@@ -129,3 +129,54 @@ func TestSliderLongPressTransition(t *testing.T) {
 		t.Fatal("slide and long press did not reach their handlers")
 	}
 }
+
+type dragged struct{ pans *[]Pan }
+
+func (d dragged) Render(c *Ctx) *Element {
+	dir, setDir := State(c, Swipe(0))
+	scale, setScale := State(c, float32(0))
+	return View(Style{},
+		View(Style{Height: Pt(44)}).OnPanX(func(p Pan) { *d.pans = append(*d.pans, p) }).TestID("row"),
+		View(Style{Height: Pt(44)}).OnSwipe(setDir).TestID("deck"),
+		View(Style{Height: Pt(44)}).OnPinch(func(p Pinch) { setScale(p.Scale) }).TestID("photo"),
+		Text(fmt.Sprintf("%d %.1f", dir, scale), Style{}))
+}
+
+func TestGestures(t *testing.T) {
+	var pans []Pan
+	h := start(t, dragged{&pans})
+	row := h.tagOf("row")
+	box := h.all(func(o render.Op) bool { b, ok := o.(*render.Box); return ok && b.Tag == row })
+	if len(box) == 0 || box[0].(*render.Box).Pan != render.PanX {
+		t.Fatalf("row's box: %+v", box)
+	}
+	h.send(&render.Panned{Tag: row, Phase: render.GestureBegan, X: 9})
+	h.send(&render.Panned{Tag: row, Phase: render.GestureEnded, X: 120, VX: 300})
+	if len(pans) != 2 || pans[1].Phase != Ended || pans[1].X != 120 {
+		t.Fatalf("pans: %+v", pans)
+	}
+	h.send(&render.Panned{Tag: h.tagOf("deck"), Phase: render.GestureEnded, X: -20, VX: -900})
+	h.send(&render.Pinched{Tag: h.tagOf("photo"), Phase: render.GestureChanged, Scale: 1.5})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "1 1.5" }); len(got) == 0 {
+		t.Fatal("swipe or pinch did not arrive")
+	}
+}
+
+func TestSwipeOf(t *testing.T) {
+	cases := []struct {
+		p    Pan
+		want Swipe
+	}{
+		{Pan{X: 10, VX: 900}, SwipeRight},
+		{Pan{X: -10, VX: -900}, SwipeLeft},
+		{Pan{Y: 200}, SwipeDown},
+		{Pan{Y: -10, VY: -700}, SwipeUp},
+		{Pan{X: 30, VX: 100}, 0},
+		{Pan{}, 0},
+	}
+	for _, c := range cases {
+		if got := swipeOf(c.p); got != c.want {
+			t.Errorf("%+v: got %d", c.p, got)
+		}
+	}
+}

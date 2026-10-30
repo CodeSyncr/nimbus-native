@@ -109,6 +109,15 @@ class Renderer internal constructor(private val root: NimbusView) {
     /** Tells Go about a long press on a pressable that asked for them. */
     internal fun longPressed(tag: Int) = Bridge.send(Render.encode(Render.LongPressed(tag = tag.toLong())))
 
+    /** Tells Go about a drag, in points. */
+    internal fun panned(tag: Int, phase: Int, x: Float, y: Float, vx: Float, vy: Float) = Bridge.send(
+        Render.encode(Render.Panned(tag = tag.toLong(), phase = phase, x = x / density, y = y / density, vx = vx / density, vy = vy / density)),
+    )
+
+    /** Tells Go about a pinch. */
+    internal fun pinched(tag: Int, phase: Int, scale: Float) =
+        Bridge.send(Render.encode(Render.Pinched(tag = tag.toLong(), phase = phase, scale = scale)))
+
     /** Tells Go the user pulled a scroll view to refresh. */
     internal fun refreshPulled(tag: Int) = Bridge.send(Render.encode(Render.Refresh(tag = tag.toLong())))
 
@@ -329,6 +338,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         val ms = o.transition
         if (ms > 0) transitions[o.tag.toInt()] = ms else transitions.remove(o.tag.toInt())
         if (v is NNPressable) v.reportLongPress(o.longPress, o.tag.toInt())
+        (v as? NNGroup)?.setGestures(o.pan, o.pinch, o.tag.toInt())
         (v.background as? BoxDrawable)?.detach()
         val drawn = o.background != 0L || o.radius != 0f || o.borderWidth != 0f || o.gradientColors.size >= 2 ||
             o.blur != Render.Blur.NONE || o.shadowColor != 0L

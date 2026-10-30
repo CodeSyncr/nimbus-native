@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xdf834fabcbe66851uL.toLong()
+    val SCHEMA_HASH: Long = 0x0ea9eb20363b5115uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -213,6 +213,8 @@ object Render {
         var hidden: Boolean = false,
         var scale: Float = 0f,
         var rotate: Float = 0f,
+        var pan: Int = 0,
+        var pinch: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -249,6 +251,8 @@ object Render {
             w.bool(this.hidden)
             w.f32(this.scale)
             w.f32(this.rotate)
+            w.uint(this.pan.toLong())
+            w.bool(this.pinch)
         }
 
         companion object {
@@ -282,6 +286,8 @@ object Render {
                 m.hidden = r0.bool()
                 m.scale = r0.f32()
                 m.rotate = r0.f32()
+                m.pan = r0.uintMax(255L).toInt()
+                m.pinch = r0.bool()
                 return m
             }
         }
@@ -1159,6 +1165,61 @@ object Render {
         }
     }
 
+    /** Panned reports a drag on a view that asked for them: how far it has come from where it began (X, Y) and how fast it's going (VX, VY, per second), in points. A view that moves with the finger doesn't change these. */
+    data class Panned(
+        var tag: Long = 0L,
+        var phase: Int = 0,
+        var x: Float = 0f,
+        var y: Float = 0f,
+        var vx: Float = 0f,
+        var vy: Float = 0f,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.uint(this.phase.toLong())
+            w.f32(this.x)
+            w.f32(this.y)
+            w.f32(this.vx)
+            w.f32(this.vy)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Panned {
+                val m = Panned()
+                m.tag = r0.uintMax(4294967295L)
+                m.phase = r0.uintMax(255L).toInt()
+                m.x = r0.f32()
+                m.y = r0.f32()
+                m.vx = r0.f32()
+                m.vy = r0.f32()
+                return m
+            }
+        }
+    }
+
+    /** Pinched reports a two-finger pinch: Scale is the fingers' distance over what it was at the start. */
+    data class Pinched(
+        var tag: Long = 0L,
+        var phase: Int = 0,
+        var scale: Float = 0f,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.uint(this.phase.toLong())
+            w.f32(this.scale)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Pinched {
+                val m = Pinched()
+                m.tag = r0.uintMax(4294967295L)
+                m.phase = r0.uintMax(255L).toInt()
+                m.scale = r0.f32()
+                return m
+            }
+        }
+    }
+
     /** Op changes one native view. */
     sealed interface Op
 
@@ -1236,6 +1297,8 @@ object Render {
             is Open -> { w.uint(19); v.write(w) }
             is Slid -> { w.uint(20); v.write(w) }
             is LongPressed -> { w.uint(21); v.write(w) }
+            is Panned -> { w.uint(22); v.write(w) }
+            is Pinched -> { w.uint(23); v.write(w) }
         }
     }
 
@@ -1262,6 +1325,8 @@ object Render {
         19L -> Open.read(r0)
         20L -> Slid.read(r0)
         21L -> LongPressed.read(r0)
+        22L -> Panned.read(r0)
+        23L -> Pinched.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

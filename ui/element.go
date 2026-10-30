@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"math"
 	"reflect"
 
 	"github.com/CodeSyncr/nimbus-native/ui/render"
@@ -34,6 +35,10 @@ type Element struct {
 	refreshing  bool
 	href        string
 	onLongPress func()
+	onPan       func(Pan)
+	panAxis     uint8
+	onPinch     func(Pinch)
+	onSwipe     func(Swipe)
 	value       float32 // a Slider's value
 	min, max    float32
 	onSlide     func(float32)
@@ -206,6 +211,104 @@ func Slider(value, min, max float32, onChange func(float32), s Style) *Element {
 
 // OnLongPress makes a Pressable report long presses too.
 func (e *Element) OnLongPress(f func()) *Element { e.onLongPress = f; return e }
+
+// Phase is where a gesture has got to.
+type Phase uint8
+
+const (
+	Began     = Phase(render.GestureBegan)
+	Changed   = Phase(render.GestureChanged)
+	Ended     = Phase(render.GestureEnded)
+	Cancelled = Phase(render.GestureCancelled)
+)
+
+// Pan is a drag: how far it has come from where it began (X, Y) and how fast
+// it's going (VX, VY, per second), in points.
+type Pan struct {
+	Phase        Phase
+	X, Y, VX, VY float32
+}
+
+// Pinch is a two-finger pinch: Scale is 1 at the start, more as the fingers
+// spread.
+type Pinch struct {
+	Phase Phase
+	Scale float32
+}
+
+// Swipe is the way a swipe went.
+type Swipe uint8
+
+const (
+	SwipeLeft Swipe = iota + 1
+	SwipeRight
+	SwipeUp
+	SwipeDown
+)
+
+// OnPan reports drags in any direction on this view. Inside a Scroll, use
+// OnPanX or OnPanY so that scrolling still works the other way.
+//
+//	ui.View(ui.Style{Left: ui.Pt(x)}, card).OnPanX(func(p ui.Pan) {
+//		setX(start + p.X)
+//	})
+func (e *Element) OnPan(f func(Pan)) *Element {
+	e.onPan, e.panAxis = f, render.PanAny
+	return e
+}
+
+// OnPanX reports sideways drags only; a drag that starts up or down is left
+// to whatever scrolls around this view.
+func (e *Element) OnPanX(f func(Pan)) *Element {
+	e.onPan, e.panAxis = f, render.PanX
+	return e
+}
+
+// OnPanY reports up and down drags only.
+func (e *Element) OnPanY(f func(Pan)) *Element {
+	e.onPan, e.panAxis = f, render.PanY
+	return e
+}
+
+// OnPinch reports two-finger pinches on this view.
+func (e *Element) OnPinch(f func(Pinch)) *Element { e.onPinch = f; return e }
+
+// OnSwipe reports a quick flick or a long drag that ends in one direction.
+func (e *Element) OnSwipe(f func(Swipe)) *Element {
+	e.onSwipe = f
+	if e.panAxis == 0 {
+		e.panAxis = render.PanAny
+	}
+	return e
+}
+
+// What makes a drag a swipe: its speed at the end, or how far it went.
+const (
+	swipeSpeed    = 400 // points a second
+	swipeDistance = 80
+)
+
+// swipeOf is the swipe a finished drag makes, if any.
+func swipeOf(p Pan) Swipe {
+	across, along := float32(math.Abs(float64(p.X))), float32(math.Abs(float64(p.Y)))
+	speedX, speedY := float32(math.Abs(float64(p.VX))), float32(math.Abs(float64(p.VY)))
+	if across >= along {
+		switch {
+		case speedX < swipeSpeed && across < swipeDistance:
+			return 0
+		case p.X > 0:
+			return SwipeRight
+		}
+		return SwipeLeft
+	}
+	switch {
+	case speedY < swipeSpeed && along < swipeDistance:
+		return 0
+	case p.Y > 0:
+		return SwipeDown
+	}
+	return SwipeUp
+}
 
 // Href is where a Pressable leads, for hosts with addresses: the web host
 // makes it a link crawlers and new tabs can follow. Taps still run its

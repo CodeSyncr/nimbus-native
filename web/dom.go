@@ -244,7 +244,9 @@ func (t *translator) box(o *render.Box) []instr {
 	out := []instr{{"s": []any{o.Tag, "b", b.String()}},
 		{"a": []any{o.Tag, "aria-label", nullable(o.Label)}},
 		{"a": []any{o.Tag, "data-testid", nullable(o.TestID)}},
-		{"a": []any{o.Tag, "data-lp", boolAttr(o.LongPress)}}}
+		{"a": []any{o.Tag, "data-lp", boolAttr(o.LongPress)}},
+		{"a": []any{o.Tag, "data-pan", panAttr(o.Pan)}},
+		{"a": []any{o.Tag, "data-pinch", boolAttr(o.Pinch)}}}
 	if t.kinds[o.Tag] == render.KindPressable {
 		out = append(out, instr{"a": []any{o.Tag, "href", nullable(o.Href)}})
 		if o.Href == "" {
@@ -569,4 +571,18 @@ func (d *dom) themeCSS() string {
 	}
 	b.WriteString("}")
 	return b.String()
+}
+
+// panAttr names a view's drags for the host; the browser keeps the other
+// direction for scrolling (touch-action).
+func panAttr(p uint8) any {
+	switch p {
+	case render.PanAny:
+		return "any"
+	case render.PanX:
+		return "x"
+	case render.PanY:
+		return "y"
+	}
+	return nil
 }

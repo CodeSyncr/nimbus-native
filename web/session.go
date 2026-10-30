@@ -226,6 +226,11 @@ func (s *session) close() { s.ui.Close() }
 
 // clientMessage is an event from host.js.
 type clientMessage struct {
+	Phase uint8   `json:"phase"`
+	PX    float32 `json:"x"`
+	PY    float32 `json:"y"`
+	PVX   float32 `json:"vx"`
+	PVY   float32 `json:"vy"`
 	T     string  `json:"t"`
 	Tag   uint32  `json:"tag"`
 	Text  string  `json:"text"`
@@ -257,6 +262,10 @@ func (s *session) receive(m clientMessage) {
 		msg = &render.Slid{Tag: m.Tag, Value: m.Value}
 	case "longpress":
 		msg = &render.LongPressed{Tag: m.Tag}
+	case "panned":
+		msg = &render.Panned{Tag: m.Tag, Phase: m.Phase, X: m.PX, Y: m.PY, VX: m.PVX, VY: m.PVY}
+	case "pinched":
+		msg = &render.Pinched{Tag: m.Tag, Phase: m.Phase, Scale: m.Scale}
 	case "popped":
 		msg = &render.Popped{Tag: m.Tag, Depth: m.Depth}
 	case "selected":

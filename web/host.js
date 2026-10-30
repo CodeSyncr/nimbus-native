@@ -253,6 +253,57 @@
     e.preventDefault();
     send({ t: "longpress", tag: tagOf(p) });
   });
+  // Drags and pinches on views that asked for them.
+  const SLOP = 8, fingers = new Map();
+  let drag = null, pinch = null;
+  root.addEventListener("pointerdown", (e) => {
+    fingers.set(e.pointerId, e);
+    const t = e.target.closest?.("[data-pan],[data-pinch]");
+    if (!t) return;
+    if (fingers.size === 2 && t.closest("[data-pinch]")) {
+      const [a, b] = fingers.values();
+      pinch = { el: t.closest("[data-pinch]"), d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), s: 1 };
+      send({ t: "pinched", tag: tagOf(pinch.el), phase: 0, scale: 1 });
+      drag = null;
+    } else if (fingers.size === 1 && t.closest("[data-pan]")) {
+      const el = t.closest("[data-pan]");
+      drag = { el, id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp, lx: e.clientX, ly: e.clientY, vx: 0, vy: 0, on: false };
+    }
+  });
+  addEventListener("pointermove", (e) => {
+    if (fingers.has(e.pointerId)) fingers.set(e.pointerId, e);
+    if (pinch) {
+      const [a, b] = fingers.values();
+      if (!b) return;
+      pinch.s = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / pinch.d;
+      send({ t: "pinched", tag: tagOf(pinch.el), phase: 1, scale: pinch.s });
+      return;
+    }
+    if (!drag || e.pointerId !== drag.id) return;
+    const x = e.clientX - drag.x, y = e.clientY - drag.y, dt = (e.timeStamp - drag.at) / 1000;
+    if (dt > 0) { drag.vx = (e.clientX - drag.lx) / dt; drag.vy = (e.clientY - drag.ly) / dt; }
+    drag.at = e.timeStamp; drag.lx = e.clientX; drag.ly = e.clientY;
+    if (!drag.on) {
+      if (Math.hypot(x, y) < SLOP) return;
+      const way = drag.el.dataset.pan;
+      if ((way === "x" && Math.abs(y) > Math.abs(x)) || (way === "y" && Math.abs(x) > Math.abs(y))) { drag = null; return; }
+      drag.on = true;
+      drag.el.setPointerCapture?.(e.pointerId);
+      send({ t: "panned", tag: tagOf(drag.el), phase: 0, x, y, vx: 0, vy: 0 });
+      return;
+    }
+    send({ t: "panned", tag: tagOf(drag.el), phase: 1, x, y, vx: drag.vx, vy: drag.vy });
+  });
+  const lift = (phase) => (e) => {
+    fingers.delete(e.pointerId);
+    if (pinch && fingers.size < 2) { send({ t: "pinched", tag: tagOf(pinch.el), phase, scale: pinch.s }); pinch = null; }
+    if (drag && e.pointerId === drag.id) {
+      if (drag.on) send({ t: "panned", tag: tagOf(drag.el), phase, x: e.clientX - drag.x, y: e.clientY - drag.y, vx: drag.vx, vy: drag.vy });
+      drag = null;
+    }
+  };
+  addEventListener("pointerup", lift(2));
+  addEventListener("pointercancel", lift(3));
   root.addEventListener("change", (e) => {
     if (e.target.classList?.contains("sw")) send({ t: "toggled", tag: tagOf(e.target), on: e.target.checked });
   });
