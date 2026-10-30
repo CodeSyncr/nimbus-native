@@ -117,6 +117,8 @@ type Box struct {
 	ShadowRadius, ShadowX, ShadowY float32
 	// Corners are the corners Radius rounds: a mask of Corner*; 0 is all four.
 	Corners uint8
+	// Hidden takes the view off the screen (Style.Hidden): not drawn, not tapped.
+	Hidden bool
 }
 
 // Blur is how strongly what is behind a view is blurred: the platform's

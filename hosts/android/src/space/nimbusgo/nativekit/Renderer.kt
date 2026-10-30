@@ -281,6 +281,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             val v = views.remove(tag.toInt())
             frames.remove(tag.toInt())
             (v?.background as? BoxDrawable)?.detach()
+            hidden.remove(tag.toInt())
             if (v is NNModal) {
                 if (!v.leaving) root.dismiss(v) // slides away, then goes
                 continue
@@ -319,6 +320,8 @@ class Renderer internal constructor(private val root: NimbusView) {
 
     private val transitions = HashMap<Int, Long>() // ms, for views whose changes animate
 
+    private val hidden = HashSet<Int>() // tags hidden by Style.Hidden
+
     private fun box(o: Render.Box) {
         val v = views[o.tag.toInt()] ?: return
         val ms = o.transition
@@ -345,6 +348,12 @@ class Renderer internal constructor(private val root: NimbusView) {
         if (v is NNPressable) v.baseAlpha = o.opacity
         if (ms > 0 && v.isAttachedToWindow) v.animate().alpha(o.opacity).setDuration(ms).start() else v.alpha = o.opacity
         v.clipToOutline = o.clip
+        // Only a change of Style.Hidden touches visibility: stacks and tabs set it on their screens.
+        if (o.hidden) {
+            if (hidden.add(o.tag.toInt())) v.visibility = View.INVISIBLE
+        } else if (hidden.remove(o.tag.toInt())) {
+            v.visibility = View.VISIBLE
+        }
         if (v is NNGroup && v !is NNScroll) v.clipChildren = o.clip // scroll views always clip
         v.contentDescription = o.label.ifEmpty { null }
         v.tag = o.testID.ifEmpty { null }

@@ -592,7 +592,7 @@ func (rt *runtime) props(in *instance, first bool) {
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
 		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
-		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners)}
+		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden}
 	if g := s.Gradient; g != nil && len(g.Colors) > 0 {
 		for _, c := range g.Colors {
 			box.GradientColors = append(box.GradientColors, uint32(c))

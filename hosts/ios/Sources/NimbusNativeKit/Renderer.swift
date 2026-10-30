@@ -77,6 +77,7 @@ public final class Renderer {
     private var views: [UInt32: UIView] = [:]
     private var radii: [UInt32: CGFloat] = [:] // as asked; drawn at most half the short side
     private var decor: [UInt32: Decor] = [:] // blur, gradient and shadow, laid out with the view
+    private var hidden: Set<UInt32> = [] // tags hidden by Style.Hidden
     private var transitions: [UInt32: UInt32] = [:] // ms, for views whose changes animate
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
@@ -208,6 +209,7 @@ public final class Renderer {
                     radii.removeValue(forKey: t)
                     transitions.removeValue(forKey: t)
                     decor.removeValue(forKey: t)
+                    hidden.remove(t)
                     let v = views.removeValue(forKey: t)
                     if let m = modals.removeValue(forKey: t) {
                         // Its controller keeps the views while it animates away.
@@ -386,6 +388,9 @@ public final class Renderer {
             p.reportLongPress { [weak self] in self?.send(.longPressed(Render.LongPressed(tag: tag))) }
         }
         if !(v is UIScrollView) { v.clipsToBounds = o.clip }
+        // Only a change of Style.Hidden touches isHidden.
+        if o.hidden { if hidden.insert(o.tag).inserted { v.isHidden = true } }
+        else if hidden.remove(o.tag) != nil { v.isHidden = false }
         v.accessibilityLabel = o.label.isEmpty ? nil : o.label
         v.accessibilityIdentifier = o.testID.isEmpty ? nil : o.testID
         if !o.label.isEmpty { v.isAccessibilityElement = true }
