@@ -129,6 +129,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 	buildNo := fs.String("build", "", "release: the build number, higher for every upload, e.g. 42")
 	export := fs.String("export", "app-store", "iOS release: app-store, ad-hoc or development")
 	abis := fs.String("abi", "arm64-v8a", "Android: comma-separated ABIs (arm64-v8a,armeabi-v7a,x86_64,x86)")
+	server := fs.String("server", "", "the address of the app's server, built into the app (or NIMBUS_SERVER_URL)")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(args)
 	dir := "."
@@ -139,9 +140,17 @@ func buildOrRun(cmd, platform string, args []string) error {
 	if err := inModule(dir); err != nil {
 		return err
 	}
+	if *server != "" {
+		if err := toolchain.SetServer(*server); err != nil {
+			return err
+		}
+	}
 	if *release {
 		if cmd != "build" || !toolchain.IsProject(dir) {
 			return fmt.Errorf("-release goes with `nimbus native build` in a project")
+		}
+		if toolchain.HasServer(dir) && !toolchain.ServerSet() {
+			toolchain.Warnf(os.Stdout, "No server address given: the app will use the one in its code. Pass -server https://your-server")
 		}
 		return buildRelease(platform, dir, toolchain.Release{Version: *version, Build: *buildNo, Team: *team, Export: *export}, *verbose)
 	}
@@ -206,6 +215,11 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 			return err
 		}
 		if !onPhone {
+			if cmd == "run" {
+				if err := useLocalServer(app.Root, toolchain.OnSimulator); err != nil {
+					return err
+				}
+			}
 			out, err := env.BuildIOSProject(app, toolchain.IOSSimulator)
 			if err != nil {
 				return err
@@ -224,7 +238,17 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 			via = "Wi-Fi"
 		}
 		toolchain.Infof(os.Stdout, "%s over %s, signed by team %s", phone.Name, via, team)
-		out, err := env.BuildIOSProject(app, toolchain.IOSDevice, toolchain.IOSDeviceBuild{Team: team, Phone: phone})
+		build := toolchain.IOSDeviceBuild{Team: team, Phone: phone}
+		if cmd == "run" {
+			if err := useLocalServer(app.Root, toolchain.OnPhone); err != nil {
+				return err
+			}
+			if toolchain.ServerSet() {
+				// iOS asks once before an app talks to the local network.
+				build.Settings = []string{"INFOPLIST_KEY_NSLocalNetworkUsageDescription=The app talks to its server on your local network."}
+			}
+		}
+		out, err := env.BuildIOSProject(app, toolchain.IOSDevice, build)
 		if err != nil {
 			return err
 		}
@@ -240,6 +264,13 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 			if env.Serial, err = pickAndroid(env, device, sim, udid); err != nil {
 				return err
 			}
+			target := toolchain.OnPhone
+			if env.Serial == "" || strings.HasPrefix(env.Serial, "emulator-") {
+				target = toolchain.OnEmulator
+			}
+			if err := useLocalServer(app.Root, target); err != nil {
+				return err
+			}
 		}
 		out, err := env.BuildAndroidProject(app, abis)
 		if err != nil {
@@ -253,6 +284,21 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 		return fmt.Errorf("unknown platform %q (ios or android)", platform)
 	}
 	return nil
+}
+
+// useLocalServer points a run at the project's server on this Mac, unless
+// it has been given another or the project has none.
+func useLocalServer(root string, target int) error {
+	if toolchain.ServerSet() || !toolchain.HasServer(root) {
+		return nil
+	}
+	url := toolchain.LocalServer(root, target)
+	if url == "" {
+		toolchain.Warnf(os.Stdout, "This Mac isn't on a network, so the phone can't reach its server. Pass -server https://your-server")
+		return nil
+	}
+	toolchain.Infof(os.Stdout, "The app will look for its server at %s: start it with `nimbus serve`", url)
+	return toolchain.SetServer(url)
 }
 
 // newProject creates a project.
@@ -597,13 +643,13 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   nimbus native new <dir>                              a project with native/ios and native/android
   nimbus native icon [-background #hex] [-launch #hex] <image>   app icons and launch screens
-  nimbus native build ios|android -release [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
+  nimbus native build ios|android -release -server URL [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
   nimbus native keystore                               the Android release key
   nimbus native font add [-name Family] <font.ttf>     a font for Style.FontFamily
   nimbus native upgrade [version]                      move the project to the latest (or that) release
   nimbus native doctor
   nimbus native gen [app-dir]
-  nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
+  nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-server URL] [-abi list] [-name N] [-id ID] [-v] [app-dir]
   nimbus native run   ios|android [...same flags] [app-dir]
   nimbus native dev   ios|android [-sim|-device -udid D -team ID] [-no-server] [app-dir]   app + server, reload on save
   nimbus native lib   ios|android [flags] [project-dir]   the Go side of a project build (Xcode and Gradle run it)`)

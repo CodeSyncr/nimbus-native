@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,6 +75,61 @@ func serverPort(root string) string {
 		}
 	}
 	return "3333"
+}
+
+// serverEnv carries the server's address: at run time in dev mode, and
+// into the app when set during a build (api.ServerURL).
+const serverEnv = "NIMBUS_SERVER_URL"
+
+// SetServer has this process's builds use url as the app's server.
+func SetServer(url string) error {
+	u, err := neturl.Parse(url)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || strings.ContainsAny(url, " \t\"'") {
+		return fmt.Errorf("-server %q: use an address like https://api.example.com", url)
+	}
+	return os.Setenv(serverEnv, strings.TrimRight(url, "/"))
+}
+
+// ServerSet reports whether an address was given for this build.
+func ServerSet() bool { return os.Getenv(serverEnv) != "" }
+
+// HasServer reports whether the project has a Nimbus server of its own.
+func HasServer(root string) bool { return exists(filepath.Join(root, "main.go")) }
+
+// Where a built app runs, for LocalServer.
+const (
+	OnSimulator = iota // shares this Mac's network
+	OnEmulator         // reaches this Mac at 10.0.2.2
+	OnPhone            // reaches this Mac over the local network
+)
+
+// LocalServer is where an app on target reaches the project's server on
+// this Mac, or "" when this Mac isn't on a network.
+func LocalServer(root string, target int) string {
+	host := "127.0.0.1"
+	switch target {
+	case OnEmulator:
+		host = "10.0.2.2"
+	case OnPhone:
+		if host = lanIP(); host == "" {
+			return ""
+		}
+	}
+	return "http://" + net.JoinHostPort(host, serverPort(root))
+}
+
+// lanIP is this Mac's address on the local network.
+func lanIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, a := range addrs {
+		if n, ok := a.(*net.IPNet); ok && n.IP.To4() != nil && n.IP.IsPrivate() {
+			return n.IP.String()
+		}
+	}
+	return ""
 }
 
 func (s *devServer) url() string { return "http://127.0.0.1:" + s.port }

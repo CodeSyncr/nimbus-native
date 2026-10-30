@@ -67,12 +67,20 @@ type Client struct {
 	Header http.Header
 }
 
+// builtServerURL is set when the app is built: `-server`, or the address
+// `nimbus native run` found.
+var builtServerURL string
+
 // ServerURL is the address of the project's Nimbus server: under
 // `nimbus native dev`, the server it runs alongside the app (wherever its
-// port landed); otherwise fallback, the server a build talks to.
+// port landed); else the address the app was built with (`-server`, or
+// NIMBUS_SERVER_URL during the build); else fallback.
 func ServerURL(fallback string) string {
 	if u := os.Getenv("NIMBUS_SERVER_URL"); u != "" {
 		return u
+	}
+	if builtServerURL != "" {
+		return builtServerURL
 	}
 	return fallback
 }

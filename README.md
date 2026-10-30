@@ -535,7 +535,7 @@ var ListOrders  = api.GET[ListOrdersReq, []Order]("/api/orders")
 var CreateOrder = api.POST[NewOrder, Order]("/api/orders")
 
 // in the app
-client := api.New("https://orders.example.com")
+client := api.New(api.ServerURL("https://orders.example.com"))
 q := ui.UseQuery(c, "orders", func(ctx context.Context) ([]Order, error) {
 	return api.Call(ctx, client, ListOrders, ListOrdersReq{})
 })
@@ -556,6 +556,15 @@ response is an `*api.Error`; a Nimbus 422's field errors come with it.
 components, refreshes stale data in the background and refetches on
 demand; `ui.UseAction` runs writes with their progress and result. See
 `examples/fullstack` for a Nimbus server and app sharing one contract.
+
+`api.ServerURL` finds the server wherever the app runs. Under `nimbus
+native dev` it's the server running beside the app. A `nimbus native run`
+uses the project's server on this Mac at an address the target can reach:
+the simulator's `127.0.0.1`, the emulator's `10.0.2.2`, or this Mac's
+address on the local network for a phone (start it with `nimbus serve`).
+Any build takes `-server https://your-server`, built into the app; a
+release build warns when a project with a server has none. The argument
+to `ServerURL` is the fallback.
 
 ## Theming and dark mode
 
