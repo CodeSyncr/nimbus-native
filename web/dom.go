@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"html"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -182,7 +183,26 @@ func (t *translator) box(o *render.Box) []instr {
 		b.WriteString("background:" + cssColor(o.Background) + ";")
 	}
 	if o.Radius > 0 {
-		fmt.Fprintf(&b, "border-radius:%spx;", num(o.Radius))
+		if o.Corners == 0 {
+			fmt.Fprintf(&b, "border-radius:%spx;", num(o.Radius))
+		} else {
+			r := func(bit uint8) string {
+				if o.Corners&bit != 0 {
+					return num(o.Radius) + "px"
+				}
+				return "0"
+			}
+			fmt.Fprintf(&b, "border-radius:%s %s %s %s;", r(render.CornerTopLeft), r(render.CornerTopRight), r(render.CornerBottomRight), r(render.CornerBottomLeft))
+		}
+	}
+	if len(o.GradientColors) >= 2 {
+		b.WriteString("background-image:" + gradientCSS(o) + ";")
+	}
+	if o.ShadowColor != 0 {
+		fmt.Fprintf(&b, "box-shadow:%spx %spx %spx %s;", num(o.ShadowX), num(o.ShadowY), num(o.ShadowRadius), cssColor(o.ShadowColor))
+	}
+	if px := [...]int{0, 8, 14, 22, 30}[min(int(o.Blur), 4)]; px > 0 {
+		fmt.Fprintf(&b, "backdrop-filter:blur(%[1]dpx) saturate(180%%);-webkit-backdrop-filter:blur(%[1]dpx) saturate(180%%);", px)
 	}
 	if o.BorderWidth > 0 {
 		b.WriteString("border-style:solid;border-color:" + cssColor(o.BorderColor) + ";")
@@ -309,6 +329,25 @@ func length(v layout.Value) string {
 func num(f float32) string { return strconv.FormatFloat(float64(f), 'f', -1, 32) }
 
 // cssColor turns 0xRRGGBBAA into a CSS color.
+// gradientCSS is a Box's gradient as a CSS image: the same points, in the
+// box's unit square, as the native hosts draw.
+func gradientCSS(o *render.Box) string {
+	var stops []string
+	for i, c := range o.GradientColors {
+		st := cssColor(c)
+		if len(o.GradientStops) == len(o.GradientColors) {
+			st += " " + num(o.GradientStops[i]*100) + "%"
+		}
+		stops = append(stops, st)
+	}
+	if o.GradientRadial {
+		r := float32(math.Hypot(float64(o.GradientX1-o.GradientX0), float64(o.GradientY1-o.GradientY0))) * 100
+		return fmt.Sprintf("radial-gradient(%[1]s%% %[1]s%% at %[2]s%% %[3]s%%,%[4]s)", num(r), num(o.GradientX0*100), num(o.GradientY0*100), strings.Join(stops, ","))
+	}
+	deg := math.Atan2(float64(o.GradientX1-o.GradientX0), float64(o.GradientY0-o.GradientY1)) * 180 / math.Pi
+	return fmt.Sprintf("linear-gradient(%sdeg,%s)", num(float32(deg)), strings.Join(stops, ","))
+}
+
 func cssColor(c uint32) string {
 	if c == 0 {
 		return "transparent"

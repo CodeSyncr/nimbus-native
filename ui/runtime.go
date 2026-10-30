@@ -12,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -591,8 +592,19 @@ func (rt *runtime) props(in *instance, first bool) {
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
 		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
-		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil}
-	if box != in.sent.box && !(first && box == (render.Box{Tag: in.tag, Opacity: 1})) {
+		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners)}
+	if g := s.Gradient; g != nil && len(g.Colors) > 0 {
+		for _, c := range g.Colors {
+			box.GradientColors = append(box.GradientColors, uint32(c))
+		}
+		box.GradientStops = g.Stops
+		box.GradientRadial = g.Radial
+		box.GradientX0, box.GradientY0, box.GradientX1, box.GradientY1 = g.From.X, g.From.Y, g.To.X, g.To.Y
+	}
+	if sh := s.Shadow; sh != nil && sh.Color != 0 {
+		box.ShadowColor, box.ShadowRadius, box.ShadowX, box.ShadowY = uint32(sh.Color), sh.Radius, sh.X, sh.Y
+	}
+	if !boxEqual(box, in.sent.box) && !(first && boxEqual(box, render.Box{Tag: in.tag, Opacity: 1})) {
 		rt.op(&box)
 	}
 	in.sent.box = box
@@ -787,4 +799,13 @@ func guard(what string, f func()) {
 		}
 	}()
 	f()
+}
+
+// boxEqual reports whether two Box ops would look the same.
+func boxEqual(a, b render.Box) bool {
+	if !slices.Equal(a.GradientColors, b.GradientColors) || !slices.Equal(a.GradientStops, b.GradientStops) {
+		return false
+	}
+	a.GradientColors, a.GradientStops, b.GradientColors, b.GradientStops = nil, nil, nil, nil
+	return reflect.DeepEqual(a, b) // the rest are plain values
 }

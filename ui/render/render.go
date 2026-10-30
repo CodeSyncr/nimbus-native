@@ -101,7 +101,45 @@ type Box struct {
 	// background over this many milliseconds; 0 changes them at once.
 	Transition uint32
 	LongPress  bool // a pressable that reports long presses
+
+	// Blur shows what is behind the view, blurred; Background tints it.
+	Blur Blur
+	// A gradient painted over Background: colors at stops (0..1; evenly
+	// spaced when there are none), from (GradientX0, GradientY0) to
+	// (GradientX1, GradientY1) in the view's unit square. A radial one
+	// spreads from the first point out to the distance to the second.
+	GradientColors                                 []uint32
+	GradientStops                                  []float32
+	GradientRadial                                 bool
+	GradientX0, GradientY0, GradientX1, GradientY1 float32
+	// A shadow under the view: its color (0 for none), blur radius and offset.
+	ShadowColor                    uint32
+	ShadowRadius, ShadowX, ShadowY float32
+	// Corners are the corners Radius rounds: a mask of Corner*; 0 is all four.
+	Corners uint8
 }
+
+// Blur is how strongly what is behind a view is blurred: the platform's
+// materials on iOS, a blur radius elsewhere.
+//
+//wire:enum
+type Blur uint8
+
+const (
+	BlurNone Blur = iota
+	BlurUltraThin
+	BlurThin
+	BlurRegular
+	BlurThick
+)
+
+// The corners in Box.Corners.
+const (
+	CornerTopLeft     = 1
+	CornerTopRight    = 2
+	CornerBottomRight = 4
+	CornerBottomLeft  = 8
+)
 
 // Align is horizontal text alignment.
 //

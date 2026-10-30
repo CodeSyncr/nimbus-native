@@ -76,6 +76,7 @@ public final class Renderer {
 
     private var views: [UInt32: UIView] = [:]
     private var radii: [UInt32: CGFloat] = [:] // as asked; drawn at most half the short side
+    private var decor: [UInt32: Decor] = [:] // blur, gradient and shadow, laid out with the view
     private var transitions: [UInt32: UInt32] = [:] // ms, for views whose changes animate
     private lazy var scrollReporter = ScrollReporter(renderer: self)
     private var rootTag: UInt32 = 0
@@ -206,6 +207,7 @@ public final class Renderer {
                 for t in o.tags {
                     radii.removeValue(forKey: t)
                     transitions.removeValue(forKey: t)
+                    decor.removeValue(forKey: t)
                     let v = views.removeValue(forKey: t)
                     if let m = modals.removeValue(forKey: t) {
                         // Its controller keeps the views while it animates away.
@@ -226,10 +228,12 @@ public final class Renderer {
                     animate(ms) {
                         v.frame = f
                         if let r = self.radii[o.tag] { self.round(v, r) }
+                        self.decor[o.tag]?.layout(v)
                     }
                 } else {
                     v.frame = f
                     if let r = radii[o.tag] { round(v, r) }
+                    decor[o.tag]?.layout(v)
                 }
             case .box(let o): box(o)
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
@@ -350,8 +354,10 @@ public final class Renderer {
         for sub in parent.subviews where views[UInt32(truncatingIfNeeded: sub.tag)] === sub && !keep.contains(ObjectIdentifier(sub)) {
             sub.removeFromSuperview()
         }
-        for (i, v) in wanted.enumerated() where i >= parent.subviews.count || parent.subviews[i] !== v {
-            parent.insertSubview(v, at: i)
+        // A blur stays under the children (Decor).
+        let base = parent.subviews.first is NNBackdrop ? 1 : 0
+        for (i, v) in wanted.enumerated() where base + i >= parent.subviews.count || parent.subviews[base + i] !== v {
+            parent.insertSubview(v, at: base + i)
         }
     }
 
@@ -359,13 +365,20 @@ public final class Renderer {
         guard let v = views[o.tag] else { return }
         let animated = transitions[o.tag] != nil && v.window != nil
         transitions[o.tag] = o.transition > 0 ? o.transition : nil
+        let d = decor[o.tag] ?? Decor()
+        d.apply(o, to: v)
+        decor[o.tag] = d.isEmpty ? nil : d
+        let tint = color(o.background) ?? .clear // nil paints some views (UILabel) black
         let look = {
-            v.backgroundColor = color(o.background) ?? .clear // nil paints some views (UILabel) black
+            // With a blur the tint goes over it, in the blur's own view.
+            if let b = d.blur { b.contentView.backgroundColor = tint; v.backgroundColor = .clear } else { v.backgroundColor = tint }
             if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }
         }
         if animated, o.transition > 0 { animate(o.transition, look) } else { look() }
         radii[o.tag] = o.radius > 0 ? CGFloat(o.radius) : nil
         round(v, CGFloat(o.radius))
+        v.layer.maskedCorners = Decor.corners(o.corners)
+        d.layout(v)
         v.layer.borderWidth = CGFloat(o.borderWidth)
         v.layer.borderColor = color(o.borderColor)?.cgColor
         if o.longPress, let p = v as? NNPressable {
@@ -482,6 +495,110 @@ enum Fonts {
         }
         return map
     }()
+}
+
+/// The blur under a view's children (Style.Blur): kept first among them.
+final class NNBackdrop: UIVisualEffectView {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+}
+
+/// What a box draws besides its background: a blur of what is behind it, a
+/// gradient and a shadow. Laid out again whenever the view's frame changes.
+final class Decor {
+    var blur: NNBackdrop?
+    var gradient: CAGradientLayer?
+    private var shadow = false
+    private var corners: UInt8 = 0
+
+    var isEmpty: Bool { blur == nil && gradient == nil && !shadow }
+
+    static func corners(_ mask: UInt8) -> CACornerMask {
+        guard mask != 0 else { return [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner, .layerMinXMaxYCorner] }
+        var m: CACornerMask = []
+        if mask & 1 != 0 { m.insert(.layerMinXMinYCorner) }
+        if mask & 2 != 0 { m.insert(.layerMaxXMinYCorner) }
+        if mask & 4 != 0 { m.insert(.layerMaxXMaxYCorner) }
+        if mask & 8 != 0 { m.insert(.layerMinXMaxYCorner) }
+        return m
+    }
+
+    func apply(_ o: Render.Box, to v: UIView) {
+        corners = o.corners
+        // Blur: the system materials.
+        let style: UIBlurEffect.Style? = switch o.blur {
+        case .ultraThin: .systemUltraThinMaterial
+        case .thin: .systemThinMaterial
+        case .regular: .systemMaterial
+        case .thick: .systemThickMaterial
+        default: nil
+        }
+        if let style {
+            if blur == nil {
+                let b = NNBackdrop(effect: nil)
+                b.clipsToBounds = true
+                v.insertSubview(b, at: 0)
+                blur = b
+            }
+            blur?.effect = UIBlurEffect(style: style)
+        } else if let b = blur {
+            b.removeFromSuperview()
+            blur = nil
+        }
+
+        // Gradient, over the background and under the children.
+        if o.gradientColors.count >= 2 {
+            let g = gradient ?? CAGradientLayer()
+            if gradient == nil { v.layer.insertSublayer(g, at: 0); gradient = g }
+            g.colors = o.gradientColors.map { (color($0) ?? .clear).cgColor }
+            g.locations = o.gradientStops.count == o.gradientColors.count ? o.gradientStops.map { NSNumber(value: $0) } : nil
+            g.type = o.gradientRadial ? .radial : .axial
+            g.startPoint = CGPoint(x: CGFloat(o.gradientX0), y: CGFloat(o.gradientY0))
+            if o.gradientRadial {
+                // Radial: the end point sets the radius, in both directions.
+                let r = hypot(CGFloat(o.gradientX1 - o.gradientX0), CGFloat(o.gradientY1 - o.gradientY0))
+                g.endPoint = CGPoint(x: CGFloat(o.gradientX0) + r, y: CGFloat(o.gradientY0) + r)
+            } else {
+                g.endPoint = CGPoint(x: CGFloat(o.gradientX1), y: CGFloat(o.gradientY1))
+            }
+        } else if let g = gradient {
+            g.removeFromSuperlayer()
+            gradient = nil
+        }
+
+        // Shadow, on the view's own layer.
+        shadow = o.shadowColor != 0
+        v.layer.shadowColor = color(o.shadowColor)?.cgColor
+        v.layer.shadowOpacity = shadow ? 1 : 0
+        v.layer.shadowRadius = CGFloat(o.shadowRadius) / 2 // CSS-like: the blur's extent
+        v.layer.shadowOffset = CGSize(width: CGFloat(o.shadowX), height: CGFloat(o.shadowY))
+        if !shadow { v.layer.shadowPath = nil }
+    }
+
+    func layout(_ v: UIView) {
+        let r = v.layer.cornerRadius
+        let masked = v.layer.maskedCorners
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if let b = blur {
+            b.frame = v.bounds
+            b.layer.cornerRadius = r
+            b.layer.maskedCorners = masked
+        }
+        if let g = gradient {
+            g.frame = v.bounds
+            g.cornerRadius = r
+            g.maskedCorners = masked
+        }
+        if shadow {
+            var rc: UIRectCorner = []
+            if masked.contains(.layerMinXMinYCorner) { rc.insert(.topLeft) }
+            if masked.contains(.layerMaxXMinYCorner) { rc.insert(.topRight) }
+            if masked.contains(.layerMaxXMaxYCorner) { rc.insert(.bottomRight) }
+            if masked.contains(.layerMinXMaxYCorner) { rc.insert(.bottomLeft) }
+            v.layer.shadowPath = UIBezierPath(roundedRect: v.bounds, byRoundingCorners: rc, cornerRadii: CGSize(width: r, height: r)).cgPath
+        }
+        CATransaction.commit()
+    }
 }
 
 /// 0xRRGGBBAA → UIColor; 0 means unset.

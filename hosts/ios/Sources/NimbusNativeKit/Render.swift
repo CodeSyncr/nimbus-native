@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x26a5a34b860b593e
+    public static let schemaHash: UInt64 = 0x77b120b536be5d11
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -21,6 +21,18 @@ public enum Render {
         public static let modal = Kind(rawValue: 9)
         public static let `switch` = Kind(rawValue: 10)
         public static let slider = Kind(rawValue: 11)
+    }
+
+    /// Blur is how strongly what is behind a view is blurred: the platform's
+    /// materials on iOS, a blur radius elsewhere.
+    public struct Blur: RawRepresentable, Equatable, Hashable {
+        public var rawValue: UInt8
+        public init(rawValue: UInt8) { self.rawValue = rawValue }
+        public static let none = Blur(rawValue: 0)
+        public static let ultraThin = Blur(rawValue: 1)
+        public static let thin = Blur(rawValue: 2)
+        public static let regular = Blur(rawValue: 3)
+        public static let thick = Blur(rawValue: 4)
     }
 
     /// Align is horizontal text alignment.
@@ -214,8 +226,21 @@ public enum Render {
         public var href: String
         public var transition: UInt32
         public var longPress: Bool
+        public var blur: Blur
+        public var gradientColors: [UInt32]
+        public var gradientStops: [Float]
+        public var gradientRadial: Bool
+        public var gradientX0: Float
+        public var gradientY0: Float
+        public var gradientX1: Float
+        public var gradientY1: Float
+        public var shadowColor: UInt32
+        public var shadowRadius: Float
+        public var shadowX: Float
+        public var shadowY: Float
+        public var corners: UInt8
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false) {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -228,6 +253,19 @@ public enum Render {
             self.href = href
             self.transition = transition
             self.longPress = longPress
+            self.blur = blur
+            self.gradientColors = gradientColors
+            self.gradientStops = gradientStops
+            self.gradientRadial = gradientRadial
+            self.gradientX0 = gradientX0
+            self.gradientY0 = gradientY0
+            self.gradientX1 = gradientX1
+            self.gradientY1 = gradientY1
+            self.shadowColor = shadowColor
+            self.shadowRadius = shadowRadius
+            self.shadowX = shadowX
+            self.shadowY = shadowY
+            self.corners = corners
         }
 
         public func write(to w: inout WireWriter) {
@@ -243,6 +281,25 @@ public enum Render {
             w.string(self.href)
             w.uint(UInt64(self.transition))
             w.bool(self.longPress)
+            w.uint(UInt64(self.blur.rawValue))
+            w.uint(UInt64(self.gradientColors.count))
+            for v0 in self.gradientColors {
+                w.uint(UInt64(v0))
+            }
+            w.uint(UInt64(self.gradientStops.count))
+            for v0 in self.gradientStops {
+                w.float32(v0)
+            }
+            w.bool(self.gradientRadial)
+            w.float32(self.gradientX0)
+            w.float32(self.gradientY0)
+            w.float32(self.gradientX1)
+            w.float32(self.gradientY1)
+            w.uint(UInt64(self.shadowColor))
+            w.float32(self.shadowRadius)
+            w.float32(self.shadowX)
+            w.float32(self.shadowY)
+            w.uint(UInt64(self.corners))
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -259,6 +316,19 @@ public enum Render {
             m.href = try r.string()
             m.transition = UInt32(try r.uint(max: 4294967295))
             m.longPress = try r.bool()
+            m.blur = Blur(rawValue: UInt8(try r.uint(max: 255)))
+            m.gradientColors = try r.list { r in UInt32(try r.uint(max: 4294967295)) }
+            m.gradientStops = try r.list { r in try r.float32() }
+            m.gradientRadial = try r.bool()
+            m.gradientX0 = try r.float32()
+            m.gradientY0 = try r.float32()
+            m.gradientX1 = try r.float32()
+            m.gradientY1 = try r.float32()
+            m.shadowColor = UInt32(try r.uint(max: 4294967295))
+            m.shadowRadius = try r.float32()
+            m.shadowX = try r.float32()
+            m.shadowY = try r.float32()
+            m.corners = UInt8(try r.uint(max: 255))
             return m
         }
     }

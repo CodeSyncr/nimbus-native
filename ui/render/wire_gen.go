@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x26a5a34b860b593e
+const SchemaHash uint64 = 0x77b120b536be5d11
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -135,6 +135,25 @@ func (m *Box) AppendWire(b []byte) []byte {
 	b = wire.AppendString(b, m.Href)
 	b = wire.AppendUint(b, uint64(m.Transition))
 	b = wire.AppendBool(b, m.LongPress)
+	b = wire.AppendUint(b, uint64(m.Blur))
+	b = wire.AppendUint(b, uint64(len(m.GradientColors)))
+	for _, v0 := range m.GradientColors {
+		b = wire.AppendUint(b, uint64(v0))
+	}
+	b = wire.AppendUint(b, uint64(len(m.GradientStops)))
+	for _, v0 := range m.GradientStops {
+		b = wire.AppendFloat32(b, v0)
+	}
+	b = wire.AppendBool(b, m.GradientRadial)
+	b = wire.AppendFloat32(b, m.GradientX0)
+	b = wire.AppendFloat32(b, m.GradientY0)
+	b = wire.AppendFloat32(b, m.GradientX1)
+	b = wire.AppendFloat32(b, m.GradientY1)
+	b = wire.AppendUint(b, uint64(m.ShadowColor))
+	b = wire.AppendFloat32(b, m.ShadowRadius)
+	b = wire.AppendFloat32(b, m.ShadowX)
+	b = wire.AppendFloat32(b, m.ShadowY)
+	b = wire.AppendUint(b, uint64(m.Corners))
 	return b
 }
 
@@ -152,6 +171,33 @@ func (m *Box) ReadWire(r *wire.Reader) {
 	m.Href = r.String()
 	m.Transition = uint32(r.UintMax(1<<32 - 1))
 	m.LongPress = r.Bool()
+	m.Blur = Blur(r.UintMax(1<<8 - 1))
+	if n0 := r.Count(); n0 > 0 {
+		m.GradientColors = make([]uint32, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 uint32
+			v0 = uint32(r.UintMax(1<<32 - 1))
+			m.GradientColors = append(m.GradientColors, v0)
+		}
+	}
+	if n0 := r.Count(); n0 > 0 {
+		m.GradientStops = make([]float32, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 float32
+			v0 = r.Float32()
+			m.GradientStops = append(m.GradientStops, v0)
+		}
+	}
+	m.GradientRadial = r.Bool()
+	m.GradientX0 = r.Float32()
+	m.GradientY0 = r.Float32()
+	m.GradientX1 = r.Float32()
+	m.GradientY1 = r.Float32()
+	m.ShadowColor = uint32(r.UintMax(1<<32 - 1))
+	m.ShadowRadius = r.Float32()
+	m.ShadowX = r.Float32()
+	m.ShadowY = r.Float32()
+	m.Corners = uint8(r.UintMax(1<<8 - 1))
 }
 
 // AppendWire appends m's wire encoding to b.

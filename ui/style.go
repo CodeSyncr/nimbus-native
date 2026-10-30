@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CodeSyncr/nimbus-native/layout"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
 // Layout vocabulary, re-exported so apps only import ui.
@@ -109,6 +110,10 @@ type Style struct {
 	BorderColor Color
 	Opacity     float32 // 0 means 1 (fully opaque); use Hidden to hide
 	Clip        bool
+	Corners     Corners   // which corners Radius rounds; 0 means all four
+	Blur        Blur      // what is behind shows through, blurred; Background tints it
+	Gradient    *Gradient // painted over Background
+	Shadow      *Shadow   // drawn under the view
 
 	// Text and inputs
 	FontSize   float32 // 0 means 16
@@ -117,6 +122,68 @@ type Style struct {
 	Color      Color   // text color; 0 means the platform default
 	TextAlign  Align   // AlignStart, AlignCenter, AlignEnd
 	Lines      uint32  // 0 = unlimited
+}
+
+// Blur is how strongly what is behind a view is blurred (Style.Blur): the
+// platform's materials on iOS, a backdrop blur on Android 12+ and the web.
+// Older Android shows the Background tint alone.
+type Blur = render.Blur
+
+const (
+	BlurNone      = render.BlurNone
+	BlurUltraThin = render.BlurUltraThin
+	BlurThin      = render.BlurThin
+	BlurRegular   = render.BlurRegular
+	BlurThick     = render.BlurThick
+)
+
+// Corners picks the corners Style.Radius rounds.
+type Corners uint8
+
+const (
+	CornerTopLeft     Corners = render.CornerTopLeft
+	CornerTopRight    Corners = render.CornerTopRight
+	CornerBottomRight Corners = render.CornerBottomRight
+	CornerBottomLeft  Corners = render.CornerBottomLeft
+
+	CornersLeft   = CornerTopLeft | CornerBottomLeft
+	CornersRight  = CornerTopRight | CornerBottomRight
+	CornersTop    = CornerTopLeft | CornerTopRight
+	CornersBottom = CornerBottomLeft | CornerBottomRight
+)
+
+// Point is a place in a view's unit square: (0, 0) its top left, (1, 1)
+// its bottom right.
+type Point struct{ X, Y float32 }
+
+// Gradient is a fill that blends between colors (Style.Gradient).
+type Gradient struct {
+	Colors []Color
+	Stops  []float32 // where each color sits, 0..1; empty spaces them evenly
+	Radial bool      // from From outward to the distance to To; else along From → To
+	From   Point
+	To     Point
+}
+
+// LinearGradient blends colors along the line from → to:
+//
+//	ui.LinearGradient(ui.Point{0, 0}, ui.Point{0, 1}, top, bottom) // top to bottom
+func LinearGradient(from, to Point, colors ...Color) *Gradient {
+	return &Gradient{Colors: colors, From: from, To: to}
+}
+
+// RadialGradient blends colors outward from center, reaching the last at
+// radius (a share of the view's width).
+func RadialGradient(center Point, radius float32, colors ...Color) *Gradient {
+	return &Gradient{Colors: colors, Radial: true, From: center, To: Point{center.X + radius, center.Y}}
+}
+
+// Shadow is a shadow under a view (Style.Shadow): its color (with alpha),
+// how far it spreads, and its offset.
+type Shadow struct {
+	Color  Color
+	Radius float32
+	X, Y   float32
 }
 
 // Flex makes an element take its share of the free space: Flex(1) fills

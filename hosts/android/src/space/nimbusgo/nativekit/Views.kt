@@ -49,6 +49,12 @@ internal open class NNGroup(c: Context, val r: Renderer) : ViewGroup(c) {
     }
 
     override fun shouldDelayChildPressedState() = false
+
+    /** While a backdrop draws the window, a view that blurs (and all it holds) stays out of it. */
+    override fun draw(canvas: android.graphics.Canvas) {
+        if (Backdrop.capturing && (background as? BoxDrawable)?.blurs == true) return
+        super.draw(canvas)
+    }
 }
 
 /** A container that reports taps and dims while pressed. */

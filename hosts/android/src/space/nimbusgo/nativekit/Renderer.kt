@@ -280,6 +280,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         for (tag in o.tags) {
             val v = views.remove(tag.toInt())
             frames.remove(tag.toInt())
+            (v?.background as? BoxDrawable)?.detach()
             if (v is NNModal) {
                 if (!v.leaving) root.dismiss(v) // slides away, then goes
                 continue
@@ -323,14 +324,23 @@ class Renderer internal constructor(private val root: NimbusView) {
         val ms = o.transition
         if (ms > 0) transitions[o.tag.toInt()] = ms else transitions.remove(o.tag.toInt())
         if (v is NNPressable) v.reportLongPress(o.longPress, o.tag.toInt())
-        if (o.background != 0L || o.radius != 0f || o.borderWidth != 0f) {
-            v.background = GradientDrawable().apply {
-                setColor(argb(o.background))
-                cornerRadius = o.radius * density
-                if (o.borderWidth > 0) setStroke(max(1, (o.borderWidth * density).roundToInt()), argb(o.borderColor))
-            }
+        (v.background as? BoxDrawable)?.detach()
+        val drawn = o.background != 0L || o.radius != 0f || o.borderWidth != 0f || o.gradientColors.size >= 2 ||
+            o.blur != Render.Blur.NONE || o.shadowColor != 0L
+        if (drawn) {
+            v.background = BoxDrawable(v, o, density)
         } else if (v !is ProgressBar) {
             v.background = null
+        }
+        // A shadow: elevation over the outline, in the asked color (Android 9+).
+        if (o.shadowColor != 0L) {
+            v.elevation = o.shadowRadius * density / 2
+            if (Build.VERSION.SDK_INT >= 28) {
+                v.outlineSpotShadowColor = argb(o.shadowColor)
+                v.outlineAmbientShadowColor = argb(o.shadowColor)
+            }
+        } else {
+            v.elevation = 0f
         }
         if (v is NNPressable) v.baseAlpha = o.opacity
         if (ms > 0 && v.isAttachedToWindow) v.animate().alpha(o.opacity).setDuration(ms).start() else v.alpha = o.opacity

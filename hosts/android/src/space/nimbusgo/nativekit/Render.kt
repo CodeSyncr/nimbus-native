@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x26a5a34b860b593euL.toLong()
+    val SCHEMA_HASH: Long = 0x77b120b536be5d11uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -21,6 +21,15 @@ object Render {
         const val MODAL: Int = 9
         const val SWITCH: Int = 10
         const val SLIDER: Int = 11
+    }
+
+    /** Blur is how strongly what is behind a view is blurred: the platform's materials on iOS, a blur radius elsewhere. */
+    object Blur {
+        const val NONE: Int = 0
+        const val ULTRA_THIN: Int = 1
+        const val THIN: Int = 2
+        const val REGULAR: Int = 3
+        const val THICK: Int = 4
     }
 
     /** Align is horizontal text alignment. */
@@ -186,6 +195,19 @@ object Render {
         var href: String = "",
         var transition: Long = 0L,
         var longPress: Boolean = false,
+        var blur: Int = 0,
+        var gradientColors: MutableList<Long> = mutableListOf(),
+        var gradientStops: MutableList<Float> = mutableListOf(),
+        var gradientRadial: Boolean = false,
+        var gradientX0: Float = 0f,
+        var gradientY0: Float = 0f,
+        var gradientX1: Float = 0f,
+        var gradientY1: Float = 0f,
+        var shadowColor: Long = 0L,
+        var shadowRadius: Float = 0f,
+        var shadowX: Float = 0f,
+        var shadowY: Float = 0f,
+        var corners: Int = 0,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -200,6 +222,25 @@ object Render {
             w.string(this.href)
             w.uint(this.transition)
             w.bool(this.longPress)
+            w.uint(this.blur.toLong())
+            w.uint(this.gradientColors.size.toLong())
+            for (v0 in this.gradientColors) {
+                w.uint(v0)
+            }
+            w.uint(this.gradientStops.size.toLong())
+            for (v0 in this.gradientStops) {
+                w.f32(v0)
+            }
+            w.bool(this.gradientRadial)
+            w.f32(this.gradientX0)
+            w.f32(this.gradientY0)
+            w.f32(this.gradientX1)
+            w.f32(this.gradientY1)
+            w.uint(this.shadowColor)
+            w.f32(this.shadowRadius)
+            w.f32(this.shadowX)
+            w.f32(this.shadowY)
+            w.uint(this.corners.toLong())
         }
 
         companion object {
@@ -217,6 +258,19 @@ object Render {
                 m.href = r0.string()
                 m.transition = r0.uintMax(4294967295L)
                 m.longPress = r0.bool()
+                m.blur = r0.uintMax(255L).toInt()
+                m.gradientColors = r0.list { r1 -> r1.uintMax(4294967295L) }
+                m.gradientStops = r0.list { r1 -> r1.f32() }
+                m.gradientRadial = r0.bool()
+                m.gradientX0 = r0.f32()
+                m.gradientY0 = r0.f32()
+                m.gradientX1 = r0.f32()
+                m.gradientY1 = r0.f32()
+                m.shadowColor = r0.uintMax(4294967295L)
+                m.shadowRadius = r0.f32()
+                m.shadowX = r0.f32()
+                m.shadowY = r0.f32()
+                m.corners = r0.uintMax(255L).toInt()
                 return m
             }
         }
