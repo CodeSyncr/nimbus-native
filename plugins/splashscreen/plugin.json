@@ -1,0 +1,1 @@
+{ "description": "Keep the launch screen up until your first screen is ready", "handler": "SplashPlugin", "boot": true }

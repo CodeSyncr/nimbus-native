@@ -43,10 +43,10 @@ func TestManifestEdits(t *testing.T) {
 
 func TestEnabledPluginCode(t *testing.T) {
 	h := map[string]string{"audio": "Audio"}
-	if s := enabledSwift(h, []string{"audio"}); !strings.Contains(s, `Plugins.register("audio", Audio.handle)`) {
+	if s := enabledSwift(h, nil, []string{"audio"}); !strings.Contains(s, `Plugins.register("audio", Audio.handle)`) {
 		t.Fatal(s)
 	}
-	if s := enabledKotlin(h, []string{"audio"}); !strings.Contains(s, `Plugins.register("audio", Plugins.Handler(Audio::handle))`) {
+	if s := enabledKotlin(h, nil, []string{"audio"}); !strings.Contains(s, `Plugins.register("audio", Plugins.Handler(Audio::handle))`) {
 		t.Fatal(s)
 	}
 }

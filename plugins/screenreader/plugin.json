@@ -1,0 +1,1 @@
+{ "description": "VoiceOver and TalkBack: whether one is on, and announcements", "handler": "ScreenReaderPlugin" }

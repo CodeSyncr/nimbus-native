@@ -1,0 +1,2 @@
+{ "description": "Whether the phone is online, and how", "handler": "NetworkPlugin",
+  "android": { "permissions": ["android.permission.ACCESS_NETWORK_STATE"] } }

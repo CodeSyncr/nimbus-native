@@ -364,6 +364,9 @@ func pluginCmd(args []string) error {
 	}
 	env := toolchain.Detect(app.Root)
 	verb, names := args[0], args[1:]
+	for i, n := range names {
+		names[i] = strings.ReplaceAll(n, "-", "") // status-bar is the package statusbar
+	}
 	switch {
 	case verb == "list":
 		return env.ListPlugins(app, os.Stdout)

@@ -71,6 +71,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             call.resolve(mapOf("X" to at[0] / density, "Y" to at[1] / density, "W" to v.width / density, "H" to v.height / density))
         })
         Plugins.activity = ctx as? android.app.Activity
+        Plugins.boot()
         Bridge.setListener { bytes ->
             val m = try {
                 Render.decode(bytes)

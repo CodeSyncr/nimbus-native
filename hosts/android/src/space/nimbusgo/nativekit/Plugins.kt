@@ -106,7 +106,16 @@ object Plugins {
         handlers["linking"] = Handler(Linking::handle)
         handlers["dialog"] = Handler(Dialogs::handle)
         handlers["haptics"] = Handler(Haptics::handle)
-        EnabledPlugins.register()
+    }
+
+    private var booted = false
+
+    /** Registers the enabled plugins at launch, once there's an activity to work with. */
+    internal fun boot() {
+        if (!booted) {
+            booted = true
+            EnabledPlugins.register()
+        }
     }
 
     /** Makes [name] callable from Go, replacing any plugin of that name. */

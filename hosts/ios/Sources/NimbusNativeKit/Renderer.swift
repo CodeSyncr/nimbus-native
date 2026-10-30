@@ -4,6 +4,14 @@ import UIKit
 /// The root of a Nimbus Native app's UI. Make it the window's root view
 /// controller; it starts the Go runtime and shows what the app renders.
 open class NimbusViewController: UIViewController {
+    /// The app's root, for what acts on the whole screen (plugins).
+    public private(set) static weak var current: NimbusViewController?
+    public static var statusBarStyle: UIStatusBarStyle = .default
+    public static var statusBarHidden = false
+
+    open override var preferredStatusBarStyle: UIStatusBarStyle { Self.statusBarStyle }
+    open override var prefersStatusBarHidden: Bool { Self.statusBarHidden }
+
     public let renderer: Renderer
 
     /// schema is the app's generated NimbusSchema.combined.
@@ -22,6 +30,8 @@ open class NimbusViewController: UIViewController {
     open override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+        Self.current = self
+        Plugins.boot()
         renderer.start()
         // The keyboard covers part of the screen: tell Go how much, so SafeArea pads clear of it.
         let center = NotificationCenter.default

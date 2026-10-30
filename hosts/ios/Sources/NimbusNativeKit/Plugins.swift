@@ -82,6 +82,9 @@ public enum Plugins {
 
     private static let enabled: Void = EnabledPlugins.register()
 
+    /// Registers the enabled plugins at launch, before Go asks for one.
+    static func boot() { _ = enabled }
+
     /// Starts a call from Go (on a Go thread): accepted unless no plugin has the name.
     static func start(_ c: Render.PluginCall) -> Render.PluginAck {
         _ = enabled
