@@ -38,7 +38,8 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 
 ## Requirements
 
-- Go 1.23+, and the `nimbus` CLI from [Nimbus](https://github.com/CodeSyncr/nimbus)
+- Go 1.26+ for a project with a Nimbus server (Nimbus needs it; 1.23+ for
+  the app alone), and the `nimbus` CLI v1.16.1+ from [Nimbus](https://github.com/CodeSyncr/nimbus)
 - iOS: macOS with Xcode 16+. `nimbus native run ios` runs on a connected
   iPhone or iPad (USB, or Wi-Fi once paired in Xcode's Devices window, with
   Developer Mode on) and on the simulator when none is. With several, it
@@ -97,7 +98,7 @@ Not yet: gestures beyond long press, plugins on the web.
 ## Start a project
 
 ```sh
-nimbus native new myapp
+nimbus native new myapp         # asks: a Nimbus server or your own backend; database, auth, plugins
 cd myapp
 nimbus native dev ios           # the app on a phone or simulator, plus the Nimbus
                                 # server and web app on :3333, reloading on save
@@ -110,27 +111,43 @@ The generated app is a counter, ready to grow: one polished screen (a
 goal with a progress bar, steps, the count saved between launches, light
 and dark themes) on iOS, Android and the web.
 
-A project is one Go module, laid out by feature:
+`new` asks what the app talks to. **A Nimbus server** (the default) makes
+a whole Nimbus app, with the same questions and files as `nimbus new`
+(`.env`, `config/`, `start/`, controllers, migrations), and adds the native
+app to it; the server also serves the app's pages on the web. **Your own
+backend** (`-server none`) makes the phone app alone, for a Node, Go or any
+other server: the app calls it with `api.New("https://…")` over HTTP and
+JSON. Flags skip the questions: `-y` (defaults), `-server`, `-db`, `-auth`,
+`-plugins`.
+
+A project with a Nimbus server is one Go module:
 
 ```
-counter/
-  main.go                  the Nimbus server: the app's pages for browsers (and your API)
+myapp/
+  main.go, bin/            the Nimbus server's entry and boot
+  start/routes.go          your routes and API; start/native.go serves the app's pages
+  config/, .env            Nimbus configuration
   app/
-    app.go                 the root component; installs the theme
+    controllers/, models/  the server's code (never in the phone app)
+    app.go                 the app's root component; installs the theme
     mobile/main.go         the phone app's package main
   core/                    constants, theme
   features/counter/
     data/                  the counter's state (a ui.Store), saved on the device
     presentation/          the screen
   pages/page.go            the page at "/" (folder routing: pages/settings/ is /settings)
+  database/, public/       migrations; static files and fonts for the web
   native/
     ios/                   Xcode project (Runner + the NimbusNativeKit package)
     android/               Gradle project (app + the nimbusnativekit module)
 ```
 
-As it grows, add `shared/` (widgets, services) and give features a
-`domain/` (types and `api.Endpoint`s: the contract between app and server)
-and a `server/` package (handlers and validation, server only).
+Without a Nimbus server it is the same minus the server's files. As the
+app grows, add `shared/` (widgets, services) and give features a `domain/`
+package (types and `api.Endpoint`s: the contract between app and server).
+
+The server builds with `CGO_ENABLED=0` (for a Linux container, say); only
+SQLite needs cgo, as in any Nimbus app.
 
 Xcode and Gradle build the hosts as usual; a build step in each runs
 `nimbus native lib`, which builds `app/mobile` into the native library and

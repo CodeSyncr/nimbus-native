@@ -1,0 +1,24 @@
+package start
+
+import (
+	"github.com/CodeSyncr/nimbus"
+	nhttp "github.com/CodeSyncr/nimbus/http"
+	"github.com/CodeSyncr/nimbus-native/web"
+
+	_ "__MODULE__/app" // registers the app's pages (pages/)
+	"__MODULE__/core/constants"
+)
+
+// RegisterNative serves the app's pages to browsers and search engines,
+// rendered here on the server: every URL the routes in routes.go don't
+// answer, so your own routes and API come first.
+func RegisterNative(app *nimbus.App) {
+	site := web.Handler(web.Options{
+		SiteName: constants.AppName,
+		FontDir:  "public/fonts", // fonts from `nimbus native font add`
+	})
+	app.Router.Fallback(func(c *nhttp.Context) error {
+		site.ServeHTTP(c.Response, c.Request)
+		return nil
+	})
+}

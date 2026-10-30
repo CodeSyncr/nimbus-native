@@ -264,31 +264,37 @@ func newProject(args []string) error {
 	module := fs.String("module", "", "Go module path (default: the directory name)")
 	id := fs.String("id", "", "bundle / application id (default: space.nimbusgo.<dir>)")
 	template := fs.String("template", "counter", "the app to start from: "+strings.Join(toolchain.Templates, ", "))
+	server := fs.String("server", "none", "none: the phone app alone, for any backend; nimbus: add the app to the Nimbus app in <dir> (nimbus native new does this)")
+	quiet := fs.Bool("quiet", false, "no closing summary (for nimbus native new)")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(reorder(args))
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: nimbus native new [-name N] [-module M] [-id ID] <dir>")
+		return fmt.Errorf("usage: nimbus native new [-server none|nimbus] [-name N] [-module M] [-id ID] <dir>")
 	}
 	p, err := toolchain.NewProjectFor(fs.Arg(0), *name, *module, *id)
 	if err != nil {
 		return err
 	}
-	p.Template = *template
+	p.Template, p.Server = *template, *server
 	env := toolchain.Detect(".")
 	env.Verbose = *verbose
 	if err := env.New(p); err != nil {
 		return err
 	}
+	if *quiet {
+		return nil
+	}
 	fmt.Printf(`
-created %s (%s, %s)
+created %s (%s, %s): the phone app, with no server
 
   cd %s
-  nimbus native dev ios             the app on your iPhone or the simulator, plus the
-                                    server and web app on http://127.0.0.1:3333,
-                                    all reloading on every save
+  nimbus native dev ios             the app on your iPhone or the simulator, reloading on save
   nimbus native dev android         the same on Android
 
   open native/ios/Runner.xcodeproj  or open native/android in Android Studio
+
+  The app reaches your backend (Node, Go, anything that speaks HTTP and JSON)
+  with api.New("https://your-server") — see features/ for where calls go.
 `, p.Dir, p.Name, p.ID, fs.Arg(0))
 	return nil
 }
@@ -626,7 +632,7 @@ func reorder(args []string) []string {
 
 func boolFlag(a string) bool {
 	switch strings.TrimLeft(a, "-") {
-	case "v", "device", "sim", "release", "no-server":
+	case "v", "device", "sim", "release", "no-server", "quiet":
 		return true
 	}
 	return false

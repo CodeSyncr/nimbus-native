@@ -15,7 +15,7 @@ import (
 // by every build) writes the table, pages/routes_gen.go.
 func init() { router.Register(pages.Routes) }
 
-// The app's look, on phones and on the web (the server imports this package too).
+// The app's look, on phones and on the web (a Nimbus server imports this package too).
 func init() { theme.Apply() }
 
 // App is the root component: the home page. Grow it into tabs and

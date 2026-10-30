@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.0.12 (2026-10-30)
+
+- Projects with a Nimbus server are whole Nimbus apps: `nimbus native new`
+  (nimbus v1.16.1+) makes the app with `nimbus new`'s questions and files
+  (`.env`, `config/`, `start/`, controllers, migrations) and adds the
+  native app; `start/native.go` serves the app's pages after your own
+  routes. `nimbus native dev` runs that server with its `.env`.
+- Or the phone app alone: `nimbus native new -server none`, for a backend
+  of your own (Node, Go, anything over HTTP and JSON). This is also what
+  `nimbus-native new` makes when run directly.
+- Servers build with `CGO_ENABLED=0`: the native bridge is left out of
+  builds without cgo.
+- `nimbus native font add` also copies fonts to `public/fonts`, where the
+  web app serves them from.
+
 ## 0.0.11 (2026-10-30)
 
 - `nimbus native dev ios|android` also runs the project's Nimbus server and

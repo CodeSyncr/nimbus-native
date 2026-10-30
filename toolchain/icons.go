@@ -267,8 +267,8 @@ func LaunchColor(root string) color.RGBA {
 }
 
 // AddFont copies a .ttf or .otf into the project's iOS app (Runner/Fonts,
-// registered at launch) and Android app (assets/fonts, also served to the
-// web), named family. It returns the family name to use in
+// registered at launch), Android app (assets/fonts) and, in a project with
+// a Nimbus server, public/fonts for the web, named family. It returns the family name to use in
 // Style.FontFamily.
 func AddFont(root, file, family string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(file))
@@ -285,7 +285,11 @@ func AddFont(root, file, family string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for _, dir := range []string{"native/ios/Runner/Fonts", "native/android/app/src/main/assets/fonts"} {
+	dirs := []string{"native/ios/Runner/Fonts", "native/android/app/src/main/assets/fonts"}
+	if exists(filepath.Join(root, "public")) {
+		dirs = append(dirs, "public/fonts") // a Nimbus app's web pages serve them from here
+	}
+	for _, dir := range dirs {
 		p := filepath.Join(root, dir, family+ext)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return "", err

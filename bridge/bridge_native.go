@@ -1,4 +1,4 @@
-//go:build !nimbusdev
+//go:build !nimbusdev && cgo
 
 package bridge
 
