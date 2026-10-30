@@ -56,7 +56,7 @@ func TestRelay(t *testing.T) {
 	}
 	defer ln.Close()
 	devices := make(chan struct{}, 4)
-	r := &relay{out: io.Discard, onDevice: func() { devices <- struct{}{} }}
+	r := &relay{con: newConsole(io.Discard), onDevice: func() { devices <- struct{}{} }}
 	r.setExpected(42)
 	go r.serve(ln)
 	addr := ln.Addr().String()

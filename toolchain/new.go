@@ -157,24 +157,32 @@ func (e *Env) New(p NewProject) error {
 		return err
 	}
 
-	// The kits come from the nimbus-native the project now requires.
-	e.Repo = moduleDir(p.Dir)
-	if e.Repo == "" {
-		return fmt.Errorf("nimbus-native module not found from %s", p.Dir)
-	}
-	if _, err := e.syncIOSKit(filepath.Join(p.Dir, "native/ios/NimbusNativeKit")); err != nil {
-		return err
-	}
-	if _, err := e.syncAndroidKit(filepath.Join(p.Dir, "native/android/nimbusnativekit/src/main/kotlin")); err != nil {
-		return err
-	}
-	// Xcode compiles only the files its synchronized folder held when the
-	// build started, so the generated Swift exists from the start.
 	a, err := LoadProject(p.Dir, "app/mobile", p.ID)
 	if err != nil {
 		return err
 	}
-	return e.writeSwift(a, filepath.Join(p.Dir, IOSGeneratedSwift))
+	_, err = e.Sync(a)
+	return err
+}
+
+// Sync brings a project's copies up to date with the nimbus-native its
+// go.mod requires: the kits under native/ and the generated Swift (which
+// Xcode compiles only if it exists when the build starts). It reports
+// whether a kit changed.
+func (e *Env) Sync(a *App) (bool, error) {
+	e.Repo = moduleDir(a.Root)
+	if e.Repo == "" {
+		return false, fmt.Errorf("nimbus-native module not found from %s", a.Root)
+	}
+	ios, err := e.syncIOSKit(filepath.Join(a.Root, "native/ios/NimbusNativeKit"))
+	if err != nil {
+		return false, err
+	}
+	android, err := e.syncAndroidKit(filepath.Join(a.Root, "native/android/nimbusnativekit/src/main/kotlin"))
+	if err != nil {
+		return false, err
+	}
+	return ios || android, e.writeSwift(a, filepath.Join(a.Root, IOSGeneratedSwift))
 }
 
 // IOSGeneratedSwift is where a project's generated Swift lives.

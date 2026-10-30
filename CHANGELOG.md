@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.10 (2026-10-30)
+
+- A dev console: `nimbus native dev` says where the app runs, colors panics
+  and errors, reports an app process that stops, and takes single keys:
+  `r` reload, `R` restart (rebuild and reinstall), `c` clear, `q` quit,
+  `h` help.
+- `nimbus native upgrade [version]` moves a project to the latest (or a
+  named) release: `go.mod`, then the release's own `nimbus native sync`
+  updates the kits under `native/` and the generated Swift.
+- `nimbus native dev` checks its platform argument before doing anything.
+
 ## 0.0.9 (2026-10-30)
 
 - Flex-wrap: `Style{Wrap: true}` breaks rows (and columns) into lines,

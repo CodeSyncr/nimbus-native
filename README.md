@@ -104,8 +104,6 @@ nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
 nimbus native run android       # or open native/android in Android Studio
 ```
 
-A project is one Go module, laid out by feature:
-
 The generated app is a counter, ready to grow: one polished screen (a
 goal with a progress bar, steps, the count saved between launches, light
 and dark themes) on iOS, Android and the web.
@@ -138,6 +136,16 @@ writes the generated Swift or Kotlin. It also keeps the project's copy of the
 host kit at the version `go.mod` requires (after an upgrade, the first build
 updates it and asks you to build again), and refuses to build a phone app
 that imports Nimbus or any `server` package: that code stays on the server.
+
+To move a project to a newer release:
+
+```sh
+nimbus native upgrade            # or: nimbus native upgrade v0.0.10
+```
+
+It updates `go.mod`, then the new release copies its kits into `native/` and
+regenerates the Swift. Your own files under `native/` are left alone; the
+[changelog](CHANGELOG.md) says when a release wants something changed there.
 
 ## Icons, launch screens and store builds
 
@@ -422,6 +430,15 @@ old views and the new process renders. A compile error is printed and the
 last good build keeps running. A wire-schema change rebuilds the shell. The
 relay caches the device's text measurements, so a reload re-measures
 nothing. Android reaches the relay through `adb reverse`.
+
+While it runs, the terminal shows the app's output (`app │` lines from the
+Go process, `device │` lines from the simulator or emulator), panics and
+errors in red, a line when an app process stops, and how long each reload
+took to reach the screen. Single keys work as well as saving:
+
+```
+r  reload    R  restart (rebuild and reinstall)    c  clear    q  quit    h  help
+```
 
 Measured on the gallery (1,000 rows): a save is on screen in **1.9–3.5 s on
 the iOS simulator and 2.7 s on the Android emulator**, of which 0.6–2.3 s is

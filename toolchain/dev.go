@@ -1,10 +1,8 @@
 package toolchain
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"io/fs"
 	"net"
 	"os"
@@ -48,8 +46,9 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 	}
 	defer ln.Close()
 
-	d := &devSession{e: e, a: a, platform: platform, addr: addr, shellAddr: shellAddr, target: t}
-	d.relay = &relay{out: e.Out, onDevice: d.deviceConnected}
+	con := newConsole(e.Out)
+	d := &devSession{e: e, a: a, platform: platform, addr: addr, shellAddr: shellAddr, target: t, con: con}
+	d.relay = &relay{con: con, onDevice: d.deviceConnected}
 	go d.relay.serve(ln)
 
 	// Each session starts on the first screen; reloads within it keep the
@@ -57,36 +56,77 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 	os.Remove(d.navFile())
 
 	// The app process starts when the shell connects (deviceConnected).
+	con.say(plain, "\n  Launching %s on %s…", a.Name, d.where())
 	if err := d.buildShell(); err != nil {
 		return err
 	}
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	presses, restore := keys()
+	defer restore()
 	snap := snapshot(a.root())
-	fmt.Fprintf(e.Out, "\n  Watching %s — save a .go file to reload. Ctrl+C to stop.\n\n", a.root())
 	tick := time.NewTicker(250 * time.Millisecond)
 	defer tick.Stop()
+	quit := func() error {
+		d.stopApp()
+		d.stopDeviceLogs()
+		restore()
+		con.say(plain, "\n  Stopped.")
+		return nil
+	}
+	reload := func(why string) {
+		con.say(dim, "\n  %s…", why)
+		if err := d.reload(time.Now()); err != nil {
+			con.say(bad, "%v", err)
+			con.say(warn, "  (still running the last good build)\n")
+		}
+		snap = snapshot(a.root())
+	}
 	for {
 		select {
 		case <-stop:
-			d.stopApp()
-			d.stopDeviceLogs()
-			fmt.Fprintln(e.Out, "\n  Stopped.")
-			return nil
+			return quit()
+		case k := <-presses:
+			switch k {
+			case 'r':
+				reload("Reloading")
+			case 'R':
+				con.say(dim, "\n  Restarting: rebuilding and reinstalling the app…")
+				d.stopApp()
+				t0 := time.Now()
+				if err := d.buildShell(); err != nil {
+					con.say(bad, "%v", err)
+				} else {
+					con.say(dim, "  Reinstalled in %.1fs.", time.Since(t0).Seconds())
+				}
+				snap = snapshot(a.root())
+			case 'c':
+				con.clear()
+			case 'h', '?':
+				con.help(a.Name, d.where())
+			case 'q', 'Q':
+				return quit()
+			}
 		case <-tick.C:
-			now := snapshot(a.root())
-			if now == snap {
-				continue
+			if now := snapshot(a.root()); now != snap {
+				reload("Change saved: reloading")
 			}
-			snap = now
-			t0 := time.Now()
-			if err := d.reload(t0); err != nil {
-				fmt.Fprintf(e.Out, "\n%v\n  (still running the last good build)\n\n", err)
-			}
-			snap = snapshot(a.root())
 		}
 	}
+}
+
+// where names the device dev mode runs on.
+func (d *devSession) where() string {
+	switch {
+	case d.target.Phone != nil:
+		return d.target.Phone.Name
+	case d.platform == "ios":
+		return "the iOS simulator"
+	case d.e.Serial != "":
+		return d.e.Serial
+	}
+	return "Android"
 }
 
 // DevTarget is where dev mode runs its shell: the simulator or the device
@@ -104,12 +144,15 @@ type devSession struct {
 	shellAddr string // the relay, for the shell on the device
 	target    DevTarget
 	relay     *relay
+	con       *console
 
 	shellSchema uint64 // combined hash the installed shell was built with
 
 	restartMu sync.Mutex // one rebuild at a time (a save and a reconnect can coincide)
 	appMu     sync.Mutex
 	app       *exec.Cmd
+	appDone   chan struct{} // closed when app exits
+	connected bool          // the shell has connected once
 
 	logs *exec.Cmd
 }
@@ -164,7 +207,7 @@ func (d *devSession) buildShell() error {
 		if err := e.openOnPhone(d.a.ID, p, false); err != nil {
 			return err
 		}
-		fmt.Fprintf(e.Out, "\n  On %s, allow the app to find devices on your local network if asked.\n", p.Name)
+		d.con.say(warn, "  On %s, allow the app to find devices on your local network if asked.", p.Name)
 		return nil // the app's output comes from its process here
 	case d.platform == "ios":
 		build := e.BuildIOS
@@ -226,7 +269,7 @@ func (d *devSession) streamDeviceLogs() error {
 	if err := d.logs.Start(); err != nil {
 		return err
 	}
-	go prefixLines(d.e.Out, out, "device │ ")
+	go d.con.stream(out, "device")
 	return nil
 }
 
@@ -246,7 +289,7 @@ func (d *devSession) reload(t0 time.Time) error {
 		return err
 	}
 	if g.Combined != d.shellSchema {
-		fmt.Fprintln(d.e.Out, "  Wire schema changed: rebuilding the dev shell.")
+		d.con.say(warn, "  The wire schema changed: rebuilding and reinstalling the app.")
 		d.stopApp()
 		if err := d.buildShell(); err != nil {
 			return err
@@ -280,10 +323,26 @@ func (d *devSession) restartApp(t0 time.Time) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	go prefixLines(d.e.Out, out, "app    │ ")
+	logged := make(chan struct{})
+	go func() { d.con.stream(out, "app   "); close(logged) }()
+	done := make(chan struct{})
 	d.appMu.Lock()
-	d.app = cmd
+	d.app, d.appDone = cmd, done
 	d.appMu.Unlock()
+	go func() {
+		err := cmd.Wait()
+		<-logged
+		d.appMu.Lock()
+		ours := d.app == cmd // stopApp clears it before killing
+		if ours {
+			d.app = nil
+		}
+		d.appMu.Unlock()
+		close(done)
+		if ours {
+			d.con.say(bad, "\n  The app stopped (%v). Fix the code and save to start it again, or press r.\n", err)
+		}
+	}()
 	return nil
 }
 
@@ -292,20 +351,30 @@ func (d *devSession) navFile() string { return filepath.Join(d.a.BuildDir("dev")
 
 func (d *devSession) stopApp() {
 	d.appMu.Lock()
-	defer d.appMu.Unlock()
-	if d.app != nil && d.app.Process != nil {
-		d.app.Process.Kill()
-		d.app.Wait()
-	}
+	app, done := d.app, d.appDone
 	d.app = nil
+	d.appMu.Unlock()
+	if app != nil && app.Process != nil {
+		app.Process.Kill()
+		<-done
+	}
 }
 
 // deviceConnected restarts the app process: the shell's views are new, so
 // the app's idea of what is on screen must be too.
 func (d *devSession) deviceConnected() {
+	d.appMu.Lock()
+	first := !d.connected
+	d.connected = true
+	d.appMu.Unlock()
+	if first {
+		d.con.help(d.a.Name, d.where())
+	} else {
+		d.con.say(dim, "  The app reconnected.")
+	}
 	go func() {
 		if err := d.restartApp(time.Now()); err != nil {
-			fmt.Fprintln(d.e.Out, err)
+			d.con.say(bad, "%v", err)
 		}
 	}()
 }
@@ -352,14 +421,6 @@ func snapshot(root string) string {
 	return b.String()
 }
 
-func prefixLines(w io.Writer, r io.Reader, prefix string) {
-	sc := bufio.NewScanner(r)
-	sc.Buffer(make([]byte, 64<<10), 1<<20)
-	for sc.Scan() {
-		fmt.Fprintf(w, "%s%s\n", prefix, sc.Text())
-	}
-}
-
 func indent(s string) string {
 	return "    " + strings.ReplaceAll(strings.TrimRight(s, "\n"), "\n", "\n    ")
 }
@@ -367,7 +428,7 @@ func indent(s string) string {
 // relay pairs the device's proxy with the current app process and forwards
 // frames between them.
 type relay struct {
-	out      io.Writer
+	con      *console
 	onDevice func()
 
 	mu          sync.Mutex
@@ -438,7 +499,6 @@ func (r *relay) handle(c net.Conn) {
 		r.device = me
 		r.answers = map[string][]byte{} // new device, new fonts and settings
 		r.mu.Unlock()
-		fmt.Fprintln(r.out, "  Device connected.")
 		r.onDevice()
 	case frame.RoleApp:
 		if r.app != nil {
@@ -449,7 +509,7 @@ func (r *relay) handle(c net.Conn) {
 		dev, expected := r.device, r.expected
 		r.mu.Unlock()
 		if schema != expected {
-			fmt.Fprintf(r.out, "  The app's wire schema (%#x) differs from the dev shell's (%#x); restart nimbus native dev.\n", schema, expected)
+			r.con.say(bad, "  The app's wire schema (%#x) differs from the dev shell's (%#x); restart nimbus native dev.", schema, expected)
 		}
 		dev.write(frame.Reset, nil) // clear the old views; the proxy replays the viewport
 	default:
@@ -494,7 +554,7 @@ func (r *relay) handle(c net.Conn) {
 				r.mu.Lock()
 				hits := r.hits
 				r.mu.Unlock()
-				fmt.Fprintf(r.out, "  ↻ on screen %.2fs after the change (build %.2fs, %d measurements from cache)\n",
+				r.con.say(good, "  ↻ On screen in %.2fs (build %.2fs, %d measurements from cache)",
 					time.Since(start).Seconds(), built.Seconds(), hits)
 			}
 		}

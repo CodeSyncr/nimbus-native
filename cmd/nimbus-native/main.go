@@ -71,6 +71,17 @@ func main() {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
+	case "upgrade", "sync":
+		var err error
+		if cmd == "upgrade" {
+			err = upgrade(os.Args[2:])
+		} else {
+			err = syncProject(os.Args[2:])
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	case "keystore":
 		if err := keystore(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "error:", err)
@@ -281,6 +292,51 @@ created %s (%s, %s)
 	return nil
 }
 
+// upgrade moves the project to the latest release, or the one named.
+func upgrade(args []string) error {
+	fs := flag.NewFlagSet("upgrade", flag.ExitOnError)
+	verbose := fs.Bool("v", false, "print every tool invocation")
+	_ = fs.Parse(reorder(args))
+	version := fs.Arg(0)
+	if err := inModule("."); err != nil {
+		return err
+	}
+	if !toolchain.IsProject(".") {
+		return fmt.Errorf("upgrade works in a project made by `nimbus native new` (with native/ios and native/android)")
+	}
+	env := toolchain.Detect(".")
+	env.Verbose = *verbose
+	from, to, err := env.Upgrade(".", version)
+	if err != nil {
+		return err
+	}
+	if from == to {
+		fmt.Printf("\n  Already on %s.\n", to)
+		return nil
+	}
+	fmt.Printf("\n  Upgraded %s → %s. What changed: https://github.com/CodeSyncr/nimbus-native/blob/main/CHANGELOG.md\n", from, to)
+	return nil
+}
+
+// syncProject updates the project's kits and generated code from the
+// nimbus-native its go.mod requires (upgrade runs it with the new release).
+func syncProject(args []string) error {
+	dir := "."
+	if len(args) > 0 {
+		dir = args[0]
+	}
+	if err := inModule(dir); err != nil {
+		return err
+	}
+	id, _ := toolchain.AndroidProjectID(dir)
+	app, err := toolchain.LoadProject(dir, "app/mobile", id)
+	if err != nil {
+		return err
+	}
+	_, err = toolchain.Detect(app.Dir).Sync(app)
+	return err
+}
+
 // buildRelease makes the store builds.
 func buildRelease(platform, dir string, r toolchain.Release, verbose bool) error {
 	app, err := toolchain.LoadProject(dir, "app/mobile", "")
@@ -465,6 +521,9 @@ func envOr(key, def string) string {
 // dev runs the app on this machine against a dev shell, reloading on save.
 // Like run, the shell goes on a connected phone when there is one.
 func dev(platform string, args []string) error {
+	if platform != "ios" && platform != "android" {
+		return fmt.Errorf("usage: nimbus native dev ios|android [flags] [dir]")
+	}
 	fs := flag.NewFlagSet("dev", flag.ExitOnError)
 	port := fs.Int("port", 7357, "port for the dev relay")
 	device := fs.Bool("device", false, "use a phone (the default when one is connected)")
@@ -533,6 +592,7 @@ func usage() {
   nimbus native build ios|android -release [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
   nimbus native keystore                               the Android release key
   nimbus native font add [-name Family] <font.ttf>     a font for Style.FontFamily
+  nimbus native upgrade [version]                      move the project to the latest (or that) release
   nimbus native doctor
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
