@@ -122,6 +122,18 @@ type Style struct {
 	Color      Color   // text color; 0 means the platform default
 	TextAlign  Align   // AlignStart, AlignCenter, AlignEnd
 	Lines      uint32  // 0 = unlimited
+	// LetterSpacing is extra space between letters, in points; negative
+	// tightens a large headline.
+	LetterSpacing float32
+	// LineHeight is the distance from one line to the next, in points; 0 is
+	// the font's own.
+	LineHeight float32
+	// TabularDigits gives every digit the same width, so figures line up in
+	// columns and don't jiggle as they change.
+	TabularDigits bool
+	// MinScale lets a one-line text (Lines: 1) shrink to fit its width, down
+	// to this share of its size (0.6 is 60%); 0 truncates with an ellipsis.
+	MinScale float32
 }
 
 // Blur is how strongly what is behind a view is blurred (Style.Blur): the

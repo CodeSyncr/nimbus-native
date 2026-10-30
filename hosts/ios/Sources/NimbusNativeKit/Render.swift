@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x53f7f91b99c19e5c
+    public static let schemaHash: UInt64 = 0x5270e9fdeb5a7ef2
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -344,17 +344,26 @@ public enum Render {
         public var size: Float
         public var weight: UInt16
         public var family: String
+        public var tracking: Float
+        public var lineHeight: Float
+        public var tabular: Bool
 
-        public init(size: Float = 0, weight: UInt16 = 0, family: String = "") {
+        public init(size: Float = 0, weight: UInt16 = 0, family: String = "", tracking: Float = 0, lineHeight: Float = 0, tabular: Bool = false) {
             self.size = size
             self.weight = weight
             self.family = family
+            self.tracking = tracking
+            self.lineHeight = lineHeight
+            self.tabular = tabular
         }
 
         public func write(to w: inout WireWriter) {
             w.float32(self.size)
             w.uint(UInt64(self.weight))
             w.string(self.family)
+            w.float32(self.tracking)
+            w.float32(self.lineHeight)
+            w.bool(self.tabular)
         }
 
         public static func read(from r: inout WireReader) throws -> Font {
@@ -362,6 +371,9 @@ public enum Render {
             m.size = try r.float32()
             m.weight = UInt16(try r.uint(max: 65535))
             m.family = try r.string()
+            m.tracking = try r.float32()
+            m.lineHeight = try r.float32()
+            m.tabular = try r.bool()
             return m
         }
     }
@@ -374,14 +386,16 @@ public enum Render {
         public var color: UInt32
         public var align: Align
         public var lines: UInt32
+        public var minScale: Float
 
-        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0) {
+        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0, minScale: Float = 0) {
             self.tag = tag
             self.text = text
             self.font = font
             self.color = color
             self.align = align
             self.lines = lines
+            self.minScale = minScale
         }
 
         public func write(to w: inout WireWriter) {
@@ -391,6 +405,7 @@ public enum Render {
             w.uint(UInt64(self.color))
             w.uint(UInt64(self.align.rawValue))
             w.uint(UInt64(self.lines))
+            w.float32(self.minScale)
         }
 
         public static func read(from r: inout WireReader) throws -> Text {
@@ -401,6 +416,7 @@ public enum Render {
             m.color = UInt32(try r.uint(max: 4294967295))
             m.align = Align(rawValue: UInt8(try r.uint(max: 255)))
             m.lines = UInt32(try r.uint(max: 4294967295))
+            m.minScale = try r.float32()
             return m
         }
     }

@@ -418,11 +418,19 @@ public final class Renderer {
     }
 
     private func text(_ l: UILabel, _ o: Render.Text) {
-        l.text = o.text
         l.font = Renderer.font(o.font)
+        if let attrs = Renderer.extraAttributes(o.font) {
+            l.attributedText = NSAttributedString(string: o.text, attributes: attrs)
+        } else {
+            l.attributedText = nil
+            l.text = o.text
+        }
         l.textColor = color(o.color) ?? .label
         l.textAlignment = o.align == .center ? .center : o.align == .end ? .right : .left
         l.numberOfLines = Int(o.lines)
+        // Shrink to fit (Style.MinScale): one line, smaller rather than cut.
+        l.adjustsFontSizeToFitWidth = o.minScale > 0
+        l.minimumScaleFactor = o.minScale > 0 ? CGFloat(o.minScale) : 0
     }
 
     fileprivate func send(_ m: Render.Message) { try? Bridge.shared.send(Data(m.encode())) }
@@ -471,16 +479,48 @@ public final class Renderer {
     static func measure(_ m: Render.MeasureText) -> Data {
         let font = font(m.font)
         let maxW = m.maxWidth < 0 ? CGFloat.greatestFiniteMagnitude : CGFloat(m.maxWidth)
+        var attrs: [NSAttributedString.Key: Any] = [.font: font]
+        extraAttributes(m.font)?.forEach { attrs[$0.key] = $0.value }
         let r = (m.text as NSString).boundingRect(with: CGSize(width: maxW, height: .greatestFiniteMagnitude),
                                                   options: [.usesLineFragmentOrigin, .usesFontLeading],
-                                                  attributes: [.font: font], context: nil)
+                                                  attributes: attrs, context: nil)
+        let line = m.font.lineHeight > 0 ? CGFloat(m.font.lineHeight) : font.lineHeight
         var h = ceil(r.height)
-        if m.lines > 0 { h = min(h, ceil(font.lineHeight * CGFloat(m.lines))) }
-        if m.text.isEmpty { h = ceil(font.lineHeight) }
+        if m.lines > 0 { h = min(h, ceil(line * CGFloat(m.lines))) }
+        if m.text.isEmpty { h = ceil(line) }
         return Data(Render.Message.textSize(Render.TextSize(w: Float(ceil(r.width)), h: Float(h))).encode())
     }
 
+    /// Letter spacing and line height, as text attributes; nil when the font
+    /// asks for neither (plain text is cheaper).
+    static func extraAttributes(_ f: Render.Font) -> [NSAttributedString.Key: Any]? {
+        guard f.tracking != 0 || f.lineHeight > 0 else { return nil }
+        var a: [NSAttributedString.Key: Any] = [.font: font(f)]
+        if f.tracking != 0 { a[.kern] = CGFloat(f.tracking) }
+        if f.lineHeight > 0 {
+            let p = NSMutableParagraphStyle()
+            p.minimumLineHeight = CGFloat(f.lineHeight)
+            p.maximumLineHeight = CGFloat(f.lineHeight)
+            p.lineBreakMode = .byTruncatingTail
+            a[.paragraphStyle] = p
+            // Centre the glyphs in the taller (or shorter) line.
+            a[.baselineOffset] = (CGFloat(f.lineHeight) - font(f).lineHeight) / 4
+        }
+        return a
+    }
+
     static func font(_ f: Render.Font) -> UIFont {
+        let base = plainFont(f)
+        guard f.tabular else { return base }
+        // Every digit the same width.
+        let desc = base.fontDescriptor.addingAttributes([.featureSettings: [[
+            UIFontDescriptor.FeatureKey.type: kNumberSpacingType,
+            UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector,
+        ]]])
+        return UIFont(descriptor: desc, size: base.pointSize)
+    }
+
+    private static func plainFont(_ f: Render.Font) -> UIFont {
         let weights: [UIFont.Weight] = [.ultraLight, .thin, .light, .regular, .medium, .semibold, .bold, .heavy, .black]
         let w = f.weight == 0 ? 400 : Int(f.weight)
         let weight = weights[max(0, min(8, w / 100 - 1))]

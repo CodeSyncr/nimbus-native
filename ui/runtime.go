@@ -614,7 +614,8 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 	in.sent.box = box
 
-	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight, Family: s.FontFamily}
+	font := render.Font{Size: s.fontSize(), Weight: s.FontWeight, Family: s.FontFamily,
+		Tracking: s.LetterSpacing, LineHeight: s.LineHeight, Tabular: s.TabularDigits}
 	theme := rt.theme()
 	textColor := s.Color
 	if textColor == 0 {
@@ -622,7 +623,7 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 	switch el.kind {
 	case render.KindText:
-		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines}
+		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines, MinScale: s.MinScale}
 		if first || t != in.sent.text {
 			if t.Text != in.sent.text.Text || t.Font != in.sent.text.Font || t.Lines != in.sent.text.Lines {
 				in.measured = nil

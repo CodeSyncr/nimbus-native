@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x53f7f91b99c19e5cuL.toLong()
+    val SCHEMA_HASH: Long = 0x5270e9fdeb5a7ef2uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -286,11 +286,17 @@ object Render {
         var size: Float = 0f,
         var weight: Int = 0,
         var family: String = "",
+        var tracking: Float = 0f,
+        var lineHeight: Float = 0f,
+        var tabular: Boolean = false,
     ) {
         fun write(w: WireWriter) {
             w.f32(this.size)
             w.uint(this.weight.toLong())
             w.string(this.family)
+            w.f32(this.tracking)
+            w.f32(this.lineHeight)
+            w.bool(this.tabular)
         }
 
         companion object {
@@ -299,6 +305,9 @@ object Render {
                 m.size = r0.f32()
                 m.weight = r0.uintMax(65535L).toInt()
                 m.family = r0.string()
+                m.tracking = r0.f32()
+                m.lineHeight = r0.f32()
+                m.tabular = r0.bool()
                 return m
             }
         }
@@ -312,6 +321,7 @@ object Render {
         var color: Long = 0L,
         var align: Int = 0,
         var lines: Long = 0L,
+        var minScale: Float = 0f,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -320,6 +330,7 @@ object Render {
             w.uint(this.color)
             w.uint(this.align.toLong())
             w.uint(this.lines)
+            w.f32(this.minScale)
         }
 
         companion object {
@@ -331,6 +342,7 @@ object Render {
                 m.color = r0.uintMax(4294967295L)
                 m.align = r0.uintMax(255L).toInt()
                 m.lines = r0.uintMax(4294967295L)
+                m.minScale = r0.f32()
                 return m
             }
         }

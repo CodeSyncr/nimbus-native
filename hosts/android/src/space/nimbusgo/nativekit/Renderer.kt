@@ -356,6 +356,10 @@ class Renderer internal constructor(private val root: NimbusView) {
         t.text = o.text
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, o.font.size * density)
         t.typeface = fontFor(o.font, ctx)
+        applyExtras(t.paint, o.font, density)
+        t.letterSpacing = t.paint.letterSpacing
+        t.fontFeatureSettings = t.paint.fontFeatureSettings
+        t.setLineSpacing(lineAdd(t.paint, o.font, density), 1f)
         if (o.color != 0L) t.setTextColor(argb(o.color))
         val g = when (o.align) {
             Render.Align.CENTER -> Gravity.CENTER_HORIZONTAL
@@ -369,6 +373,14 @@ class Renderer internal constructor(private val root: NimbusView) {
         } else {
             t.maxLines = Int.MAX_VALUE
             t.ellipsize = null
+        }
+        // Shrink to fit (Style.MinScale): one line, smaller rather than cut.
+        if (o.minScale > 0f && Build.VERSION.SDK_INT >= 26) {
+            val max = (o.font.size * density).roundToInt().coerceAtLeast(2)
+            val min = (max * o.minScale).roundToInt().coerceIn(1, max - 1)
+            t.setAutoSizeTextTypeUniformWithPresetSizes(IntArray(max - min + 1) { min + it }, TypedValue.COMPLEX_UNIT_PX)
+        } else if (Build.VERSION.SDK_INT >= 26) {
+            t.setAutoSizeTextTypeWithDefaults(TextView.AUTO_SIZE_TEXT_TYPE_NONE)
         }
     }
 
@@ -562,6 +574,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 textSize = mt.font.size * d
                 typeface = fontFor(mt.font, Plugins.context)
             }
+            applyExtras(p, mt.font, d)
             val text = mt.text
             val desired = ceil(Layout.getDesiredWidth(text, p)).toInt()
             // Round, don't truncate: a width Go got from an earlier measurement
@@ -572,6 +585,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 .setIncludePad(true)
                 .setBreakStrategy(Layout.BREAK_STRATEGY_SIMPLE)
                 .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NONE)
+                .setLineSpacing(lineAdd(p, mt.font, d), 1f)
             if (mt.lines > 0) b.setMaxLines(mt.lines.toInt()).setEllipsize(TextUtils.TruncateAt.END)
             val l = b.build()
             var w = 0f
@@ -599,6 +613,17 @@ class Renderer internal constructor(private val root: NimbusView) {
             if (Build.VERSION.SDK_INT >= 28) return Typeface.create(base, w, false)
             return Typeface.create(base, if (w >= 600) Typeface.BOLD else Typeface.NORMAL)
         }
+
+        /** Letter spacing (points → em) and tabular digits on a paint: what text views and
+         *  measurement both use, so they agree. */
+        internal fun applyExtras(p: Paint, f: Render.Font, d: Float) {
+            p.letterSpacing = if (f.tracking != 0f && f.size > 0f) f.tracking / f.size else 0f
+            p.fontFeatureSettings = if (f.tabular) "'tnum'" else null
+        }
+
+        /** The spacing added to each line for Style.LineHeight (as TextView.setLineHeight does); 0 for the font's own. */
+        internal fun lineAdd(p: Paint, f: Render.Font, d: Float): Float =
+            if (f.lineHeight > 0f) f.lineHeight * d - p.getFontMetricsInt(null) else 0f
 
         /** 0xRRGGBBAA → Android's 0xAARRGGBB. */
         internal fun argb(c: Long): Int {

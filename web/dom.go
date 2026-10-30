@@ -323,6 +323,15 @@ func fontCSS(f render.Font, color uint32) string {
 	if f.Weight > 0 {
 		s += "font-weight:" + strconv.Itoa(int(f.Weight)) + ";"
 	}
+	if f.Tracking != 0 {
+		s += "letter-spacing:" + num(f.Tracking) + "px;"
+	}
+	if f.LineHeight > 0 {
+		s += "line-height:" + num(f.LineHeight) + "px;"
+	}
+	if f.Tabular {
+		s += "font-variant-numeric:tabular-nums;"
+	}
 	if color != 0 {
 		s += "color:" + cssColor(color) + ";"
 	}

@@ -164,6 +164,13 @@ type Font struct {
 	Size   float32
 	Weight uint16 // 100..900; 0 means 400
 	Family string // a font the app bundles (nimbus native font add); "" is the system font
+	// Tracking is extra space between letters, in points (negative tightens).
+	Tracking float32
+	// LineHeight is the distance between lines, in points; 0 is the font's own.
+	LineHeight float32
+	// Tabular gives every digit the same width, so figures line up and
+	// don't jiggle as they change.
+	Tabular bool
 }
 
 // Text sets a text view's content and style.
@@ -176,6 +183,9 @@ type Text struct {
 	Color uint32
 	Align Align
 	Lines uint32 // 0 = unlimited; truncated with an ellipsis
+	// MinScale lets a one-line text shrink to fit its width, down to this
+	// share of its size (0.6: 60%); 0 truncates instead.
+	MinScale float32
 }
 
 // Fit is how an image fills its frame.

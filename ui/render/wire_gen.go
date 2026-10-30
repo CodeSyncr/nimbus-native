@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x53f7f91b99c19e5c
+const SchemaHash uint64 = 0x5270e9fdeb5a7ef2
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -207,6 +207,9 @@ func (m *Font) AppendWire(b []byte) []byte {
 	b = wire.AppendFloat32(b, m.Size)
 	b = wire.AppendUint(b, uint64(m.Weight))
 	b = wire.AppendString(b, m.Family)
+	b = wire.AppendFloat32(b, m.Tracking)
+	b = wire.AppendFloat32(b, m.LineHeight)
+	b = wire.AppendBool(b, m.Tabular)
 	return b
 }
 
@@ -215,6 +218,9 @@ func (m *Font) ReadWire(r *wire.Reader) {
 	m.Size = r.Float32()
 	m.Weight = uint16(r.UintMax(1<<16 - 1))
 	m.Family = r.String()
+	m.Tracking = r.Float32()
+	m.LineHeight = r.Float32()
+	m.Tabular = r.Bool()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -225,6 +231,7 @@ func (m *Text) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Color))
 	b = wire.AppendUint(b, uint64(m.Align))
 	b = wire.AppendUint(b, uint64(m.Lines))
+	b = wire.AppendFloat32(b, m.MinScale)
 	return b
 }
 
@@ -236,6 +243,7 @@ func (m *Text) ReadWire(r *wire.Reader) {
 	m.Color = uint32(r.UintMax(1<<32 - 1))
 	m.Align = Align(r.UintMax(1<<8 - 1))
 	m.Lines = uint32(r.UintMax(1<<32 - 1))
+	m.MinScale = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
