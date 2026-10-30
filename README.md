@@ -53,19 +53,6 @@ func main() { ui.Main() } // runs only in dev mode; on a device the host owns th
 running emulator, then boots the first one. `nimbus native doctor` checks all of it. Release Android builds are signed
 with the debug key until you add yours to `native/android/app/build.gradle.kts`.
 
-## Roadmap
-
-Done: own toolchain (no gomobile), C ABI bridge, typed wire
-format with Go/Swift/Kotlin generation, flexbox layout, components and
-hooks, UIKit and Android renderers, hot reload, virtualized lists, stack
-navigation, tabs, modals, safe areas, forms, theming and dark mode, a
-typed client for Nimbus servers with data-loading hooks, `nimbus native new`
-projects that open in Xcode and Android Studio, folder routing, native
-plugins (secure storage, app info, links, key-value storage), switches,
-multiline inputs, pull to refresh, keyboard avoidance and native dialogs,
-and the same app on the web with server rendering for search engines.
-Not yet: gestures beyond long press, plugins on the web.
-
 ## Layout
 
 | Path | What |
@@ -285,7 +272,7 @@ mounts `web.Handler` as the router's fallback):
   HTML: content, links (`router.Link`, `.Href`), and the page's `<title>`,
   description, Open Graph tags and canonical URL from its `Head()` method.
   `/sitemap.xml` lists the pages without parameters; `/robots.txt` points to it.
-- **Then live.** `host.js` (8 KB, 3 KB gzipped) adopts that HTML. Taps and typing go to
+- **Then live.** `host.js` (12 KB, 4 KB gzipped) adopts that HTML. Taps and typing go to
   the page's UI session on the server, and what it renders comes back as DOM
   changes over Server-Sent Events. Layout is the browser's own flexbox.
 - **Navigation.** On the web the shell is `app.WebLayout`, a header with a
