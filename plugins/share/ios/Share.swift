@@ -12,8 +12,6 @@ enum SharePlugin {
         let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
         sheet.popoverPresentationController?.sourceView = root.view
         sheet.popoverPresentationController?.sourceRect = CGRect(x: root.view.bounds.midX, y: root.view.bounds.midY, width: 0, height: 0)
-        var top: UIViewController = root
-        while let p = top.presentedViewController { top = p }
-        top.present(sheet, animated: true) { call.resolve() }
+        (NimbusViewController.top ?? root).present(sheet, animated: true) { call.resolve() }
     }
 }

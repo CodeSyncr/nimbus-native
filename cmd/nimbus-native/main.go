@@ -366,6 +366,9 @@ func pluginCmd(args []string) error {
 	verb, names := args[0], args[1:]
 	for i, n := range names {
 		names[i] = strings.ReplaceAll(n, "-", "") // status-bar is the package statusbar
+		if names[i] == "location" {
+			names[i] = "geolocation"
+		}
 	}
 	switch {
 	case verb == "list":

@@ -1,0 +1,21 @@
+{
+  "description": "Know when the phone enters or leaves a place",
+  "handler": "GeofencingPlugin",
+  "ios": {
+    "info": {
+      "NSLocationWhenInUseUsageDescription": "This app uses your location while you use it.",
+      "NSLocationAlwaysAndWhenInUseUsageDescription": "This app notices when you arrive at a place you chose."
+    }
+  },
+  "android": {
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_BACKGROUND_LOCATION"
+    ],
+    "application": [
+      "<receiver android:name=\"space.nimbusgo.nativekit.GeofenceReceiver\" android:exported=\"false\" />"
+    ]
+  },
+  "boot": true
+}

@@ -33,6 +33,11 @@ type pluginManifest struct {
 	} `json:"ios"`
 	Android struct {
 		Permissions []string `json:"permissions"`
+		// Application is XML for the app's <application>: its receivers
+		// and providers.
+		Application []string `json:"application"`
+		// Dependencies are Gradle coordinates for the kit.
+		Dependencies []string `json:"dependencies"`
 	} `json:"android"`
 }
 
@@ -241,8 +246,10 @@ func (e *Env) RemovePlugins(a *App, names []string, out io.Writer) error {
 }
 
 const (
-	projectPlist    = "native/ios/Runner/Info.plist"
-	projectManifest = "native/android/app/src/main/AndroidManifest.xml"
+	projectPlist       = "native/ios/Runner/Info.plist"
+	projectManifest    = "native/android/app/src/main/AndroidManifest.xml"
+	projectKitGradle   = "native/android/nimbusnativekit/build.gradle.kts"
+	projectGradleProps = "native/android/gradle.properties"
 )
 
 // edit rewrites a project file, if it's there: a project may have only one
@@ -276,9 +283,31 @@ func requirePlugin(root string, m *pluginManifest) error {
 	}); err != nil {
 		return err
 	}
+	if err := edit(root, projectKitGradle, func(s string) string {
+		for _, d := range m.Android.Dependencies {
+			s = gradleAdd(s, d)
+		}
+		return s
+	}); err != nil {
+		return err
+	}
+	if len(m.Android.Dependencies) > 0 {
+		// Google's libraries bring AndroidX with them.
+		if err := edit(root, projectGradleProps, func(s string) string {
+			if strings.Contains(s, "android.useAndroidX") {
+				return s
+			}
+			return strings.TrimRight(s, "\n") + "\nandroid.useAndroidX=true\n"
+		}); err != nil {
+			return err
+		}
+	}
 	return edit(root, projectManifest, func(s string) string {
 		for _, p := range m.Android.Permissions {
 			s = manifestAdd(s, p)
+		}
+		for _, x := range m.Android.Application {
+			s = applicationAdd(s, x)
 		}
 		return s
 	})
@@ -295,14 +324,52 @@ func dropPlugin(root string, m *pluginManifest, keepInfo, keepPerm map[string]bo
 	}); err != nil {
 		return err
 	}
+	if err := edit(root, projectKitGradle, func(s string) string {
+		for _, d := range m.Android.Dependencies {
+			s = gradleDrop(s, d)
+		}
+		return s
+	}); err != nil {
+		return err
+	}
 	return edit(root, projectManifest, func(s string) string {
 		for _, p := range m.Android.Permissions {
 			if !keepPerm[p] {
 				s = manifestDrop(s, p)
 			}
 		}
+		for _, x := range m.Android.Application {
+			s = strings.Replace(s, "        "+x+"\n", "", 1)
+		}
 		return s
 	})
+}
+
+// applicationAdd puts a line of XML at the end of <application>.
+func applicationAdd(s, xml string) string {
+	if strings.Contains(s, xml) {
+		return s
+	}
+	i := strings.LastIndex(s, "    </application>")
+	if i < 0 {
+		return s
+	}
+	return s[:i] + "        " + xml + "\n" + s[i:]
+}
+
+func gradleLine(dep string) string {
+	return fmt.Sprintf("dependencies { implementation(%q) } // a plugin's\n", dep)
+}
+
+func gradleAdd(s, dep string) string {
+	if strings.Contains(s, gradleLine(dep)) {
+		return s
+	}
+	return strings.TrimRight(s, "\n") + "\n\n" + gradleLine(dep)
+}
+
+func gradleDrop(s, dep string) string {
+	return strings.Replace(strings.Replace(s, "\n"+gradleLine(dep), "", 1), gradleLine(dep), "", 1)
 }
 
 // plistSet adds a key to an XML plist's top dict, keeping one already there:

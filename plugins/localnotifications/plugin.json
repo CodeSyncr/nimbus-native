@@ -1,0 +1,4 @@
+{ "description": "Reminders the app schedules on the phone itself", "handler": "LocalNotificationsPlugin",
+  "android": {
+    "permissions": ["android.permission.POST_NOTIFICATIONS"],
+    "application": ["<receiver android:name=\"space.nimbusgo.nativekit.NotificationReceiver\" android:exported=\"false\" />"] } }

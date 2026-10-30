@@ -6,6 +6,12 @@ import UIKit
 open class NimbusViewController: UIViewController {
     /// The app's root, for what acts on the whole screen (plugins).
     public private(set) static weak var current: NimbusViewController?
+    /// What's on top now, for plugins that present a screen of their own.
+    public static var top: UIViewController? {
+        var t: UIViewController? = current
+        while let p = t?.presentedViewController { t = p }
+        return t
+    }
     public static var statusBarStyle: UIStatusBarStyle = .default
     public static var statusBarHidden = false
 

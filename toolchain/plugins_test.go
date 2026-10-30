@@ -116,3 +116,23 @@ func TestAddAndRemoveInAProject(t *testing.T) {
 		t.Fatalf("not JSON: %s", b)
 	}
 }
+
+func TestAndroidApplicationAndGradle(t *testing.T) {
+	man := "<manifest>\n    <application>\n        <activity />\n    </application>\n</manifest>\n"
+	x := `<receiver android:name="a.B" />`
+	s := applicationAdd(man, x)
+	if !strings.Contains(s, "<activity />\n        "+x+"\n    </application>") || applicationAdd(s, x) != s {
+		t.Fatalf("application:\n%s", s)
+	}
+	if got := strings.Replace(s, "        "+x+"\n", "", 1); got != man {
+		t.Fatalf("not removed:\n%s", got)
+	}
+	g := "android {\n}\n"
+	s = gradleAdd(g, "a:b:1")
+	if !strings.Contains(s, `implementation("a:b:1")`) || gradleAdd(s, "a:b:1") != s {
+		t.Fatalf("gradle:\n%s", s)
+	}
+	if got := strings.TrimRight(gradleDrop(s, "a:b:1"), "\n"); got != strings.TrimRight(g, "\n") {
+		t.Fatalf("not removed:\n%q", got)
+	}
+}

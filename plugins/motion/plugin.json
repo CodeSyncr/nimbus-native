@@ -1,0 +1,2 @@
+{ "description": "The accelerometer and gyroscope", "handler": "MotionPlugin",
+  "ios": { "info": { "NSMotionUsageDescription": "This app responds to how you move your phone." } } }
