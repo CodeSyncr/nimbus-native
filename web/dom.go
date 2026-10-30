@@ -228,6 +228,13 @@ func (t *translator) box(o *render.Box) []instr {
 	if o.Opacity < 1 {
 		fmt.Fprintf(&b, "opacity:%s;", num(o.Opacity))
 	}
+	if o.Scale != 0 || o.Rotate != 0 {
+		sc := o.Scale
+		if sc == 0 {
+			sc = 1
+		}
+		fmt.Fprintf(&b, "transform:scale(%s) rotate(%sdeg);", num(sc), num(o.Rotate))
+	}
 	if o.Clip && t.kinds[o.Tag] != render.KindScroll {
 		b.WriteString("overflow:hidden;")
 	}

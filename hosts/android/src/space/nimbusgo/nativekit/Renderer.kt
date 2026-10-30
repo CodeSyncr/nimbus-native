@@ -339,7 +339,15 @@ class Renderer internal constructor(private val root: NimbusView) {
         }
 
         if (v is NNPressable) v.baseAlpha = o.opacity
-        if (ms > 0 && v.isAttachedToWindow) v.animate().alpha(o.opacity).setDuration(ms).start() else v.alpha = o.opacity
+        val scale = if (o.scale == 0f) 1f else o.scale
+        if (ms > 0 && v.isAttachedToWindow) {
+            v.animate().alpha(o.opacity).scaleX(scale).scaleY(scale).rotation(o.rotate).setDuration(ms).start()
+        } else {
+            v.alpha = o.opacity
+            v.scaleX = scale
+            v.scaleY = scale
+            v.rotation = o.rotate
+        }
         v.clipToOutline = o.clip
         // Only a change of Style.Hidden touches visibility: stacks and tabs set it on their screens.
         if (o.hidden) {

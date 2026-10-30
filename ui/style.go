@@ -111,6 +111,10 @@ type Style struct {
 	Opacity     float32 // 0 means 1 (fully opaque); use Hidden to hide
 	Clip        bool
 	Corners     Corners   // which corners Radius rounds; 0 means all four
+	// Scale (0 means 1) and Rotate (degrees, clockwise) transform the view
+	// about its centre, after layout, so nothing around it moves; with
+	// Transition they animate.
+	Scale, Rotate float32
 	Blur        Blur      // what is behind shows through, blurred; Background tints it
 	Gradient    *Gradient // painted over Background
 	Shadow      *Shadow   // drawn under the view

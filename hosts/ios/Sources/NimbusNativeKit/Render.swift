@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x0d37f99f42e89974
+    public static let schemaHash: UInt64 = 0xdf834fabcbe66851
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -242,8 +242,10 @@ public enum Render {
         public var shadowY: Float
         public var corners: UInt8
         public var hidden: Bool
+        public var scale: Float
+        public var rotate: Float
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false) {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -270,6 +272,8 @@ public enum Render {
             self.shadowY = shadowY
             self.corners = corners
             self.hidden = hidden
+            self.scale = scale
+            self.rotate = rotate
         }
 
         public func write(to w: inout WireWriter) {
@@ -305,6 +309,8 @@ public enum Render {
             w.float32(self.shadowY)
             w.uint(UInt64(self.corners))
             w.bool(self.hidden)
+            w.float32(self.scale)
+            w.float32(self.rotate)
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -335,6 +341,8 @@ public enum Render {
             m.shadowY = try r.float32()
             m.corners = UInt8(try r.uint(max: 255))
             m.hidden = try r.bool()
+            m.scale = try r.float32()
+            m.rotate = try r.float32()
             return m
         }
     }

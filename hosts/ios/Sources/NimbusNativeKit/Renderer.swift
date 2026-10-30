@@ -226,14 +226,22 @@ public final class Renderer {
             case .frame(let o):
                 guard let v = views[o.tag] else { break }
                 let f = CGRect(x: CGFloat(o.x), y: CGFloat(o.y), width: CGFloat(o.w), height: CGFloat(o.h))
-                if let ms = transitions[o.tag], v.frame != .zero {
+                // A transformed view (Style.Scale, Rotate) is placed by bounds and centre:
+                // its frame is undefined under a transform.
+                let place = {
+                    if v.transform.isIdentity { v.frame = f } else {
+                        v.bounds.size = f.size
+                        v.center = CGPoint(x: f.midX, y: f.midY)
+                    }
+                }
+                if let ms = transitions[o.tag], v.bounds.size != .zero {
                     animate(ms) {
-                        v.frame = f
+                        place()
                         if let r = self.radii[o.tag] { self.round(v, r) }
                         self.decor[o.tag]?.layout(v)
                     }
                 } else {
-                    v.frame = f
+                    place()
                     if let r = radii[o.tag] { round(v, r) }
                     decor[o.tag]?.layout(v)
                 }
@@ -381,7 +389,15 @@ public final class Renderer {
         d.apply(o, to: v)
         decor[o.tag] = d.isEmpty ? nil : d
         let tint = color(o.background) ?? .clear // nil paints some views (UILabel) black
+        let scale = CGFloat(o.scale == 0 ? 1 : o.scale)
+        let transform = CGAffineTransform(scaleX: scale, y: scale).rotated(by: CGFloat(o.rotate) * .pi / 180)
         let look = {
+            if v.transform != transform {
+                // Keep the view where layout put it while the transform changes.
+                let center = v.center
+                v.transform = transform
+                v.center = center
+            }
             // With a blur the tint goes over it, in the blur's own view.
             if let b = d.blur { b.contentView.backgroundColor = d.glass ? .clear : tint; v.backgroundColor = .clear } else { v.backgroundColor = tint }
             if let p = v as? NNPressable { p.baseAlpha = CGFloat(o.opacity) } else { v.alpha = CGFloat(o.opacity) }

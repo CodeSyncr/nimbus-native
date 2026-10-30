@@ -121,6 +121,9 @@ type Box struct {
 	Corners uint8
 	// Hidden takes the view off the screen (Style.Hidden): not drawn, not tapped.
 	Hidden bool
+	// Scale (1 when 0) and Rotate (degrees) transform the view about its
+	// centre, after layout: its place among its siblings doesn't change.
+	Scale, Rotate float32
 }
 
 // Blur is how strongly what is behind a view is blurred: the platform's
