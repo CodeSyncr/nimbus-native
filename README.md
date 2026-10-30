@@ -74,6 +74,7 @@ with the debug key until you add yours to `native/android/app/build.gradle.kts`.
 | `cmd/nimbus-native/` | The toolchain behind `nimbus native …` (never called directly) |
 | `examples/hello/` | Bridge and wire checks |
 | `examples/gallery/` | Every primitive plus a 1,000-row list, with a built-in benchmark |
+| `examples/showcase/` | Every component on a screen of its own, the source of the guide's pictures |
 | `examples/baseline/` | The same list in plain Android views, to calibrate emulator numbers |
 | `examples/fullstack/` | A Nimbus server and app sharing one contract (its own module) |
 | `api/` | Typed endpoints and a JSON client for Nimbus servers (standard library only) |
