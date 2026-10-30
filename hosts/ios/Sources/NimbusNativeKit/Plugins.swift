@@ -1,3 +1,4 @@
+import CoreHaptics
 import Foundation
 import Security
 import UIKit
@@ -69,6 +70,7 @@ public enum Plugins {
         "app": AppInfo.handle,
         "linking": Linking.handle,
         "dialog": Dialogs.handle,
+        "haptics": Haptics.handle,
     ]
 
     /// Makes `name` callable from Go, replacing any plugin of that name.
@@ -300,5 +302,81 @@ enum Dialogs {
             done?(nil) // swiped away
             done = nil
         }
+    }
+}
+
+/// haptics: the system's feedback, and patterns played with Core Haptics
+/// (taps at their moments where the phone has no haptic engine).
+enum Haptics {
+    private static var engine: CHHapticEngine? = {
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return nil }
+        let e = try? CHHapticEngine()
+        e?.isAutoShutdownEnabled = true
+        return e
+    }()
+
+    static func handle(_ call: PluginCall) {
+        switch call.method {
+        case "impact":
+            let style: UIImpactFeedbackGenerator.FeedbackStyle = switch call.string("style") {
+            case "light": .light
+            case "heavy": .heavy
+            case "soft": .soft
+            case "rigid": .rigid
+            default: .medium
+            }
+            let i = (call.args["intensity"] as? Double).map { CGFloat($0) } ?? 1
+            UIImpactFeedbackGenerator(style: style).impactOccurred(intensity: i > 0 ? i : 1)
+        case "notify":
+            let kind: UINotificationFeedbackGenerator.FeedbackType = switch call.string("kind") {
+            case "warning": .warning
+            case "error": .error
+            default: .success
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(kind)
+        case "selection":
+            UISelectionFeedbackGenerator().selectionChanged()
+        case "play":
+            play(call)
+        default:
+            return Plugins.unknownMethod(call)
+        }
+        call.resolve()
+    }
+
+    private static func play(_ call: PluginCall) {
+        let events = (call.args["events"] as? [[String: Any]]) ?? []
+        func num(_ e: [String: Any], _ k: String) -> Double { (e[k] as? Double) ?? Double((e[k] as? Int) ?? 0) }
+        guard let engine else {
+            // No engine: a firm tap at each moment.
+            for e in events {
+                DispatchQueue.main.asyncAfter(deadline: .now() + num(e, "T")) {
+                    UIImpactFeedbackGenerator(style: num(e, "S") > 0.6 ? .rigid : .heavy).impactOccurred(intensity: max(0.3, CGFloat(num(e, "I"))))
+                }
+            }
+            return
+        }
+        var list: [CHHapticEvent] = []
+        for e in events {
+            let params = [CHHapticEventParameter(parameterID: .hapticIntensity, value: Float(num(e, "I"))),
+                          CHHapticEventParameter(parameterID: .hapticSharpness, value: Float(num(e, "S")))]
+            let d = num(e, "D")
+            list.append(d > 0
+                ? CHHapticEvent(eventType: .hapticContinuous, parameters: params, relativeTime: num(e, "T"), duration: d)
+                : CHHapticEvent(eventType: .hapticTransient, parameters: params, relativeTime: num(e, "T")))
+        }
+        var curves: [CHHapticParameterCurve] = []
+        for c in (call.args["curves"] as? [[String: Any]]) ?? [] {
+            let points = ((c["points"] as? [[Double]]) ?? []).compactMap { p in
+                p.count == 2 ? CHHapticParameterCurve.ControlPoint(relativeTime: p[0], value: Float(p[1])) : nil
+            }
+            guard !points.isEmpty else { continue }
+            curves.append(CHHapticParameterCurve(parameterID: (c["sharp"] as? Bool) == true ? .hapticSharpnessControl : .hapticIntensityControl,
+                                                 controlPoints: points, relativeTime: 0))
+        }
+        guard let pattern = try? CHHapticPattern(events: list, parameterCurves: curves),
+              let player = try? engine.makePlayer(with: pattern) else { return }
+        try? engine.start()
+        try? player.start(atTime: CHHapticTimeImmediate)
     }
 }

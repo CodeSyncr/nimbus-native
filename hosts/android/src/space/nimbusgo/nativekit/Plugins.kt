@@ -105,6 +105,7 @@ object Plugins {
         handlers["app"] = Handler(AppInfo::handle)
         handlers["linking"] = Handler(Linking::handle)
         handlers["dialog"] = Handler(Dialogs::handle)
+        handlers["haptics"] = Handler(Haptics::handle)
     }
 
     /** Makes [name] callable from Go, replacing any plugin of that name. */
@@ -296,5 +297,103 @@ internal object Dialogs {
             if (mode == "datetime") pickTime() else call.resolve(cal.timeInMillis)
         }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH), cal.get(java.util.Calendar.DAY_OF_MONTH))
             .apply { setOnCancelListener { cancelled() } }.show()
+    }
+}
+
+/**
+ * haptics: the system's clicks for Impact, Notify and Selection (Android 10+; a short buzz before),
+ * and patterns played as a vibration waveform: taps as short pulses, buzzes at their strength,
+ * intensity curves sampled every 40 ms. Sharpness can't be set here. Needs VIBRATE (the kit's
+ * manifest asks for it).
+ */
+internal object Haptics {
+    private fun vibrator(): android.os.Vibrator? {
+        val c = Plugins.activity ?: return null
+        val v = if (android.os.Build.VERSION.SDK_INT >= 31) {
+            (c.getSystemService(android.content.Context.VIBRATOR_MANAGER_SERVICE) as? android.os.VibratorManager)?.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            c.getSystemService(android.content.Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+        }
+        return v?.takeIf { it.hasVibrator() }
+    }
+
+    fun handle(call: PluginCall) {
+        val v = vibrator() ?: return call.resolve() // nothing to buzz: not an error
+        val effect = when (call.method) {
+            "impact" -> click(if (call.string("style") in setOf("heavy", "rigid")) 5 else 0, call.args.optDouble("intensity", 1.0))
+            "notify" -> when (call.string("kind")) {
+                "error" -> android.os.VibrationEffect.createWaveform(longArrayOf(0, 40, 60, 40, 60, 60), intArrayOf(0, 255, 0, 255, 0, 255), -1)
+                "warning" -> click(5, 1.0)
+                else -> click(1, 1.0) // a double click
+            }
+            "selection" -> click(2, 0.5)
+            "play" -> pattern(call)
+            else -> return Plugins.unknownMethod(call)
+        }
+        if (effect != null) v.vibrate(effect)
+        call.resolve()
+    }
+
+    /** A predefined click (0 click, 1 double, 2 tick, 5 heavy) where there are some, else a pulse. */
+    private fun click(kind: Int, intensity: Double): android.os.VibrationEffect =
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            android.os.VibrationEffect.createPredefined(kind)
+        } else {
+            android.os.VibrationEffect.createOneShot(20, (intensity.coerceIn(0.1, 1.0) * 255).toInt())
+        }
+
+    private fun pattern(call: PluginCall): android.os.VibrationEffect? {
+        val events = call.args.optJSONArray("events") ?: return null
+        // Intensity curves multiply buzzes: sample them.
+        val curve = mutableListOf<Pair<Double, Double>>()
+        call.args.optJSONArray("curves")?.let { cs ->
+            for (i in 0 until cs.length()) {
+                val c = cs.getJSONObject(i)
+                if (c.optBoolean("sharp")) continue
+                val pts = c.optJSONArray("points") ?: continue
+                for (j in 0 until pts.length()) curve.add(pts.getJSONArray(j).getDouble(0) to pts.getJSONArray(j).getDouble(1))
+            }
+        }
+        fun scale(t: Double): Double {
+            if (curve.isEmpty()) return 1.0
+            if (t <= curve.first().first) return curve.first().second
+            for (k in 1 until curve.size) {
+                val (t0, v0) = curve[k - 1]
+                val (t1, v1) = curve[k]
+                if (t <= t1) return v0 + (v1 - v0) * (t - t0) / maxOf(t1 - t0, 1e-6)
+            }
+            return curve.last().second
+        }
+        // A timeline in 10 ms steps: the strongest of whatever plays at each step.
+        var end = 0.0
+        for (i in 0 until events.length()) {
+            val e = events.getJSONObject(i)
+            end = maxOf(end, e.optDouble("T") + maxOf(e.optDouble("D"), 0.03))
+        }
+        val steps = (end * 100).toInt().coerceIn(1, 3000)
+        val amp = IntArray(steps)
+        for (i in 0 until events.length()) {
+            val e = events.getJSONObject(i)
+            val t0 = e.optDouble("T")
+            val d = e.optDouble("D")
+            val len = if (d > 0) d else 0.03 // a tap: a short pulse
+            for (s in (t0 * 100).toInt() until minOf(steps, ((t0 + len) * 100).toInt())) {
+                val strength = e.optDouble("I") * (if (d > 0) scale(s / 100.0) else 1.0)
+                amp[s] = maxOf(amp[s], (strength.coerceIn(0.0, 1.0) * 255).toInt())
+            }
+        }
+        // Runs of equal strength become the waveform's segments.
+        val timings = mutableListOf<Long>()
+        val amps = mutableListOf<Int>()
+        var s = 0
+        while (s < steps) {
+            var e = s
+            while (e < steps && amp[e] == amp[s]) e++
+            timings.add(((e - s) * 10).toLong())
+            amps.add(amp[s])
+            s = e
+        }
+        return android.os.VibrationEffect.createWaveform(timings.toLongArray(), amps.toIntArray(), -1)
     }
 }
