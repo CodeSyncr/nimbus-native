@@ -58,7 +58,7 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 	os.Remove(d.navFile())
 
 	// The app process starts when the shell connects (deviceConnected).
-	con.say(plain, "\n  Launching %s on %s…", a.Name, d.where())
+	con.say(info, "\nℹ Launching %s on %s…", a.Name, d.where())
 	if !t.NoServer {
 		d.server = newDevServer(d)
 	}
@@ -87,14 +87,14 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 		d.stopApp()
 		d.stopDeviceLogs()
 		restore()
-		con.say(plain, "\n  Stopped.")
+		con.say(info, "\nℹ Stopped.")
 		return nil
 	}
 	reload := func(why string) {
-		con.say(dim, "\n  %s…", why)
+		con.say(info, "\nℹ %s…", why)
 		if err := d.reload(time.Now()); err != nil {
-			con.say(bad, "%v", err)
-			con.say(warn, "  (still running the last good build)\n")
+			con.say(bad, "✖ %v", err)
+			con.say(warn, "⚠ Still running the last good build\n")
 		} else if d.server != nil {
 			go d.server.restart()
 		}
@@ -109,13 +109,13 @@ func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error 
 			case 'r':
 				reload("Reloading")
 			case 'R':
-				con.say(dim, "\n  Restarting: rebuilding and reinstalling the app…")
+				con.say(info, "\nℹ Restarting: rebuilding and reinstalling the app…")
 				d.stopApp()
 				t0 := time.Now()
 				if err := d.buildShell(); err != nil {
-					con.say(bad, "%v", err)
+					con.say(bad, "✖ %v", err)
 				} else {
-					con.say(dim, "  Reinstalled in %.1fs.", time.Since(t0).Seconds())
+					con.say(good, "✓ Reinstalled in %.1fs.", time.Since(t0).Seconds())
 				}
 				snap = snapshot(a.root())
 			case 'c':
@@ -239,7 +239,7 @@ func (d *devSession) buildShell() error {
 		if err := e.openOnPhone(d.a.ID, p, false); err != nil {
 			return err
 		}
-		d.con.say(warn, "  On %s, allow the app to find devices on your local network if asked.", p.Name)
+		d.con.say(warn, "⚠ On %s, allow the app to find devices on your local network if asked.", p.Name)
 		return nil // the app's output comes from its process here
 	case d.platform == "ios":
 		build := e.BuildIOS
@@ -321,7 +321,7 @@ func (d *devSession) reload(t0 time.Time) error {
 		return err
 	}
 	if g.Combined != d.shellSchema {
-		d.con.say(warn, "  The wire schema changed: rebuilding and reinstalling the app.")
+		d.con.say(warn, "⚠ The wire schema changed: rebuilding and reinstalling the app.")
 		d.stopApp()
 		if err := d.buildShell(); err != nil {
 			return err
@@ -376,7 +376,7 @@ func (d *devSession) restartApp(t0 time.Time) error {
 		d.appMu.Unlock()
 		close(done)
 		if ours {
-			d.con.say(bad, "\n  The app stopped (%v). Fix the code and save to start it again, or press r.\n", err)
+			d.con.say(bad, "\n✖ The app stopped (%v). Fix the code and save to start it again, or press r.\n", err)
 		}
 	}()
 	return nil
@@ -406,11 +406,11 @@ func (d *devSession) deviceConnected() {
 	if first {
 		d.help()
 	} else {
-		d.con.say(dim, "  The app reconnected.")
+		d.con.say(good, "✓ The app reconnected.")
 	}
 	go func() {
 		if err := d.restartApp(time.Now()); err != nil {
-			d.con.say(bad, "%v", err)
+			d.con.say(bad, "✖ %v", err)
 		}
 	}()
 }
@@ -540,7 +540,7 @@ func (r *relay) handle(c net.Conn) {
 			r.mu.Unlock()
 			c.Close()
 			if first {
-				r.con.say(warn, "  Another dev shell is open on the device (another app, or an older build): ignoring it. Close it to stop it knocking.")
+				r.con.say(warn, "⚠ Another dev shell is open on the device (another app, or an older build): ignoring it. Close it to stop it knocking.")
 			}
 			return
 		}
@@ -560,7 +560,7 @@ func (r *relay) handle(c net.Conn) {
 		dev, expected := r.device, r.expected
 		r.mu.Unlock()
 		if schema != expected {
-			r.con.say(bad, "  The app's wire schema (%#x) differs from the dev shell's (%#x); restart nimbus native dev.", schema, expected)
+			r.con.say(bad, "✖ The app's wire schema (%#x) differs from the dev shell's (%#x); restart nimbus native dev.", schema, expected)
 		}
 		dev.write(frame.Reset, nil) // clear the old views; the proxy replays the viewport
 	default:
@@ -605,7 +605,7 @@ func (r *relay) handle(c net.Conn) {
 				r.mu.Lock()
 				hits := r.hits
 				r.mu.Unlock()
-				r.con.say(good, "  ↻ On screen in %.2fs (build %.2fs, %d measurements from cache)",
+				r.con.say(good, "✓ On screen in %.2fs (build %.2fs, %d measurements from cache)",
 					time.Since(start).Seconds(), built.Seconds(), hits)
 			}
 		}

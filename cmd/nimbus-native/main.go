@@ -12,14 +12,12 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/CodeSyncr/nimbus-native/toolchain"
@@ -55,7 +53,7 @@ func main() {
 			}
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "dev":
@@ -63,12 +61,12 @@ func main() {
 			usage()
 		}
 		if err := dev(os.Args[2], os.Args[3:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "new":
 		if err := newProject(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "upgrade", "sync":
@@ -79,22 +77,22 @@ func main() {
 			err = syncProject(os.Args[2:])
 		}
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "keystore":
 		if err := keystore(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "font":
 		if err := font(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "icon":
 		if err := icon(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "lib":
@@ -102,7 +100,7 @@ func main() {
 			usage()
 		}
 		if err := lib(os.Args[2], os.Args[3:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	case "build", "run":
@@ -110,7 +108,7 @@ func main() {
 			usage()
 		}
 		if err := buildOrRun(cmd, os.Args[2], os.Args[3:]); err != nil {
-			fmt.Fprintln(os.Stderr, "error:", err)
+			toolchain.Errorf(os.Stderr, "%v", err)
 			os.Exit(1)
 		}
 	default:
@@ -167,7 +165,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("built", out)
+		toolchain.Successf(os.Stdout, "Built %s", out)
 		if cmd == "run" {
 			if *device {
 				return fmt.Errorf("running on a device is not supported yet; install %s with Xcode", out)
@@ -179,7 +177,7 @@ func buildOrRun(cmd, platform string, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("built", out)
+		toolchain.Successf(os.Stdout, "Built %s", out)
 		if cmd == "run" {
 			return env.RunAndroid(app, out)
 		}
@@ -212,7 +210,7 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 			if err != nil {
 				return err
 			}
-			fmt.Println("built", out)
+			toolchain.Successf(os.Stdout, "Built %s", out)
 			if cmd == "run" {
 				return env.RunIOS(app, out)
 			}
@@ -225,12 +223,12 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 		if phone.Wifi {
 			via = "Wi-Fi"
 		}
-		fmt.Printf("› %s over %s, signed by team %s\n", phone.Name, via, team)
+		toolchain.Infof(os.Stdout, "%s over %s, signed by team %s", phone.Name, via, team)
 		out, err := env.BuildIOSProject(app, toolchain.IOSDevice, toolchain.IOSDeviceBuild{Team: team, Phone: phone})
 		if err != nil {
 			return err
 		}
-		fmt.Println("built", out)
+		toolchain.Successf(os.Stdout, "Built %s", out)
 		if cmd == "run" {
 			return env.RunIOSPhone(app, out, phone)
 		}
@@ -247,7 +245,7 @@ func buildOrRunProject(cmd, platform, dir string, device, sim bool, udid, team s
 		if err != nil {
 			return err
 		}
-		fmt.Println("built", out)
+		toolchain.Successf(os.Stdout, "Built %s", out)
 		if cmd == "run" {
 			return env.RunAndroid(app, out)
 		}
@@ -284,18 +282,15 @@ func newProject(args []string) error {
 	if *quiet {
 		return nil
 	}
-	fmt.Printf(`
-created %s (%s, %s): the phone app, with no server
+	toolchain.Successf(os.Stdout, "Created %s (%s, %s): the phone app, with no server", p.Dir, p.Name, p.ID)
+	toolchain.Panel(os.Stdout, "Next steps", fmt.Sprintf(`cd %s
+nimbus native dev ios             the app on your iPhone or the simulator, reloading on save
+nimbus native dev android         the same on Android
 
-  cd %s
-  nimbus native dev ios             the app on your iPhone or the simulator, reloading on save
-  nimbus native dev android         the same on Android
+open native/ios/Runner.xcodeproj  or open native/android in Android Studio
 
-  open native/ios/Runner.xcodeproj  or open native/android in Android Studio
-
-  The app reaches your backend (Node, Go, anything that speaks HTTP and JSON)
-  with api.New("https://your-server") — see features/ for where calls go.
-`, p.Dir, p.Name, p.ID, fs.Arg(0))
+The app reaches your backend (Node, Go, anything that speaks HTTP and JSON)
+with api.New("https://your-server"): see features/ for where calls go.`, fs.Arg(0)))
 	return nil
 }
 
@@ -318,10 +313,10 @@ func upgrade(args []string) error {
 		return err
 	}
 	if from == to {
-		fmt.Printf("\n  Already on %s.\n", to)
+		toolchain.Infof(os.Stdout, "Already on %s.", to)
 		return nil
 	}
-	fmt.Printf("\n  Upgraded %s → %s. What changed: https://github.com/CodeSyncr/nimbus-native/blob/main/CHANGELOG.md\n", from, to)
+	toolchain.Successf(os.Stdout, "Upgraded %s → %s. What changed: https://github.com/CodeSyncr/nimbus-native/blob/main/CHANGELOG.md", from, to)
 	return nil
 }
 
@@ -364,7 +359,8 @@ func buildRelease(platform, dir string, r toolchain.Release, verbose bool) error
 		if err != nil {
 			return err
 		}
-		fmt.Printf("\nbuilt %s\n  Upload it with Xcode's Organizer or Transporter, or:\n  xcrun altool --upload-app -f %q -t ios --apiKey <KEY> --apiIssuer <ISSUER>\n", ipa, ipa)
+		toolchain.Successf(os.Stdout, "Built %s", ipa)
+		toolchain.Panel(os.Stdout, "Upload it", fmt.Sprintf("With Xcode's Organizer or Transporter, or:\n\nxcrun altool --upload-app -f %q -t ios --apiKey <KEY> --apiIssuer <ISSUER>", ipa))
 	case "android":
 		if app.ID, err = toolchain.AndroidProjectID(app.Root); err != nil {
 			return err
@@ -373,9 +369,10 @@ func buildRelease(platform, dir string, r toolchain.Release, verbose bool) error
 		if err != nil {
 			return err
 		}
-		fmt.Printf("\nbuilt %s  (Google Play)\nbuilt %s  (install directly)\n", aab, apk)
+		toolchain.Successf(os.Stdout, "Built %s  (Google Play)", aab)
+		toolchain.Successf(os.Stdout, "Built %s  (install directly)", apk)
 		if !signed {
-			fmt.Println("\n  Signed with the debug key: Google Play won't accept it. Make a release key once with\n  `nimbus native keystore`, then build again.")
+			toolchain.Warnf(os.Stdout, "Signed with the debug key: Google Play won't accept it. Make a release key once with\n  `nimbus native keystore`, then build again.")
 		}
 	default:
 		return fmt.Errorf("unknown platform %q (ios or android)", platform)
@@ -400,7 +397,8 @@ func keystore(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("› made %s and keystore.properties next to it\n\n  They stay out of git. Back both up somewhere safe: Google Play knows your app by this key.\n", store)
+	toolchain.Successf(os.Stdout, "Made %s and keystore.properties next to it", store)
+	toolchain.Infof(os.Stdout, "They stay out of git. Back both up somewhere safe: Google Play knows your app by this key.")
 	return nil
 }
 
@@ -423,7 +421,8 @@ func font(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("› added %q to the iOS and Android apps (and the web)\n  use it: ui.Style{FontFamily: %q}\n", family, family)
+	toolchain.Successf(os.Stdout, "Added %q to the iOS and Android apps (and the web)", family)
+	toolchain.Infof(os.Stdout, "Use it: ui.Style{FontFamily: %q}", family)
 	return nil
 }
 
@@ -449,7 +448,7 @@ func icon(args []string) error {
 	}
 	b := img.Bounds()
 	if b.Dx() < 1024 {
-		fmt.Printf("› %s is %d px: 1024 px or more looks sharper on the App Store\n", fs.Arg(0), b.Dx())
+		toolchain.Warnf(os.Stdout, "%s is %d px: 1024 px or more looks sharper on the App Store", fs.Arg(0), b.Dx())
 	}
 	back, err := toolchain.ParseColor(*bg)
 	if err != nil {
@@ -464,7 +463,7 @@ func icon(args []string) error {
 	if err := toolchain.WriteIcons(dir, img, back, launchColor); err != nil {
 		return err
 	}
-	fmt.Println("› wrote the iOS icon (native/ios/Runner/Assets.xcassets) and Android icons (native/android/app/src/main/res)")
+	toolchain.Successf(os.Stdout, "Wrote the iOS icon (native/ios/Runner/Assets.xcassets) and Android icons (native/android/app/src/main/res)")
 	return nil
 }
 
@@ -673,7 +672,7 @@ func pickPhone(cmd string, device, sim bool, udid string) (toolchain.IOSPhone, b
 		_, err := toolchain.PickIOSPhone("") // says how to connect one
 		return toolchain.IOSPhone{}, false, err
 	case len(phones) == 0:
-		fmt.Println("› no iPhone or iPad connected: using the simulator")
+		toolchain.Infof(os.Stdout, "No iPhone or iPad connected: using the simulator")
 		return toolchain.IOSPhone{}, false, nil
 	case len(phones) == 1:
 		return phones[0], true, nil
@@ -720,7 +719,7 @@ func pickTeam(root, team string) (string, error) {
 		return "", err
 	}
 	if err := toolchain.SaveIOSTeam(root, ids[i]); err == nil {
-		fmt.Printf("› saved team %s in native/ios/Runner.xcodeproj\n", ids[i])
+		toolchain.Successf(os.Stdout, "Saved team %s in native/ios/Runner.xcodeproj", ids[i])
 	}
 	return ids[i], nil
 }
@@ -783,22 +782,7 @@ func choose(question string, options []string, flag string) (int, error) {
 	if !interactive() {
 		return 0, fmt.Errorf("%s pick one with %s:\n  %s", question, flag, strings.Join(options, "\n  "))
 	}
-	fmt.Printf("\n%s\n", question)
-	for i, o := range options {
-		fmt.Printf("  %d) %s\n", i+1, o)
-	}
-	in := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Printf("Choose 1-%d: ", len(options))
-		line, err := in.ReadString('\n')
-		if n, convErr := strconv.Atoi(strings.TrimSpace(line)); convErr == nil && n >= 1 && n <= len(options) {
-			fmt.Println()
-			return n - 1, nil
-		}
-		if err != nil {
-			return 0, fmt.Errorf("no choice made")
-		}
-	}
+	return toolchain.Choose(question, options)
 }
 
 // interactive reports whether someone at a terminal can answer.

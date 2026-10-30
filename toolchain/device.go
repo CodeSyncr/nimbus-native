@@ -217,7 +217,7 @@ func (e *Env) openOnPhone(id string, p IOSPhone, console bool) error {
 		}
 		if locked(out.String()) && time.Now().Before(deadline) {
 			if !told {
-				fmt.Fprintf(e.Out, "\n  Unlock %s to open the app (waiting up to 2 minutes)…\n\n", p.Name)
+				Warnf(e.Out, "Unlock %s to open the app (waiting up to 2 minutes)…", p.Name)
 				told = true
 			}
 			time.Sleep(2 * time.Second)

@@ -44,7 +44,7 @@ func newDevServer(d *devSession) *devServer {
 		}
 	}
 	if port != want {
-		d.con.say(warn, "  Port %s is in use, so the server runs on %s.", want, port)
+		d.con.say(warn, "⚠ Port %s is in use, so the server runs on %s.", want, port)
 	}
 	return &devServer{d: d, port: port}
 }
@@ -87,8 +87,8 @@ func (s *devServer) restart() {
 	build := exec.Command("go", "build", "-o", bin, ".")
 	build.Dir = d.a.Root
 	if out, err := build.CombinedOutput(); err != nil {
-		d.con.say(bad, "  Server build failed:\n%s", indent(string(out)))
-		d.con.say(warn, "  (still running the last good server)\n")
+		d.con.say(bad, "✖ Server build failed:\n%s", indent(string(out)))
+		d.con.say(warn, "⚠ Still running the last good server\n")
 		return
 	}
 	s.stop()
@@ -98,7 +98,7 @@ func (s *devServer) restart() {
 	out, _ := cmd.StdoutPipe()
 	cmd.Stderr = cmd.Stdout
 	if err := cmd.Start(); err != nil {
-		d.con.say(bad, "  Server: %v", err)
+		d.con.say(bad, "✖ Server: %v", err)
 		return
 	}
 	logged := make(chan struct{})
@@ -125,7 +125,7 @@ func (s *devServer) restart() {
 		s.mu.Unlock()
 		close(done)
 		if ours {
-			d.con.say(bad, "\n  The server stopped (%v). Save to start it again.\n", err)
+			d.con.say(bad, "\n✖ The server stopped (%v). Save to start it again.\n", err)
 		}
 	}()
 }
@@ -148,7 +148,7 @@ func (s *devServer) quietStart(r io.Reader) {
 			held = append(held, line)
 			if strings.Contains(line, "Ready in") {
 				ready = true
-				s.d.con.say(dim, "  ↻ Server restarted on %s", s.url())
+				s.d.con.say(good, "✓ Server restarted on %s", s.url())
 			}
 		}
 		if !ready {
@@ -175,6 +175,6 @@ func (s *devServer) stop() {
 // open shows the web app in the default browser.
 func (s *devServer) open() {
 	if err := exec.Command("open", s.url()).Start(); err != nil {
-		s.d.con.say(bad, "  %v", fmt.Errorf("opening %s: %w", s.url(), err))
+		s.d.con.say(bad, "✖ %v", fmt.Errorf("opening %s: %w", s.url(), err))
 	}
 }

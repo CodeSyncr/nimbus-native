@@ -79,25 +79,25 @@ func (e *Env) Doctor() bool {
 	ok := true
 	check := func(name, val, hint string) {
 		if val == "" {
-			fmt.Fprintf(e.Out, "  ✗ %-14s missing — %s\n", name, hint)
+			Errorf(e.Out, "%-14s missing — %s", name, hint)
 			ok = false
 			return
 		}
-		fmt.Fprintf(e.Out, "  ✓ %-14s %s\n", name, val)
+		Successf(e.Out, "%-14s %s", name, val)
 	}
-	fmt.Fprintln(e.Out, "Go")
+	fmt.Fprintln(e.Out, paint(e.Out, colorBold, "Go"))
 	gov, _ := exec.Command("go", "env", "GOVERSION", "GOHOSTOS", "GOHOSTARCH").Output()
 	check("go", strings.Join(strings.Fields(string(gov)), " "), "install Go 1.23+ from go.dev/dl")
 	check("nimbus-native", e.Repo, "run inside a module that requires github.com/CodeSyncr/nimbus-native")
 
-	fmt.Fprintln(e.Out, "iOS")
+	fmt.Fprintln(e.Out, paint(e.Out, colorBold, "iOS"))
 	check("xcode", e.Xcode, "install Xcode, then `sudo xcode-select -s /Applications/Xcode.app`")
 	for _, sdk := range []string{"iphoneos", "iphonesimulator"} {
 		p, _ := xcrun(sdk, "--show-sdk-path")
 		check(sdk, p, "install the iOS platform in Xcode → Settings → Components")
 	}
 
-	fmt.Fprintln(e.Out, "Android")
+	fmt.Fprintln(e.Out, paint(e.Out, colorBold, "Android"))
 	check("sdk", e.AndroidSDK, "install Android Studio or the command-line tools; set ANDROID_HOME")
 	check("ndk", e.NDK, "sdkmanager \"ndk;29.0.14206865\"")
 	check("build-tools", e.BuildTools, "sdkmanager \"build-tools;36.1.0\"")
@@ -106,7 +106,7 @@ func (e *Env) Doctor() bool {
 	if kc := InstalledKotlinc(); kc != "" {
 		check("kotlinc", kc, "")
 	} else {
-		fmt.Fprintf(e.Out, "  · %-15s Kotlin %s downloads on the first Android build\n", "kotlinc", kotlinVersion)
+		Infof(e.Out, "%-14s Kotlin %s downloads on the first Android build", "kotlinc", kotlinVersion)
 	}
 	check("keystore", e.Keystore, "created by Android Studio; or keytool -genkeypair (see docs)")
 	return ok
@@ -137,7 +137,7 @@ func (e *Env) runIn(dir string, env []string, name string, args ...string) error
 }
 
 func (e *Env) step(format string, args ...any) {
-	fmt.Fprintf(e.Out, "› "+format+"\n", args...)
+	Infof(e.Out, format, args...)
 }
 
 func xcrun(sdk string, args ...string) (string, error) {

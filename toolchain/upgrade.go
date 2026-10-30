@@ -41,7 +41,7 @@ func (e *Env) Upgrade(root, version string) (from, to string, err error) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		if strings.HasPrefix(string(out), "usage:") {
 			// A release older than sync: its builds sync the project themselves.
-			fmt.Fprintf(e.Out, "  (%s syncs native/ on its first build: run it once more if asked)\n", to)
+			Infof(e.Out, "%s syncs native/ on its first build: run it once more if asked", to)
 			return from, to, nil
 		}
 		return from, to, fmt.Errorf("go.mod now requires %s, but syncing the project failed: %v\n%s"+

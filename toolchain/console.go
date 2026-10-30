@@ -13,48 +13,33 @@ import (
 // Dev mode's terminal: what is happening, in color when it is a terminal,
 // the app's own output, and single-key commands.
 
-type tone int
+type tone string
 
 const (
-	plain tone = iota
-	dim
-	good
-	bad
-	warn
+	plain tone = ""
+	dim   tone = colorDim
+	info  tone = colorInfo
+	good  tone = colorSuccess
+	bad   tone = colorError
+	warn  tone = colorWarn
 )
 
 // console writes dev mode's lines, one at a time.
 type console struct {
-	mu    sync.Mutex
-	out   io.Writer
-	color bool
+	mu  sync.Mutex
+	out io.Writer
 }
 
-func newConsole(out io.Writer) *console {
-	c := &console{out: out}
-	if f, ok := out.(*os.File); ok && os.Getenv("NO_COLOR") == "" {
-		if fi, err := f.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
-			c.color = true
-		}
-	}
-	return c
-}
+func newConsole(out io.Writer) *console { return &console{out: out} }
 
 func (c *console) paint(t tone, s string) string {
-	if !c.color {
-		return s
-	}
-	code := map[tone]string{dim: "2", good: "32", bad: "31", warn: "33"}[t]
-	if code == "" {
-		return s
-	}
 	// Blank lines around the text stay outside the color.
 	body := strings.Trim(s, "\n")
-	if body == "" {
+	if t == plain || body == "" {
 		return s
 	}
 	i := strings.Index(s, body)
-	return s[:i] + "\033[" + code + "m" + body + "\033[0m" + s[i+len(body):]
+	return s[:i] + paint(c.out, string(t), body) + s[i+len(body):]
 }
 
 // say writes one line, in a tone.
@@ -89,20 +74,22 @@ func (c *console) stream(r io.Reader, label string) {
 func (c *console) clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.color {
+	if styled(c.out) {
 		fmt.Fprint(c.out, "\033[2J\033[H")
 	}
 }
 
 func (c *console) help(app, target, web string) {
-	c.say(good, "\n  ✓ %s is running on %s.", app, target)
-	keys := "    r  reload    R  restart (rebuild and reinstall)    c  clear    q  quit    h  help"
+	body := "Save a .go file to reload, or press a key:\n\n"
+	keys := "r reload   R restart   c clear   q quit   h help"
 	if web != "" {
-		c.say(good, "  ✓ The server and web app are on %s", web)
-		keys = "    r  reload    R  restart (rebuild and reinstall)    o  open the web app    c  clear    q  quit    h  help"
+		body = "Server and web app   " + web + "\n\n" + body
+		keys = "r reload   R restart   o open the web app   c clear   q quit   h help"
 	}
-	c.say(plain, "  Save a .go file to reload, or press a key:")
-	c.say(dim, "%s\n", keys)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	fmt.Fprintln(c.out)
+	Panel(c.out, app+" is running on "+target, body+keys)
 }
 
 // keys reads single key presses from the terminal, if there is one, until
