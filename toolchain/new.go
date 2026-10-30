@@ -3,6 +3,7 @@ package toolchain
 import (
 	"embed"
 	"fmt"
+	"image/color"
 	"io/fs"
 	"os"
 	"path"
@@ -22,7 +23,7 @@ type NewProject struct {
 	Module string // Go module path, e.g. "shop"
 	ID     string // bundle id / application id, e.g. "space.nimbusgo.shop"
 
-	// Template is the starting app: "counter" (the default) or "shop".
+	// Template is the starting app; "counter", the only one for now.
 	Template string
 
 	// The nimbus-native the project requires: a version, or a local
@@ -32,7 +33,13 @@ type NewProject struct {
 }
 
 // Templates are the apps New can start from.
-var Templates = []string{"counter", "shop"}
+var Templates = []string{"counter"}
+
+// templateLooks are each template's icon tile and background, and launch
+// screen color (its theme's primary, and its light background).
+var templateLooks = map[string]struct{ tile, icon, launch color.RGBA }{
+	"counter": {tile: color.RGBA{0x8b, 0x5c, 0xf6, 0xff}, icon: color.RGBA{0x6d, 0x28, 0xd9, 0xff}, launch: color.RGBA{0xf5, 0xf3, 0xff, 0xff}},
+}
 
 // NewProjectFor fills in a project's names from its directory, and the
 // nimbus-native version from this toolchain's own build: the project gets
@@ -113,6 +120,12 @@ func (e *Env) New(p NewProject) error {
 		if err := writeTemplate(root, p.Dir, r); err != nil {
 			return err
 		}
+	}
+	// A first icon and launch screen in the app's colors; replace them with
+	// `nimbus native icon <image>`.
+	look := templateLooks[p.Template]
+	if err := WriteIcons(p.Dir, DefaultIcon(look.tile), look.icon, look.launch); err != nil {
+		return err
 	}
 	if p.Replace != "" {
 		f, err := os.OpenFile(filepath.Join(p.Dir, "go.mod"), os.O_APPEND|os.O_WRONLY, 0)

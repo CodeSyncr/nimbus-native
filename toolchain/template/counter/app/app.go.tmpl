@@ -18,8 +18,8 @@ func init() { router.Register(pages.Routes) }
 // The app's look, on phones and on the web (the server imports this package too).
 func init() { theme.Apply() }
 
-// App is the root component: the home page. To grow it into tabs and
-// navigation stacks, see `nimbus native new --template shop`.
+// App is the root component: the home page. Grow it into tabs and
+// navigation stacks with ui.Tabs and ui.Stack.
 type App struct{}
 
 func (App) Render(c *ui.Ctx) *ui.Element {

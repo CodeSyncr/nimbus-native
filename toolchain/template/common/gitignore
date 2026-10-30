@@ -11,6 +11,8 @@ native/ios/NimbusNativeKit/.swiftpm/
 native/android/.gradle/
 native/android/.idea/
 native/android/local.properties
+native/android/keystore.properties
+native/android/*.keystore
 native/android/**/build/
 *.iml
 .kotlin/

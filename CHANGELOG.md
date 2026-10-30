@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.0.8 (2026-10-30)
+
+- Store builds: `nimbus native build ios -release` archives and exports an
+  `.ipa` (App Store Connect, ad-hoc or development); `nimbus native build
+  android -release` makes the Play Store `.aab` and a release `.apk`.
+  `-version` and `-build` set the version on both.
+- `nimbus native keystore` makes the Android release key and
+  `keystore.properties`, kept out of git; release builds use it.
+- `nimbus native icon <image>`: the iOS App Store icon and Android adaptive
+  icons from one picture, plus the launch screen color on both (Android 12's
+  splash included). New projects start with an icon and launch screen in the
+  app's colors.
+- The shop template is gone: new projects are the counter.
+
 ## 0.0.7 (2026-10-30)
 
 - `nimbus native dev` runs on a connected phone too, chosen like `run`

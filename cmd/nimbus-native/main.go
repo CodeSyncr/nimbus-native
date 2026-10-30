@@ -71,6 +71,16 @@ func main() {
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(1)
 		}
+	case "keystore":
+		if err := keystore(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
+	case "icon":
+		if err := icon(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "error:", err)
+			os.Exit(1)
+		}
 	case "lib":
 		if len(os.Args) < 3 {
 			usage()
@@ -100,6 +110,10 @@ func buildOrRun(cmd, platform string, args []string) error {
 	sim := fs.Bool("sim", false, "run on the simulator / emulator even when a phone is connected")
 	udid := fs.String("udid", "", "which phone (or emulator), by name, id or serial")
 	team := fs.String("team", "", "iOS: the Apple team that signs device builds (or NIMBUS_IOS_TEAM)")
+	release := fs.Bool("release", false, "build: a store build (.ipa for the App Store, .aab for Google Play)")
+	version := fs.String("version", "", "release: the version users see, e.g. 1.2.0")
+	buildNo := fs.String("build", "", "release: the build number, higher for every upload, e.g. 42")
+	export := fs.String("export", "app-store", "iOS release: app-store, ad-hoc or development")
 	abis := fs.String("abi", "arm64-v8a", "Android: comma-separated ABIs (arm64-v8a,armeabi-v7a,x86_64,x86)")
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(args)
@@ -110,6 +124,12 @@ func buildOrRun(cmd, platform string, args []string) error {
 
 	if err := inModule(dir); err != nil {
 		return err
+	}
+	if *release {
+		if cmd != "build" || !toolchain.IsProject(dir) {
+			return fmt.Errorf("-release goes with `nimbus native build` in a project")
+		}
+		return buildRelease(platform, dir, toolchain.Release{Version: *version, Build: *buildNo, Team: *team, Export: *export}, *verbose)
 	}
 	if toolchain.IsProject(dir) {
 		return buildOrRunProject(cmd, platform, dir, *device, *sim, *udid, *team, strings.Split(*abis, ","), *verbose)
@@ -227,11 +247,11 @@ func newProject(args []string) error {
 	name := fs.String("name", "", "app name (default: from the directory)")
 	module := fs.String("module", "", "Go module path (default: the directory name)")
 	id := fs.String("id", "", "bundle / application id (default: space.nimbusgo.<dir>)")
-	template := fs.String("template", "counter", "the app to start from: "+strings.Join(toolchain.Templates, " or "))
+	template := fs.String("template", "counter", "the app to start from: "+strings.Join(toolchain.Templates, ", "))
 	verbose := fs.Bool("v", false, "print every tool invocation")
 	_ = fs.Parse(reorder(args))
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: nimbus native new [-template counter|shop] [-name N] [-module M] [-id ID] <dir>")
+		return fmt.Errorf("usage: nimbus native new [-name N] [-module M] [-id ID] <dir>")
 	}
 	p, err := toolchain.NewProjectFor(fs.Arg(0), *name, *module, *id)
 	if err != nil {
@@ -253,6 +273,107 @@ created %s (%s, %s)
 
   open native/ios/Runner.xcodeproj  or open native/android in Android Studio
 `, p.Dir, p.Name, p.ID, fs.Arg(0))
+	return nil
+}
+
+// buildRelease makes the store builds.
+func buildRelease(platform, dir string, r toolchain.Release, verbose bool) error {
+	app, err := toolchain.LoadProject(dir, "app/mobile", "")
+	if err != nil {
+		return err
+	}
+	env := toolchain.Detect(app.Root)
+	env.Verbose = verbose
+	switch platform {
+	case "ios":
+		if app.ID, err = toolchain.IOSProjectID(app.Root); err != nil {
+			return err
+		}
+		if r.Team, err = pickTeam(app.Root, r.Team); err != nil {
+			return err
+		}
+		ipa, err := env.ReleaseIOS(app, r)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("\nbuilt %s\n  Upload it with Xcode's Organizer or Transporter, or:\n  xcrun altool --upload-app -f %q -t ios --apiKey <KEY> --apiIssuer <ISSUER>\n", ipa, ipa)
+	case "android":
+		if app.ID, err = toolchain.AndroidProjectID(app.Root); err != nil {
+			return err
+		}
+		aab, apk, signed, err := env.ReleaseAndroid(app, r)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("\nbuilt %s  (Google Play)\nbuilt %s  (install directly)\n", aab, apk)
+		if !signed {
+			fmt.Println("\n  Signed with the debug key: Google Play won't accept it. Make a release key once with\n  `nimbus native keystore`, then build again.")
+		}
+	default:
+		return fmt.Errorf("unknown platform %q (ios or android)", platform)
+	}
+	return nil
+}
+
+// keystore makes the project's Android release key.
+func keystore(args []string) error {
+	dir := "."
+	if len(args) > 0 {
+		dir = args[0]
+	}
+	if !toolchain.IsProject(dir) {
+		return inModule(dir)
+	}
+	app, err := toolchain.LoadProject(dir, "app/mobile", "")
+	if err != nil {
+		return err
+	}
+	store, err := toolchain.Detect(app.Root).MakeKeystore(app)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("› made %s and keystore.properties next to it\n\n  They stay out of git. Back both up somewhere safe: Google Play knows your app by this key.\n", store)
+	return nil
+}
+
+// icon makes a project's app icons and launch screens from one picture.
+func icon(args []string) error {
+	fs := flag.NewFlagSet("icon", flag.ExitOnError)
+	bg := fs.String("background", "#ffffff", "the color behind the icon (iOS icons can't be transparent)")
+	launch := fs.String("launch", "", "the launch screen's color (default: keep the current one)")
+	_ = fs.Parse(reorder(args))
+	if fs.NArg() < 1 {
+		return fmt.Errorf("usage: nimbus native icon [-background #hex] [-launch #hex] <image.png> [project-dir]")
+	}
+	dir := "."
+	if fs.NArg() > 1 {
+		dir = fs.Arg(1)
+	}
+	if !toolchain.IsProject(dir) {
+		return inModule(dir) // says what to do, or: not a project
+	}
+	img, err := toolchain.ReadIcon(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	b := img.Bounds()
+	if b.Dx() < 1024 {
+		fmt.Printf("› %s is %d px: 1024 px or more looks sharper on the App Store\n", fs.Arg(0), b.Dx())
+	}
+	back, err := toolchain.ParseColor(*bg)
+	if err != nil {
+		return err
+	}
+	launchColor := toolchain.LaunchColor(dir)
+	if *launch != "" {
+		if launchColor, err = toolchain.ParseColor(*launch); err != nil {
+			return err
+		}
+	}
+	if err := toolchain.WriteIcons(dir, img, back, launchColor); err != nil {
+		return err
+	}
+	fmt.Println("› wrote the iOS icon (native/ios/Runner/Assets.xcassets) and Android icons (native/android/app/src/main/res)")
 	return nil
 }
 
@@ -379,7 +500,10 @@ func dev(platform string, args []string) error {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
-  nimbus native new [-template counter|shop] <dir>    a project with native/ios and native/android
+  nimbus native new <dir>                              a project with native/ios and native/android
+  nimbus native icon [-background #hex] [-launch #hex] <image>   app icons and launch screens
+  nimbus native build ios|android -release [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
+  nimbus native keystore                               the Android release key
   nimbus native doctor
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
@@ -389,8 +513,8 @@ func usage() {
 	os.Exit(2)
 }
 
-// reorder puts flags before the arguments, so `new shop -template shop`
-// works as well as `new -template shop shop`.
+// reorder puts flags before the arguments, so `new myapp -id com.me.app`
+// works as well as `new -id com.me.app myapp`.
 func reorder(args []string) []string {
 	var flags, rest []string
 	for i := 0; i < len(args); i++ {

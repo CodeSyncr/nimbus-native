@@ -14,8 +14,8 @@ backend included.
 
 ```sh
 go install github.com/CodeSyncr/nimbus/cmd/nimbus@latest   # Nimbus v1.16.0 or later
-nimbus native new shop
-cd shop && go run .              # the server and the web app on :3333
+nimbus native new myapp
+cd myapp && go run .            # the server and the web app on :3333
 nimbus native run ios            # in another terminal; or open native/ios in Xcode
 ```
 
@@ -97,7 +97,7 @@ Not yet: flex-wrap, animations and gestures, plugins on the web.
 ## Start a project
 
 ```sh
-nimbus native new myapp         # a counter; -template shop for the shop
+nimbus native new myapp
 cd myapp
 go run .                        # the Nimbus server and the web app, on :3333
 nimbus native run ios           # or open native/ios/Runner.xcodeproj in Xcode
@@ -108,10 +108,7 @@ A project is one Go module, laid out by feature:
 
 The generated app is a counter, ready to grow: one polished screen (a
 goal with a progress bar, steps, the count saved between launches, light
-and dark themes) on iOS, Android and the web. For a bigger starting point,
-`nimbus native new -template shop shop` makes a small shop instead: a
-catalog, a cart, sign-in (demo account `demo@shop.dev` / `password`),
-checkout and orders, served by its own API.
+and dark themes) on iOS, Android and the web.
 
 A project is one Go module, laid out by feature:
 
@@ -131,9 +128,9 @@ counter/
     android/               Gradle project (app + the nimbusnativekit module)
 ```
 
-The shop adds `shared/` (widgets, services) and features with `domain/`
-(types and `api.Endpoint`s: the contract), `data/`, `presentation/` and
-`server/` (handlers and validation, server only).
+As it grows, add `shared/` (widgets, services) and give features a
+`domain/` (types and `api.Endpoint`s: the contract between app and server)
+and a `server/` package (handlers and validation, server only).
 
 Xcode and Gradle build the hosts as usual; a build step in each runs
 `nimbus native lib`, which builds `app/mobile` into the native library and
@@ -141,6 +138,27 @@ writes the generated Swift or Kotlin. It also keeps the project's copy of the
 host kit at the version `go.mod` requires (after an upgrade, the first build
 updates it and asks you to build again), and refuses to build a phone app
 that imports Nimbus or any `server` package: that code stays on the server.
+
+## Icons, launch screens and store builds
+
+```sh
+nimbus native icon logo.png -background "#6d28d9"   # iOS + Android icons; -launch sets the launch color
+nimbus native keystore                              # once: the Android release (upload) key, kept out of git
+nimbus native build android -release -version 1.0.0 -build 1   # build/android/release/<App>.aab and .apk
+nimbus native build ios -release -version 1.0.0 -build 1       # build/ios/release/<App>.ipa for App Store Connect
+```
+
+New projects start with an icon and launch screen in the app's colors.
+The icon is any square PNG or JPEG, 1024 px or more: iOS gets one
+flattened App Store icon, Android an adaptive icon for every density.
+
+iOS releases sign automatically with your team (`-team`, or the one saved
+in the Xcode project). App Store export needs the Apple ID in Xcode to have
+the Admin or App Manager role; `-export ad-hoc` and `-export development`
+make an `.ipa` for registered devices. Upload with Xcode's Organizer or
+Transporter. Android release builds use the key from `nimbus native
+keystore`; without one they fall back to the debug key, which Google Play
+refuses (the build says so).
 
 ## Folder routing
 

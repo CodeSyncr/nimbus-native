@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -13,15 +14,33 @@ android {
         applicationId = "__ID__"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // `nimbus native build android -release -version 1.2.0 -build 42` sets these.
+        versionCode = (findProperty("nimbus.versionCode") as String?)?.toInt() ?: 1
+        versionName = (findProperty("nimbus.versionName") as String?) ?: "0.1.0"
+    }
+
+    // The release key, from keystore.properties (made by `nimbus native
+    // keystore`; kept out of git). Without it, release builds use the debug
+    // key, which Google Play won't accept.
+    val keystore = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use(::load) }
+    }
+    signingConfigs {
+        if (keystore != null) {
+            create("release") {
+                storeFile = rootProject.file(keystore.getProperty("storeFile"))
+                storePassword = keystore.getProperty("storePassword")
+                keyAlias = keystore.getProperty("keyAlias")
+                keyPassword = keystore.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug") // sign with your own key before publishing
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
