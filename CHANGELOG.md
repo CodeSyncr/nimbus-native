@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.7 (2026-10-30)
+
+- `nimbus native dev` runs on a connected phone too, chosen like `run`
+  (`-sim`, `-udid`, `-team`). An iPhone reaches dev mode over Wi-Fi: the
+  relay listens on the Mac's network address, and the dev build asks once
+  for local network access. Checked on an iPhone 14 Pro: a save is on the
+  phone in about 3 seconds.
+
 ## 0.0.6 (2026-10-30)
 
 - `nimbus native run ios|android` runs on a connected phone by default,
@@ -89,8 +97,7 @@ Native iOS and Android apps in Go, and the same app on the web.
 
 **Known limitations**
 - Tested on simulators, emulators, desktop and mobile browsers, and an
-  iPhone; not yet through a store review. Dev mode (reload on save) runs on
-  simulators and emulators only.
+  iPhone; not yet through a store review.
 - No flex-wrap, animations or gestures yet.
 - Native plugins answer `unavailable` on the web.
 - On the web, each open tab keeps a small UI session on the server.

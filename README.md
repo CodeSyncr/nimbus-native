@@ -391,6 +391,11 @@ the iOS simulator and 2.7 s on the Android emulator**, of which 0.6–2.3 s is
 compiling — this Mac runs the Intel build of Go under Rosetta; the Apple
 Silicon build compiles roughly twice as fast.
 
+Like `run`, `dev` puts the shell on a connected phone when there is one
+(`-sim` for the simulator or emulator). An iPhone reaches the relay over
+Wi-Fi, so iOS asks once to let the app find devices on the local network;
+Android phones go through `adb reverse`.
+
 In a project, `nimbus native dev ios|android` builds the shell with the
 project's own Xcode or Gradle build and watches the whole module (not
 `native/` or `build/`), so a new page folder is live on the next save.

@@ -180,26 +180,40 @@ func xcodeTeams() map[string]string {
 // unlocked), streaming its output until it exits or the command is
 // interrupted.
 func (e *Env) RunIOSPhone(a *App, appPath string, p IOSPhone) error {
+	if err := e.installOnPhone(appPath, p); err != nil {
+		return err
+	}
+	return e.openOnPhone(a.ID, p, true)
+}
+
+func (e *Env) installOnPhone(appPath string, p IOSPhone) error {
 	e.step("install on %s", p.Name)
 	if err := e.run(nil, "xcrun", "devicectl", "device", "install", "app", "--device", p.ID, appPath); err != nil {
 		return fmt.Errorf("%w\n(is the phone unlocked, with Developer Mode on: Settings → Privacy & Security → Developer Mode?)", err)
 	}
-	// A locked phone takes the install but not the launch: wait for it to
-	// be unlocked, then open the app.
+	return nil
+}
+
+// openOnPhone launches an installed app. A locked phone takes the install
+// but not the launch: it waits (up to 2 minutes) for the phone to be
+// unlocked. With console, it then streams the app's output until it exits.
+func (e *Env) openOnPhone(id string, p IOSPhone, console bool) error {
 	deadline := time.Now().Add(2 * time.Minute)
 	for told := false; ; {
-		e.step("open %s", a.ID)
+		e.step("open %s", id)
 		var out bytes.Buffer
-		cmd := exec.Command("xcrun", "devicectl", "device", "process", "launch", "--device", p.ID,
-			"--terminate-existing", "--console", a.ID)
-		cmd.Stdout, cmd.Stderr = io.MultiWriter(e.Out, &out), io.MultiWriter(e.Out, &out)
-		err := cmd.Run()
-		if err == nil {
-			return nil
+		args := []string{"devicectl", "device", "process", "launch", "--device", p.ID, "--terminate-existing"}
+		if console {
+			args = append(args, "--console")
 		}
-		started := strings.Contains(out.String(), "Launched application")
-		if started {
-			return nil // it ran and has ended (or the run was interrupted)
+		cmd := exec.Command("xcrun", append(args, id)...)
+		cmd.Stdout, cmd.Stderr = io.MultiWriter(e.Out, &out), io.MultiWriter(e.Out, &out)
+		if !console {
+			cmd.Stdout, cmd.Stderr = &out, &out
+		}
+		err := cmd.Run()
+		if err == nil || strings.Contains(out.String(), "Launched application") {
+			return nil // it ran (and, with console, has ended)
 		}
 		if locked(out.String()) && time.Now().Before(deadline) {
 			if !told {
@@ -213,7 +227,7 @@ func (e *Env) RunIOSPhone(a *App, appPath string, p IOSPhone) error {
 		if strings.Contains(strings.ToLower(out.String()), "trust") || strings.Contains(out.String(), "profile") {
 			hint = "the phone must trust this developer: Settings → General → VPN & Device Management"
 		}
-		return fmt.Errorf("opening the app: %w (%s)", err, hint)
+		return fmt.Errorf("opening the app: %w (%s)\n%s", err, hint, out.String())
 	}
 }
 

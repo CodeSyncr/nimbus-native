@@ -27,15 +27,28 @@ import (
 //
 // The shell is the real app with its Go library replaced by a proxy
 // (dev/client), so the native side is exactly what ships.
-func (e *Env) Dev(a *App, platform string, port int) error {
+func (e *Env) Dev(a *App, platform string, port int, target ...DevTarget) error {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	ln, err := net.Listen("tcp", addr)
+	listen, shellAddr := addr, addr
+	var t DevTarget
+	if len(target) > 0 {
+		t = target[0]
+	}
+	if t.Phone != nil {
+		// The phone reaches the relay over the network, at this Mac's address.
+		ip, err := lanIPv4()
+		if err != nil {
+			return err
+		}
+		listen, shellAddr = fmt.Sprintf(":%d", port), fmt.Sprintf("%s:%d", ip, port)
+	}
+	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		return fmt.Errorf("dev relay: %w (is another `nimbus native dev` running?)", err)
 	}
 	defer ln.Close()
 
-	d := &devSession{e: e, a: a, platform: platform, addr: addr}
+	d := &devSession{e: e, a: a, platform: platform, addr: addr, shellAddr: shellAddr, target: t}
 	d.relay = &relay{out: e.Out, onDevice: d.deviceConnected}
 	go d.relay.serve(ln)
 
@@ -76,12 +89,21 @@ func (e *Env) Dev(a *App, platform string, port int) error {
 	}
 }
 
+// DevTarget is where dev mode runs its shell: the simulator or the device
+// Env.Serial names by default, or an iPhone or iPad.
+type DevTarget struct {
+	Phone *IOSPhone
+	Team  string // signs the phone build
+}
+
 type devSession struct {
-	e        *Env
-	a        *App
-	platform string
-	addr     string
-	relay    *relay
+	e         *Env
+	a         *App
+	platform  string
+	addr      string // the relay, for the app on this machine
+	shellAddr string // the relay, for the shell on the device
+	target    DevTarget
+	relay     *relay
 
 	shellSchema uint64 // combined hash the installed shell was built with
 
@@ -109,14 +131,14 @@ func (d *devSession) buildShell() error {
 	}
 	// The proxy package must exist before gen can list its dependencies;
 	// then it is rewritten with the schema hashes gen found.
-	if err := writeShellMain(shell.GoDir, d.addr, 0, nil); err != nil {
+	if err := writeShellMain(shell.GoDir, d.shellAddr, 0, nil); err != nil {
 		return err
 	}
 	g, err := e.Gen(shell)
 	if err != nil {
 		return err
 	}
-	if err := writeShellMain(shell.GoDir, d.addr, g.AppCombined, g.Hashes); err != nil {
+	if err := writeShellMain(shell.GoDir, d.shellAddr, g.AppCombined, g.Hashes); err != nil {
 		return err
 	}
 	d.shellSchema = g.Combined
@@ -124,8 +146,27 @@ func (d *devSession) buildShell() error {
 
 	e.step("dev shell for %s", d.platform)
 	d.stopDeviceLogs()
-	switch d.platform {
-	case "ios":
+	switch {
+	case d.platform == "ios" && d.target.Phone != nil:
+		if shell.Root == "" {
+			return fmt.Errorf("dev mode on a phone needs a project made by `nimbus native new` (use -sim here)")
+		}
+		p := *d.target.Phone
+		app, err := e.BuildIOSProject(shell, IOSDevice, IOSDeviceBuild{Team: d.target.Team, Phone: p,
+			// iOS asks once before an app talks to the local network: here, to this Mac.
+			Settings: []string{"INFOPLIST_KEY_NSLocalNetworkUsageDescription=Dev mode: the app talks to nimbus native dev on your Mac."}})
+		if err != nil {
+			return err
+		}
+		if err := e.installOnPhone(app, p); err != nil {
+			return err
+		}
+		if err := e.openOnPhone(d.a.ID, p, false); err != nil {
+			return err
+		}
+		fmt.Fprintf(e.Out, "\n  On %s, allow the app to find devices on your local network if asked.\n", p.Name)
+		return nil // the app's output comes from its process here
+	case d.platform == "ios":
 		build := e.BuildIOS
 		if shell.Root != "" {
 			// the project's Xcode build, with the proxy as its Go
@@ -144,7 +185,7 @@ func (d *devSession) buildShell() error {
 		}
 		e.step("launch %s on the simulator", d.a.ID)
 		d.logs = exec.Command("xcrun", "simctl", "launch", "--console-pty", "--terminate-running-process", udid, d.a.ID)
-	case "android":
+	case d.platform == "android":
 		build := e.BuildAndroid
 		if shell.Root != "" {
 			build = e.BuildAndroidProject
@@ -502,4 +543,32 @@ func (r *relay) remember(p []byte) {
 			r.answers[string(req)] = reply
 		}
 	}
+}
+
+// lanIPv4 is this machine's address on the local network: where a phone on
+// the same Wi-Fi reaches it.
+func lanIPv4() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	var found []string
+	for _, ifc := range ifaces {
+		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, _ := ifc.Addrs()
+		for _, a := range addrs {
+			if ipn, ok := a.(*net.IPNet); ok && ipn.IP.To4() != nil && ipn.IP.IsPrivate() {
+				if ifc.Name == "en0" {
+					return ipn.IP.String(), nil // Wi-Fi on most Macs
+				}
+				found = append(found, ipn.IP.String())
+			}
+		}
+	}
+	if len(found) == 0 {
+		return "", fmt.Errorf("this Mac has no local network address for the phone to reach: join the phone's Wi-Fi")
+	}
+	return found[0], nil
 }

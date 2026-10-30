@@ -13,8 +13,9 @@ import (
 
 // IOSDeviceBuild is how to sign a build for a phone.
 type IOSDeviceBuild struct {
-	Team  string   // Apple team id
-	Phone IOSPhone // the device to register and build for
+	Team     string   // Apple team id
+	Phone    IOSPhone // the device to register and build for
+	Settings []string // extra build settings, NAME=value
 }
 
 // BuildIOSProject builds native/ios for the simulator, or for a phone when
@@ -29,6 +30,7 @@ func (e *Env) BuildIOSProject(a *App, t IOSTarget, dev ...IOSDeviceBuild) (strin
 		if len(dev) > 0 {
 			args = append(args, "-destination", "id="+dev[0].Phone.UDID, "DEVELOPMENT_TEAM="+dev[0].Team,
 				"CODE_SIGN_STYLE=Automatic")
+			args = append(args, dev[0].Settings...)
 		}
 	} else {
 		args = append(args, "-destination", "generic/platform=iOS Simulator", "ONLY_ACTIVE_ARCH=YES", "ARCHS=arm64")

@@ -314,11 +314,16 @@ func envOr(key, def string) string {
 }
 
 // dev runs the app on this machine against a dev shell, reloading on save.
+// Like run, the shell goes on a connected phone when there is one.
 func dev(platform string, args []string) error {
 	fs := flag.NewFlagSet("dev", flag.ExitOnError)
 	port := fs.Int("port", 7357, "port for the dev relay")
+	device := fs.Bool("device", false, "use a phone (the default when one is connected)")
+	sim := fs.Bool("sim", false, "use the simulator / emulator even when a phone is connected")
+	udid := fs.String("udid", "", "which phone (or emulator), by name, id or serial")
+	team := fs.String("team", "", "iOS: the Apple team that signs the phone build")
 	verbose := fs.Bool("v", false, "print every tool invocation")
-	_ = fs.Parse(args)
+	_ = fs.Parse(reorder(args))
 	dir := "."
 	if fs.NArg() > 0 {
 		dir = fs.Arg(0)
@@ -328,7 +333,8 @@ func dev(platform string, args []string) error {
 	}
 	var app *toolchain.App
 	var err error
-	if toolchain.IsProject(dir) {
+	project := toolchain.IsProject(dir)
+	if project {
 		var id string
 		switch platform {
 		case "ios":
@@ -348,7 +354,27 @@ func dev(platform string, args []string) error {
 	}
 	env := toolchain.Detect(app.Dir)
 	env.Verbose = *verbose
-	return env.Dev(app, platform, *port)
+
+	var target toolchain.DevTarget
+	switch platform {
+	case "ios":
+		phone, onPhone, err := pickPhone("run", *device, *sim || !project, *udid)
+		if err != nil {
+			return err
+		}
+		if onPhone {
+			t, err := pickTeam(app.Root, *team)
+			if err != nil {
+				return err
+			}
+			target = toolchain.DevTarget{Phone: &phone, Team: t}
+		}
+	case "android":
+		if env.Serial, err = pickAndroid(env, *device, *sim, *udid); err != nil {
+			return err
+		}
+	}
+	return env.Dev(app, platform, *port, target)
 }
 
 func usage() {
@@ -358,7 +384,7 @@ func usage() {
   nimbus native gen [app-dir]
   nimbus native build ios|android [-device [-udid PHONE] [-team ID]] [-abi list] [-name N] [-id ID] [-v] [app-dir]
   nimbus native run   ios|android [...same flags] [app-dir]
-  nimbus native dev   ios|android [-port N] [app-dir]   run on this machine, reload on save
+  nimbus native dev   ios|android [-sim|-device -udid D -team ID] [-port N] [app-dir]   reload on save
   nimbus native lib   ios|android [flags] [project-dir]   the Go side of a project build (Xcode and Gradle run it)`)
 	os.Exit(2)
 }
