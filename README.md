@@ -7,9 +7,9 @@ written in Go. [Nimbus](https://github.com/CodeSyncr/nimbus) is the server,
 and serves the app's pages to browsers too. One language, one codebase,
 backend included.
 
-> **Beta (0.0.2).** Everything below runs on the iOS simulator, the Android
-> emulator and in browsers; it has not shipped to a store yet, and APIs may
-> still change. See [CHANGELOG.md](CHANGELOG.md) for what's in it and what
+> **Beta (0.0.10).** Everything below runs on the iOS simulator, the Android
+> emulator, in browsers and on a real iPhone; no app has shipped to a store
+> yet, and APIs may still change. See [CHANGELOG.md](CHANGELOG.md) for what's in it and what
 > isn't yet.
 
 ```sh
