@@ -183,3 +183,14 @@ func TestRelayTurnsAwayOtherSessions(t *testing.T) {
 		t.Fatal("this session's shell was not taken")
 	}
 }
+
+// The booted simulator is found by device type, whatever its name.
+func TestPickSimulator(t *testing.T) {
+	list := []byte(`{"devices":{
+	 "com.apple.CoreSimulator.SimRuntime.iOS-18-2":[{"udid":"OLD","state":"Booted","deviceTypeIdentifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"}],
+	 "com.apple.CoreSimulator.SimRuntime.iOS-26-3":[{"udid":"NEW","state":"Booted","deviceTypeIdentifier":"com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"},
+	   {"udid":"PAD","state":"Booted","deviceTypeIdentifier":"com.apple.CoreSimulator.SimDeviceType.iPad-Pro"}]}}`)
+	if booted, newest := pickSimulator(list); booted != "NEW" || newest != "NEW" {
+		t.Fatalf("booted %q newest %q, want the iOS 26 iPhone", booted, newest)
+	}
+}

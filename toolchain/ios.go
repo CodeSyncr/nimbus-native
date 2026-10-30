@@ -1,6 +1,7 @@
 package toolchain
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -124,35 +125,67 @@ func (e *Env) RunIOS(a *App, appPath string) error {
 	return cmd.Run()
 }
 
-// bootedSimulator returns a booted iPhone simulator, booting the first
-// available one when none is running.
+// bootedSimulator returns a booted iPhone simulator (on the newest iOS when
+// several are), booting the newest available one when none is running.
+// Devices are told apart by type, not name, which can be anything.
 func bootedSimulator() (string, error) {
-	out, err := exec.Command("xcrun", "simctl", "list", "devices", "available").Output()
+	out, err := exec.Command("xcrun", "simctl", "list", "devices", "available", "-j").Output()
 	if err != nil {
 		return "", fmt.Errorf("simctl: %w", err)
 	}
-	var first string
-	for _, line := range strings.Split(string(out), "\n") {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "iPhone") {
-			continue
-		}
-		udid := between(line, "(", ")")
-		if strings.Contains(line, "(Booted)") {
-			return udid, nil
-		}
-		if first == "" {
-			first = udid
-		}
+	booted, newest := pickSimulator(out)
+	if booted != "" {
+		return booted, nil
 	}
-	if first == "" {
+	if newest == "" {
 		return "", fmt.Errorf("no iPhone simulator installed (Xcode → Settings → Components)")
 	}
-	if err := exec.Command("xcrun", "simctl", "boot", first).Run(); err != nil {
-		return "", fmt.Errorf("boot simulator %s: %w", first, err)
+	if err := exec.Command("xcrun", "simctl", "boot", newest).Run(); err != nil {
+		return "", fmt.Errorf("boot simulator %s: %w", newest, err)
 	}
 	_ = exec.Command("open", "-a", "Simulator").Run()
-	return first, nil
+	return newest, nil
+}
+
+// pickSimulator reads `simctl list devices available -j`: the booted iPhone
+// on the newest iOS, and the newest iPhone of all.
+func pickSimulator(listJSON []byte) (booted, newest string) {
+	var doc struct {
+		Devices map[string][]struct {
+			UDID, State, DeviceTypeIdentifier string
+		} `json:"devices"`
+	}
+	if json.Unmarshal(listJSON, &doc) != nil {
+		return "", ""
+	}
+	// Runtimes are keys like com.apple.CoreSimulator.SimRuntime.iOS-26-3.
+	version := func(rt string) [2]int {
+		var v [2]int
+		if i := strings.LastIndex(rt, "iOS-"); i >= 0 {
+			fmt.Sscanf(strings.ReplaceAll(rt[i+4:], "-", " "), "%d %d", &v[0], &v[1])
+		}
+		return v
+	}
+	var bootedV, newestV [2]int
+	later := func(a, b [2]int) bool { return a[0] > b[0] || a[0] == b[0] && a[1] > b[1] }
+	for rt, devs := range doc.Devices {
+		if !strings.Contains(rt, ".iOS-") {
+			continue
+		}
+		v := version(rt)
+		for _, d := range devs {
+			if !strings.Contains(d.DeviceTypeIdentifier, "iPhone") {
+				continue
+			}
+			if d.State == "Booted" && (booted == "" || later(v, bootedV)) {
+				booted, bootedV = d.UDID, v
+			}
+			if newest == "" || later(v, newestV) {
+				newest, newestV = d.UDID, v
+			}
+		}
+	}
+	return booted, newest
 }
 
 func between(s, open, close string) string {
