@@ -23,7 +23,7 @@ func (ordersPage) Head() router.Head {
 	return router.Head{Title: "Orders", Description: "Every order, newest first."}
 }
 
-func (ordersPage) Render(c *ui.Ctx) *ui.Element {
+func (ordersPage) Render(c *ui.Ctx) ui.Component {
 	q := ui.UseQuery(c, "orders", func(ctx context.Context) ([]string, error) {
 		time.Sleep(30 * time.Millisecond) // data the HTML must wait for
 		return []string{"Asha Rao", "Vikram Shah"}, nil
@@ -42,7 +42,7 @@ type orderPage struct{ ID int }
 
 func (p orderPage) Head() router.Head { return router.Head{Title: fmt.Sprintf("Order #%d", p.ID)} }
 
-func (p orderPage) Render(c *ui.Ctx) *ui.Element {
+func (p orderPage) Render(c *ui.Ctx) ui.Component {
 	n, setN := ui.State(c, 0)
 	return ui.View(ui.Style{},
 		ui.Text(fmt.Sprintf("Order %d, tapped %d", p.ID, n), ui.Style{FontWeight: 700}).TestID("detail"),
@@ -55,7 +55,7 @@ type shell struct {
 	page ui.Component
 }
 
-func (s shell) Render(c *ui.Ctx) *ui.Element {
+func (s shell) Render(c *ui.Ctx) ui.Component {
 	return ui.View(ui.Style{Grow: 1}, ui.Text("Shop", ui.Style{FontSize: 20}).TestID("brand"), ui.C(s.page))
 }
 

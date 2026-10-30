@@ -488,20 +488,44 @@ func (rt *runtime) renderComponent(in *instance) (out *Element) {
 			out = nil
 		}
 	}()
-	out = in.el.comp.Render(&Ctx{rt: rt, inst: in})
-	// A component's TestID and Label land on what it renders, unless that
-	// sets its own: ui.C(Button{...}).TestID("save") names the button.
-	if out != nil && (in.el.testID != "" && out.testID == "" || in.el.label != "" && out.label == "") {
-		cp := *out // the component may return a shared element
-		if cp.testID == "" {
-			cp.testID = in.el.testID
-		}
-		if cp.label == "" {
-			cp.label = in.el.label
-		}
-		out = &cp
-	}
+	out = inheritWrapper(in.el, element(in.el.comp.Render(&Ctx{rt: rt, inst: in})))
 	return out
+}
+
+// inheritWrapper gives what a component rendered the Element it was wrapped
+// in: ui.C(Card{}).OnSwipe(f) swipes the card, and TestID and Label name it.
+// What the component set itself stays.
+func inheritWrapper(w, out *Element) *Element {
+	gesture := w.onPan != nil || w.onSwipe != nil || w.onPinch != nil
+	if out == nil || !gesture && w.testID == "" && w.label == "" && w.onLongPress == nil && w.href == "" {
+		return out
+	}
+	cp := *out // the component may return a shared element
+	if cp.testID == "" {
+		cp.testID = w.testID
+	}
+	if cp.label == "" {
+		cp.label = w.label
+	}
+	if cp.href == "" {
+		cp.href = w.href
+	}
+	if cp.onLongPress == nil {
+		cp.onLongPress = w.onLongPress
+	}
+	if cp.onPinch == nil {
+		cp.onPinch = w.onPinch
+	}
+	if cp.onSwipe == nil {
+		cp.onSwipe = w.onSwipe
+	}
+	if cp.onPan == nil {
+		cp.onPan = w.onPan
+	}
+	if cp.panAxis == 0 {
+		cp.panAxis = w.panAxis
+	}
+	return &cp
 }
 
 // reconcileChildren matches new child elements to existing instances by key

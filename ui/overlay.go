@@ -27,7 +27,7 @@ var (
 // overlayRoot is the app and, above it, whatever overlays are open.
 type overlayRoot struct{ app Component }
 
-func (o overlayRoot) Render(c *Ctx) *Element {
+func (o overlayRoot) Render(c *Ctx) Component {
 	kids := []Component{C(o.app).Key("app")}
 	for _, e := range overlayList.Use(c) {
 		id := e.id
@@ -89,7 +89,7 @@ type toastView struct {
 	close   func()
 }
 
-func (t toastView) Render(c *Ctx) *Element {
+func (t toastView) Render(c *Ctx) Component {
 	th, vp := UseTheme(c), Viewport(c)
 	in, setIn := State(c, false)
 	Effect(c, func(ctx context.Context) func() {
@@ -143,7 +143,7 @@ type sheetView struct {
 	close func()
 }
 
-func (s sheetView) Render(c *Ctx) *Element {
+func (s sheetView) Render(c *Ctx) Component {
 	th, vp := UseTheme(c), Viewport(c)
 	up, setUp := State(c, false)
 	drag, setDrag := State(c, float32(0))
@@ -242,7 +242,7 @@ type actionList struct {
 	close   func()
 }
 
-func (a actionList) Render(c *Ctx) *Element {
+func (a actionList) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	rows := make([]Component, len(a.actions))
 	for i, x := range a.actions {
@@ -312,7 +312,7 @@ type Menu struct {
 	Label   string // what the trigger does, for screen readers
 }
 
-func (m Menu) Render(c *Ctx) *Element {
+func (m Menu) Render(c *Ctx) Component {
 	label := m.Label
 	if label == "" {
 		label = "More"
@@ -330,7 +330,7 @@ type menuView struct {
 	close      func()
 }
 
-func (m menuView) Render(c *Ctx) *Element {
+func (m menuView) Render(c *Ctx) Component {
 	th, vp := UseTheme(c), Viewport(c)
 	in, setIn := State(c, false)
 	Effect(c, func(ctx context.Context) func() {
@@ -370,7 +370,7 @@ type Tooltip struct {
 	Child Component
 }
 
-func (t Tooltip) Render(c *Ctx) *Element {
+func (t Tooltip) Render(c *Ctx) Component {
 	return Pressable(func() {
 		anchored(c, func(x, y, w, h float32) {
 			Overlays(c).show("toast", func(close func()) *Element { return C(tipView{t.Text, x, y, w, close}) })
@@ -384,7 +384,7 @@ type tipView struct {
 	close   func()
 }
 
-func (t tipView) Render(c *Ctx) *Element {
+func (t tipView) Render(c *Ctx) Component {
 	th, vp := UseTheme(c), Viewport(c)
 	Effect(c, func(ctx context.Context) func() {
 		go func() {
@@ -414,7 +414,7 @@ type Banner struct {
 	OnClose        func()
 }
 
-func (b Banner) Render(c *Ctx) *Element {
+func (b Banner) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	color := b.Tone.color(th)
 	icon := map[Tone]string{Good: "check", Caution: "alert", Bad: "alert"}[b.Tone]

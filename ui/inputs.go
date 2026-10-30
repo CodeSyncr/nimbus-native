@@ -20,7 +20,7 @@ type Checkbox struct {
 	Disabled bool
 }
 
-func (b Checkbox) Render(c *Ctx) *Element {
+func (b Checkbox) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	box := Style{Width: Pt(24), Height: Pt(24), Radius: 7, BorderWidth: 1.5, BorderColor: fade(th.Text, 0.35), Justify: JustifyCenter, AlignItems: AlignCenter, Transition: 140}
 	var tick Component
@@ -50,7 +50,7 @@ type RadioGroup struct {
 	Disabled bool
 }
 
-func (r RadioGroup) Render(c *Ctx) *Element {
+func (r RadioGroup) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	rows := make([]Component, len(r.Options))
 	for i, o := range r.Options {
@@ -74,7 +74,7 @@ type SegmentedControl struct {
 	OnChange func(int)
 }
 
-func (g SegmentedControl) Render(c *Ctx) *Element {
+func (g SegmentedControl) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	share := 100 / float32(max(len(g.Options), 1))
 	track := th.Border
@@ -105,7 +105,7 @@ type Stepper struct {
 	OnChange        func(int)
 }
 
-func (s Stepper) Render(c *Ctx) *Element {
+func (s Stepper) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	step := max(s.Step, 1)
 	press := func(icon, label string, to int, ok bool) *Element {
@@ -141,7 +141,7 @@ type SearchBar struct {
 	OnSubmit    func()
 }
 
-func (b SearchBar) Render(c *Ctx) *Element {
+func (b SearchBar) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	hint := b.Placeholder
 	if hint == "" {
@@ -169,7 +169,7 @@ type OTPInput struct {
 	OnChange func(string)
 }
 
-func (o OTPInput) Render(c *Ctx) *Element {
+func (o OTPInput) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	n := o.Length
 	if n == 0 {
@@ -212,7 +212,7 @@ type Select struct {
 	OnChange    func(int)
 }
 
-func (p Select) Render(c *Ctx) *Element {
+func (p Select) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	shown, color := p.Placeholder, th.TextMuted
 	if p.Selected >= 0 && p.Selected < len(p.Options) {
@@ -240,7 +240,7 @@ type DateField struct {
 	OnChange    func(time.Time)
 }
 
-func (d DateField) Render(c *Ctx) *Element {
+func (d DateField) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	layout := d.Layout
 	if layout == "" {

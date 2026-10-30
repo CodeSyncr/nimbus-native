@@ -17,7 +17,7 @@ type AppBar struct {
 	Large    bool        // the title on its own line, larger
 }
 
-func (b AppBar) Render(c *Ctx) *Element {
+func (b AppBar) Render(c *Ctx) Component {
 	th, vp := UseTheme(c), Viewport(c)
 	lead := element(b.Leading)
 	if b.OnBack != nil {
@@ -54,7 +54,7 @@ type Grid struct {
 	Items   []Component
 }
 
-func (g Grid) Render(c *Ctx) *Element {
+func (g Grid) Render(c *Ctx) Component {
 	n := g.Columns
 	if n == 0 {
 		n = 2
@@ -88,7 +88,7 @@ type Accordion struct {
 	Open   int // the one open at the start; 0 for the first, -1 for none
 }
 
-func (a Accordion) Render(c *Ctx) *Element {
+func (a Accordion) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	open, setOpen := State(c, map[int]bool{a.Open: a.Open >= 0})
 	kids := make([]Component, 0, len(a.Items)*2)
@@ -128,7 +128,7 @@ type Carousel struct {
 	OnChange func(int)
 }
 
-func (r Carousel) Render(c *Ctx) *Element {
+func (r Carousel) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	w := r.Width
 	if w == 0 {
@@ -192,7 +192,7 @@ type SwipeRow struct {
 	Actions []SwipeAction
 }
 
-func (r SwipeRow) Render(c *Ctx) *Element {
+func (r SwipeRow) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	const each = 82
 	full := float32(len(r.Actions) * each)

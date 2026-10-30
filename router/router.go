@@ -18,7 +18,7 @@
 //	}
 //
 //	func (p Page) Title() string { return fmt.Sprintf("Order #%d", p.ID) } // optional
-//	func (p Page) Render(c *ui.Ctx) *ui.Element { ... }
+//	func (p Page) Render(c *ui.Ctx) ui.Component { ... }
 //
 // Register the table once, then navigate by path from any screen:
 //
@@ -215,7 +215,7 @@ type link struct {
 	children []ui.Component
 }
 
-func (l link) Render(c *ui.Ctx) *ui.Element {
+func (l link) Render(c *ui.Ctx) ui.Component {
 	return ui.Pressable(func() { Push(c, l.path) }, l.style, l.children...).Href(l.path)
 }
 

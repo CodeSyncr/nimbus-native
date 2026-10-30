@@ -20,7 +20,7 @@ type Avatar struct {
 // avatarColors are the backgrounds initials sit on.
 var avatarColors = []Color{Hex("#0d7377"), Hex("#2563eb"), Hex("#7c3aed"), Hex("#c2410c"), Hex("#be123c"), Hex("#15803d")}
 
-func (a Avatar) Render(c *Ctx) *Element {
+func (a Avatar) Render(c *Ctx) Component {
 	size := a.Size
 	if size == 0 {
 		size = 40
@@ -75,7 +75,7 @@ type Badge struct {
 	Solid bool // white on the tone's color, for a count on an icon
 }
 
-func (b Badge) Render(c *Ctx) *Element {
+func (b Badge) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	color := b.Tone.color(th)
 	bg, fg := fade(color, 0.14), color
@@ -101,7 +101,7 @@ type Chip struct {
 	OnRemove func()
 }
 
-func (p Chip) Render(c *Ctx) *Element {
+func (p Chip) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	bg, fg, border := Color(0), th.Text, th.Border
 	if p.Selected {
@@ -124,7 +124,7 @@ type Divider struct {
 	Inset float32 // space before it, to line up with text in a row
 }
 
-func (d Divider) Render(c *Ctx) *Element {
+func (d Divider) Render(c *Ctx) Component {
 	return View(Style{Height: Pt(1), Margin: Edges{Left: d.Inset}, Background: UseTheme(c).Border})
 }
 
@@ -140,7 +140,7 @@ type ListRow struct {
 	OnPress  func()    // adds a chevron unless there is a Trailing
 }
 
-func (r ListRow) Render(c *Ctx) *Element {
+func (r ListRow) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	var kids []Component
 	switch {
@@ -177,7 +177,7 @@ type ProgressBar struct {
 	Tone   Tone    // Accent when Neutral
 }
 
-func (b ProgressBar) Render(c *Ctx) *Element {
+func (b ProgressBar) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	h := b.Height
 	if h == 0 {
@@ -222,7 +222,7 @@ type Skeleton struct {
 	Circle bool
 }
 
-func (k Skeleton) Render(c *Ctx) *Element {
+func (k Skeleton) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	dim, setDim := State(c, false)
 	tick(c, 800*time.Millisecond, func() { setDim(!dim) }, dim)
@@ -253,7 +253,7 @@ type EmptyState struct {
 	OnAction             func()
 }
 
-func (e EmptyState) Render(c *Ctx) *Element {
+func (e EmptyState) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	kids := []Component{}
 	if e.Icon != "" {

@@ -34,7 +34,7 @@ var submitted []signup
 
 type signupForm struct{}
 
-func (signupForm) Render(c *Ctx) *Element {
+func (signupForm) Render(c *Ctx) Component {
 	f := UseForm(c, signup{}, validateSignup)
 	return View(Style{},
 		TextField(f.Field("name", func(s *signup) *string { return &s.Name }), FieldOptions{Label: "Name"}),
@@ -85,7 +85,7 @@ func TestSplitErrors(t *testing.T) {
 
 type serverForm struct{}
 
-func (serverForm) Render(c *Ctx) *Element {
+func (serverForm) Render(c *Ctx) Component {
 	f := UseForm(c, signup{}, nil) // no local rules: the server decides
 	return View(Style{},
 		TextField(f.Field("email", func(s *signup) *string { return &s.Email }), FieldOptions{}),
@@ -107,17 +107,17 @@ func TestFormShowsServerErrors(t *testing.T) {
 
 type saveButton struct{ onPress func() }
 
-func (b saveButton) Render(c *Ctx) *Element {
+func (b saveButton) Render(c *Ctx) Component {
 	return Pressable(b.onPress, Style{Height: Pt(44)}, Text("Save", Style{}))
 }
 
 type ownID struct{}
 
-func (ownID) Render(c *Ctx) *Element { return View(Style{}).TestID("inner") }
+func (ownID) Render(c *Ctx) Component { return View(Style{}).TestID("inner") }
 
 type idScreen struct{ onSave func() }
 
-func (s idScreen) Render(c *Ctx) *Element {
+func (s idScreen) Render(c *Ctx) Component {
 	return View(Style{}, C(saveButton{s.onSave}).TestID("save"), C(ownID{}).TestID("outer"))
 }
 

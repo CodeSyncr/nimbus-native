@@ -73,9 +73,9 @@ var screens = map[string]func() ui.Component{
 // App opens the screen SHOWCASE names, or the list of them.
 type App struct{}
 
-func (App) Render(c *ui.Ctx) *ui.Element {
+func (App) Render(c *ui.Ctx) ui.Component {
 	if f := screens[os.Getenv("SHOWCASE")]; f != nil {
-		return ui.C(f())
+		return f()
 	}
 	open, setOpen := ui.State(c, "")
 	shown := ui.Ref(c, "")
@@ -104,7 +104,7 @@ func (App) Render(c *ui.Ctx) *ui.Element {
 		if os.Getenv("SHOWCASE_FILE") != "" {
 			return ui.View(ui.Style{Grow: 1}, ui.Key(open, f()))
 		}
-		return ui.View(ui.Style{Grow: 1}, ui.C(f()), ui.View(ui.Style{Absolute: true, Top: ui.Pt(ui.Viewport(c).SafeTop), Right: ui.Pt(8)},
+		return ui.View(ui.Style{Grow: 1}, f(), ui.View(ui.Style{Absolute: true, Top: ui.Pt(ui.Viewport(c).SafeTop), Right: ui.Pt(8)},
 			ui.IconButton{Icon: "close", Label: "Back", OnPress: func() { setOpen("") }}))
 	}
 	names := make([]string, 0, len(screens))
@@ -148,7 +148,7 @@ func wall(c1, c2 string, label string) *ui.Element {
 
 type buttons struct{}
 
-func (buttons) Render(c *ui.Ctx) *ui.Element {
+func (buttons) Render(c *ui.Ctx) ui.Component {
 	nop := func() {}
 	return page(c, "Your order", "Two flat whites and a cardamom bun.",
 		ui.Button{Label: "Place order", Icon: "check", Full: true, Size: ui.SizeLarge, OnPress: nop},
@@ -162,7 +162,7 @@ func (buttons) Render(c *ui.Ctx) *ui.Element {
 
 type iconButtons struct{}
 
-func (iconButtons) Render(c *ui.Ctx) *ui.Element {
+func (iconButtons) Render(c *ui.Ctx) ui.Component {
 	th, nop := ui.UseTheme(c), func() {}
 	return page(c, "Flat white", "Double shot, oat milk.",
 		ui.View(ui.Style{Height: ui.Pt(200)}, wall("#c98a5a", "#5a3a2a", "Flat white")),
@@ -180,7 +180,7 @@ func (iconButtons) Render(c *ui.Ctx) *ui.Element {
 
 type floating struct{}
 
-func (floating) Render(c *ui.Ctx) *ui.Element {
+func (floating) Render(c *ui.Ctx) ui.Component {
 	return ui.View(ui.Style{Grow: 1},
 		page(c, "Today", "Eleven orders so far.",
 			ui.ListRow{Title: "Asha Rao", Subtitle: "2 flat whites", Leading: ui.Avatar{Name: "Asha Rao"}},
@@ -191,7 +191,7 @@ func (floating) Render(c *ui.Ctx) *ui.Element {
 
 type icons struct{}
 
-func (icons) Render(c *ui.Ctx) *ui.Element {
+func (icons) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	names := ui.IconNames()
 	sort.Strings(names)
@@ -206,7 +206,7 @@ func (icons) Render(c *ui.Ctx) *ui.Element {
 
 type checkboxes struct{}
 
-func (checkboxes) Render(c *ui.Ctx) *ui.Element {
+func (checkboxes) Render(c *ui.Ctx) ui.Component {
 	a, setA := ui.State(c, true)
 	b, setB := ui.State(c, false)
 	d, setD := ui.State(c, true)
@@ -219,7 +219,7 @@ func (checkboxes) Render(c *ui.Ctx) *ui.Element {
 
 type radios struct{}
 
-func (radios) Render(c *ui.Ctx) *ui.Element {
+func (radios) Render(c *ui.Ctx) ui.Component {
 	s, setS := ui.State(c, 1)
 	return page(c, "Pay with", "Choose one.",
 		ui.RadioGroup{Options: []string{"Card", "UPI", "Cash at the counter"}, Selected: s, OnChange: setS})
@@ -227,7 +227,7 @@ func (radios) Render(c *ui.Ctx) *ui.Element {
 
 type segmented struct{}
 
-func (segmented) Render(c *ui.Ctx) *ui.Element {
+func (segmented) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	s, setS := ui.State(c, 1)
 	return page(c, "Sales", "How the week is going.",
@@ -239,7 +239,7 @@ func (segmented) Render(c *ui.Ctx) *ui.Element {
 
 type steppers struct{}
 
-func (steppers) Render(c *ui.Ctx) *ui.Element {
+func (steppers) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	q, setQ := ui.State(c, 2)
 	r, setR := ui.State(c, 1)
@@ -254,7 +254,7 @@ func (steppers) Render(c *ui.Ctx) *ui.Element {
 
 type selects struct{}
 
-func (selects) Render(c *ui.Ctx) *ui.Element {
+func (selects) Render(c *ui.Ctx) ui.Component {
 	s, setS := ui.State(c, 0)
 	t, setT := ui.State(c, -1)
 	return page(c, "Pickup", "Where shall we have it ready?",
@@ -264,7 +264,7 @@ func (selects) Render(c *ui.Ctx) *ui.Element {
 
 type dates struct{}
 
-func (dates) Render(c *ui.Ctx) *ui.Element {
+func (dates) Render(c *ui.Ctx) ui.Component {
 	d, setD := ui.State(c, time.Date(2026, 11, 14, 9, 30, 0, 0, time.Local))
 	e, setE := ui.State(c, time.Time{})
 	return page(c, "Book a table", "We'll hold it for fifteen minutes.",
@@ -274,7 +274,7 @@ func (dates) Render(c *ui.Ctx) *ui.Element {
 
 type searchBars struct{}
 
-func (searchBars) Render(c *ui.Ctx) *ui.Element {
+func (searchBars) Render(c *ui.Ctx) ui.Component {
 	q, setQ := ui.State(c, "chai")
 	menu := []string{"Masala chai", "Ginger chai", "Iced chai latte"}
 	rows := []ui.Component{ui.SearchBar{Value: q, OnChange: setQ, Placeholder: "Search the menu"}}
@@ -288,7 +288,7 @@ func (searchBars) Render(c *ui.Ctx) *ui.Element {
 
 type otps struct{}
 
-func (otps) Render(c *ui.Ctx) *ui.Element {
+func (otps) Render(c *ui.Ctx) ui.Component {
 	v, setV := ui.State(c, "4821")
 	return page(c, "Verify", "We sent a code to +91 98••• ••210.",
 		ui.OTPInput{Length: 6, Value: v, OnChange: setV},
@@ -298,7 +298,7 @@ func (otps) Render(c *ui.Ctx) *ui.Element {
 
 type avatars struct{}
 
-func (avatars) Render(c *ui.Ctx) *ui.Element {
+func (avatars) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	return page(c, "The team", "Everyone on shift today.",
 		row(12, ui.Avatar{Name: "Asha Rao", Size: 64}, ui.Avatar{Name: "Vikram Shah", Size: 64}, ui.Avatar{Name: "Meera Iyer", Size: 64}, ui.Avatar{Name: "Rohan Das", Size: 64}),
@@ -308,9 +308,9 @@ func (avatars) Render(c *ui.Ctx) *ui.Element {
 
 type badges struct{}
 
-func (badges) Render(c *ui.Ctx) *ui.Element {
-	row2 := func(name string, b ui.Badge) *ui.Element {
-		return ui.C(ui.ListRow{Title: name, Subtitle: "Order #" + fmt.Sprint(1000+len(name)), Trailing: ui.C(b)})
+func (badges) Render(c *ui.Ctx) ui.Component {
+	row2 := func(name string, b ui.Badge) ui.Component {
+		return ui.ListRow{Title: name, Subtitle: "Order #" + fmt.Sprint(1000+len(name)), Trailing: ui.C(b)}
 	}
 	return page(c, "Orders", "What's happening now.",
 		row2("Asha Rao", ui.Badge{Label: "Paid", Tone: ui.Good}),
@@ -323,7 +323,7 @@ func (badges) Render(c *ui.Ctx) *ui.Element {
 
 type chips struct{}
 
-func (chips) Render(c *ui.Ctx) *ui.Element {
+func (chips) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	on, setOn := ui.State(c, map[string]bool{"Vegan": true, "Coffee": true})
 	tags, setTags := ui.State(c, []string{"Under ₹200", "Nearby"})
@@ -356,7 +356,7 @@ func (chips) Render(c *ui.Ctx) *ui.Element {
 
 type dividers struct{}
 
-func (dividers) Render(c *ui.Ctx) *ui.Element {
+func (dividers) Render(c *ui.Ctx) ui.Component {
 	return page(c, "Receipt", "Table 7, 8:12 pm.",
 		ui.ListRow{Title: "Flat white × 2", Trailing: ui.Text("₹440", ui.Style{TabularDigits: true})},
 		ui.Divider{},
@@ -367,7 +367,7 @@ func (dividers) Render(c *ui.Ctx) *ui.Element {
 
 type listRows struct{}
 
-func (listRows) Render(c *ui.Ctx) *ui.Element {
+func (listRows) Render(c *ui.Ctx) ui.Component {
 	on, setOn := ui.State(c, true)
 	nop := func() {}
 	return page(c, "Settings", "Your cafe, your way.",
@@ -379,7 +379,7 @@ func (listRows) Render(c *ui.Ctx) *ui.Element {
 
 type progress struct{}
 
-func (progress) Render(c *ui.Ctx) *ui.Element {
+func (progress) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	return page(c, "Loyalty", "Seven more coffees to a free one.",
 		ui.ProgressBar{Value: 0.65, Height: 10},
@@ -390,7 +390,7 @@ func (progress) Render(c *ui.Ctx) *ui.Element {
 
 type skeletons struct{}
 
-func (skeletons) Render(c *ui.Ctx) *ui.Element {
+func (skeletons) Render(c *ui.Ctx) ui.Component {
 	line := func() *ui.Element {
 		return ui.View(ui.Style{Direction: ui.Row, Gap: 12, AlignItems: ui.AlignCenter},
 			ui.Skeleton{Height: 44, Circle: true},
@@ -401,14 +401,14 @@ func (skeletons) Render(c *ui.Ctx) *ui.Element {
 
 type empties struct{}
 
-func (empties) Render(c *ui.Ctx) *ui.Element {
+func (empties) Render(c *ui.Ctx) ui.Component {
 	return page(c, "Orders", "Nothing here right now.",
 		ui.EmptyState{Icon: "cart", Title: "No orders yet", Message: "New orders show up here the moment they're placed.", Action: "Open the till", OnAction: func() {}})
 }
 
 type sheetBody struct{}
 
-func (sheetBody) Render(c *ui.Ctx) *ui.Element {
+func (sheetBody) Render(c *ui.Ctx) ui.Component {
 	s, setS := ui.State(c, 1)
 	return ui.View(ui.Style{Gap: 14},
 		ui.SegmentedControl{Options: []string{"Small", "Regular", "Large"}, Selected: s, OnChange: setS},
@@ -419,7 +419,7 @@ func (sheetBody) Render(c *ui.Ctx) *ui.Element {
 
 type sheets struct{}
 
-func (sheets) Render(c *ui.Ctx) *ui.Element {
+func (sheets) Render(c *ui.Ctx) ui.Component {
 	ov := ui.Overlays(c)
 	open := func() { ov.Sheet(ui.Sheet{Title: "Flat white", Content: sheetBody{}, Height: 0.48}) }
 	autoOpen(c, open)
@@ -429,7 +429,7 @@ func (sheets) Render(c *ui.Ctx) *ui.Element {
 
 type actionSheets struct{}
 
-func (actionSheets) Render(c *ui.Ctx) *ui.Element {
+func (actionSheets) Render(c *ui.Ctx) ui.Component {
 	ov := ui.Overlays(c)
 	open := func() {
 		ov.ActionSheet("Order 1042",
@@ -457,7 +457,7 @@ func autoOpen(c *ui.Ctx, f func()) {
 
 type toasts struct{}
 
-func (toasts) Render(c *ui.Ctx) *ui.Element {
+func (toasts) Render(c *ui.Ctx) ui.Component {
 	ov := ui.Overlays(c)
 	open := func() { ov.Toast("Order placed", ui.Good) }
 	autoOpen(c, open)
@@ -468,7 +468,7 @@ func (toasts) Render(c *ui.Ctx) *ui.Element {
 
 type banners struct{}
 
-func (banners) Render(c *ui.Ctx) *ui.Element {
+func (banners) Render(c *ui.Ctx) ui.Component {
 	return page(c, "Till", "Taking orders.",
 		ui.Banner{Tone: ui.Caution, Title: "You're offline", Message: "Orders will send when you're back."},
 		ui.Banner{Tone: ui.Good, Title: "Payment received", Message: "₹580 from Asha Rao."},
@@ -478,7 +478,7 @@ func (banners) Render(c *ui.Ctx) *ui.Element {
 
 type menus struct{}
 
-func (menus) Render(c *ui.Ctx) *ui.Element {
+func (menus) Render(c *ui.Ctx) ui.Component {
 	return page(c, "Orders", "Tap the dots for more.",
 		ui.ListRow{Title: "Order 1042", Subtitle: "Table 7", Icon: "cart", Trailing: ui.Menu{Trigger: ui.Icon("more", 26, 0), Items: []ui.MenuAction{
 			{Label: "Edit", Icon: "edit"}, {Label: "Share", Icon: "share"}, {Label: "Delete", Icon: "trash", Destructive: true}}}})
@@ -486,7 +486,7 @@ func (menus) Render(c *ui.Ctx) *ui.Element {
 
 type tooltips struct{}
 
-func (tooltips) Render(c *ui.Ctx) *ui.Element {
+func (tooltips) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	return page(c, "Service charge", "Tap the icon to learn more.",
 		row(8, ui.Text("Service charge", ui.Style{FontSize: 16, Color: th.Text}),
@@ -495,7 +495,7 @@ func (tooltips) Render(c *ui.Ctx) *ui.Element {
 
 type appBars struct{}
 
-func (appBars) Render(c *ui.Ctx) *ui.Element {
+func (appBars) Render(c *ui.Ctx) ui.Component {
 	th, nop := ui.UseTheme(c), func() {}
 	return ui.View(ui.Style{Grow: 1, Background: th.Background, Gap: 18},
 		ui.AppBar{Title: "Order 1042", Subtitle: "Table 7", OnBack: nop, Actions: []ui.Component{
@@ -505,7 +505,7 @@ func (appBars) Render(c *ui.Ctx) *ui.Element {
 
 type grids struct{}
 
-func (grids) Render(c *ui.Ctx) *ui.Element {
+func (grids) Render(c *ui.Ctx) ui.Component {
 	tile := func(a, b, n string) *ui.Element {
 		return ui.View(ui.Style{Height: ui.Pt(150), Direction: ui.Row}, wall(a, b, n))
 	}
@@ -517,7 +517,7 @@ func (grids) Render(c *ui.Ctx) *ui.Element {
 
 type accordions struct{}
 
-func (accordions) Render(c *ui.Ctx) *ui.Element {
+func (accordions) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	para := func(s string) *ui.Element { return ui.Text(s, ui.Style{FontSize: 15, Color: th.TextMuted}) }
 	return page(c, "Help", "The things people ask.",
@@ -529,7 +529,7 @@ func (accordions) Render(c *ui.Ctx) *ui.Element {
 
 type carousels struct{}
 
-func (carousels) Render(c *ui.Ctx) *ui.Element {
+func (carousels) Render(c *ui.Ctx) ui.Component {
 	w := ui.Viewport(c).W - 40
 	return page(c, "Specials", "Swipe to see what's new.",
 		ui.Carousel{Width: w, Height: 260, Pages: []ui.Component{
@@ -538,11 +538,11 @@ func (carousels) Render(c *ui.Ctx) *ui.Element {
 
 type swipeRows struct{}
 
-func (swipeRows) Render(c *ui.Ctx) *ui.Element {
+func (swipeRows) Render(c *ui.Ctx) ui.Component {
 	nop := func() {}
-	item := func(n, s string) *ui.Element {
-		return ui.C(ui.SwipeRow{Content: ui.ListRow{Title: n, Subtitle: s, Leading: ui.Avatar{Name: n}}, Actions: []ui.SwipeAction{
-			{Label: "Done", Icon: "check", Tone: ui.Good, OnPress: nop}, {Label: "Delete", Icon: "trash", Tone: ui.Bad, OnPress: nop}}})
+	item := func(n, s string) ui.Component {
+		return ui.SwipeRow{Content: ui.ListRow{Title: n, Subtitle: s, Leading: ui.Avatar{Name: n}}, Actions: []ui.SwipeAction{
+			{Label: "Done", Icon: "check", Tone: ui.Good, OnPress: nop}, {Label: "Delete", Icon: "trash", Tone: ui.Bad, OnPress: nop}}}
 	}
 	return page(c, "Orders", "Swipe a row to the left.", item("Asha Rao", "2 flat whites"), item("Vikram Shah", "Filter coffee"), item("Meera Iyer", "Masala chai"))
 }
@@ -550,7 +550,7 @@ func (swipeRows) Render(c *ui.Ctx) *ui.Element {
 // gestures drags a tile, flicks a deck and pinches a square.
 type gestures struct{}
 
-func (gestures) Render(c *ui.Ctx) *ui.Element {
+func (gestures) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	x, setX := ui.State(c, float32(0))
 	y, setY := ui.State(c, float32(0))

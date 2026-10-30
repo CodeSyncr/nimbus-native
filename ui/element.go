@@ -58,23 +58,22 @@ type Element struct {
 //
 //	type Counter struct{ Start int }
 //
-//	func (p Counter) Render(c *ui.Ctx) *ui.Element {
+//	func (p Counter) Render(c *ui.Ctx) ui.Component {
 //		n, setN := ui.State(c, p.Start)
 //		return ui.Pressable(func() { setN(n + 1) }, ui.Style{},
 //			ui.Text(fmt.Sprint(n), ui.Style{}))
 //	}
 type Component interface {
-	Render(c *Ctx) *Element
+	Render(c *Ctx) Component
 }
 
 // Render makes an Element a Component, so children can be either:
 //
 //	ui.View(ui.Style{}, ui.Text("Total", ui.Style{}), ui.Badge{Label: "Paid"}, Orders{})
-func (e *Element) Render(*Ctx) *Element { return e }
+func (e *Element) Render(*Ctx) Component { return e }
 
-// C wraps a component in an Element. Children don't need it; use it for
-// what only an Element has, such as Label, or to return a component from
-// Render.
+// C wraps a component in an Element, for what only an Element has, such as
+// gestures. They reach the view the component renders.
 func C(comp Component) *Element {
 	if e, ok := comp.(*Element); ok {
 		return e
@@ -87,6 +86,9 @@ func C(comp Component) *Element {
 //
 //	rows = append(rows, ui.Key(o.ID, OrderRow{o}))
 func Key(key string, child Component) *Element { return element(child).Key(key) }
+
+// TestID names a child for tests.
+func TestID(id string, child Component) *Element { return element(child).TestID(id) }
 
 // element is a child as the tree holds it. An empty child, either kind of
 // nil, draws nothing.

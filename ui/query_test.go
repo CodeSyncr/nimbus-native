@@ -37,7 +37,7 @@ func fetchOrders(ctx context.Context) ([]string, error) {
 
 type orderList struct{ id string }
 
-func (o orderList) Render(c *Ctx) *Element {
+func (o orderList) Render(c *Ctx) Component {
 	q := UseQuery(c, "orders", fetchOrders)
 	label := "loading"
 	switch {
@@ -51,7 +51,7 @@ func (o orderList) Render(c *Ctx) *Element {
 
 type twoLists struct{}
 
-func (twoLists) Render(c *Ctx) *Element {
+func (twoLists) Render(c *Ctx) Component {
 	return View(Style{}, C(orderList{"a"}), C(orderList{"b"}),
 		Pressable(func() { RefetchQuery(c, "orders") }, Style{Height: Pt(44)}).TestID("refresh"))
 }
@@ -89,7 +89,7 @@ func TestQuery(t *testing.T) {
 // every render (UseQuery used to add its Effect only on the first).
 type queryThenState struct{}
 
-func (queryThenState) Render(c *Ctx) *Element {
+func (queryThenState) Render(c *Ctx) Component {
 	q := UseQuery(c, "orders", fetchOrders)
 	on, setOn := State(c, false)
 	label := fmt.Sprint(q.Loaded, on)
@@ -112,7 +112,7 @@ var placed []string
 
 type placeOrder struct{}
 
-func (placeOrder) Render(c *Ctx) *Element {
+func (placeOrder) Render(c *Ctx) Component {
 	act := UseAction(c, func(ctx context.Context, name string) (string, error) {
 		if name == "" {
 			return "", errors.New("name required")

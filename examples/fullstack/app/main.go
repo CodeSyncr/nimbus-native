@@ -21,13 +21,13 @@ func main() { ui.Main() }
 
 type App struct{}
 
-func (App) Render(c *ui.Ctx) *ui.Element {
+func (App) Render(c *ui.Ctx) ui.Component {
 	return ui.Stack("Orders", OrdersScreen{}, ui.Flex(1))
 }
 
 type OrdersScreen struct{}
 
-func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
+func (OrdersScreen) Render(c *ui.Ctx) ui.Component {
 	th, modals := ui.UseTheme(c), ui.Modals(c)
 	q := ui.UseQuery(c, "orders", func(ctx context.Context) ([]shared.Order, error) {
 		return api.Call(ctx, client, shared.ListOrders, shared.ListOrdersReq{})
@@ -48,7 +48,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 		body = ui.View(ui.Style{Padding: ui.All(th.SpaceL)}, ui.Spinner(ui.Style{}))
 	default:
 		orders := q.Data
-		body = ui.List(len(orders), func(i int) ui.Component { return ui.C(orderRow{orders[i]}) }, ui.Flex(1)).
+		body = ui.List(len(orders), func(i int) ui.Component { return orderRow{orders[i]} }, ui.Flex(1)).
 			ItemKey(func(i int) string { return fmt.Sprint(orders[i].ID) })
 	}
 	return ui.SafeArea(ui.Style{Grow: 1}, header, body)
@@ -56,7 +56,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 
 type orderRow struct{ o shared.Order }
 
-func (r orderRow) Render(c *ui.Ctx) *ui.Element {
+func (r orderRow) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	return ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween, Padding: ui.XY(th.SpaceL, 14),
 		Background: th.Surface, Margin: ui.Edges{Bottom: 1}},
@@ -72,7 +72,7 @@ func (r orderRow) Render(c *ui.Ctx) *ui.Element {
 // lands on the fields through form.SetErrors.
 type NewOrderScreen struct{}
 
-func (NewOrderScreen) Render(c *ui.Ctx) *ui.Element {
+func (NewOrderScreen) Render(c *ui.Ctx) ui.Component {
 	th, modals := ui.UseTheme(c), ui.Modals(c)
 	form := ui.UseForm(c, shared.NewOrder{}, nil)
 	place := ui.UseAction(c, func(ctx context.Context, o shared.NewOrder) (shared.Order, error) {

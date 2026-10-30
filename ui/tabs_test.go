@@ -9,7 +9,7 @@ import (
 
 type tabsApp struct{}
 
-func (tabsApp) Render(c *Ctx) *Element {
+func (tabsApp) Render(c *Ctx) Component {
 	return Tabs(Flex(1),
 		Tab{Title: "Orders", Icon: "list.bullet", Screen: tabCounter{}},
 		Tab{Title: "Account", Icon: "person", Screen: accountTab{}},
@@ -18,7 +18,7 @@ func (tabsApp) Render(c *Ctx) *Element {
 
 type tabCounter struct{}
 
-func (tabCounter) Render(c *Ctx) *Element {
+func (tabCounter) Render(c *Ctx) Component {
 	n, setN := State(c, 0)
 	tabs := TabsOf(c)
 	return View(Style{},
@@ -29,7 +29,7 @@ func (tabCounter) Render(c *Ctx) *Element {
 
 type accountTab struct{}
 
-func (accountTab) Render(c *Ctx) *Element { return Text("account", Style{}).TestID("account") }
+func (accountTab) Render(c *Ctx) Component { return Text("account", Style{}).TestID("account") }
 
 func TestTabs(t *testing.T) {
 	h := start(t, tabsApp{})

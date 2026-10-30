@@ -9,7 +9,7 @@ import (
 
 type homeScreen struct{}
 
-func (homeScreen) Render(c *Ctx) *Element {
+func (homeScreen) Render(c *Ctx) Component {
 	return View(Style{}, C(openButton{}))
 }
 
@@ -17,14 +17,14 @@ func (homeScreen) Render(c *Ctx) *Element {
 // stack through any depth of components and views.
 type openButton struct{}
 
-func (openButton) Render(c *Ctx) *Element {
+func (openButton) Render(c *Ctx) Component {
 	nav := Navigation(c)
 	return Pressable(func() { nav.Push("Detail", detailScreen{id: 7}) }, Style{Height: Pt(44)}).TestID("open")
 }
 
 type detailScreen struct{ id int }
 
-func (d detailScreen) Render(c *Ctx) *Element {
+func (d detailScreen) Render(c *Ctx) Component {
 	nav := Navigation(c)
 	return View(Style{},
 		Text("detail", Style{}).TestID("detail"),
@@ -34,7 +34,7 @@ func (d detailScreen) Render(c *Ctx) *Element {
 
 type navApp struct{}
 
-func (navApp) Render(c *Ctx) *Element {
+func (navApp) Render(c *Ctx) Component {
 	return Stack("Home", homeScreen{}, Flex(1)).TestID("stack")
 }
 
@@ -101,7 +101,7 @@ func TestStackScreensTakeReportedSize(t *testing.T) {
 
 type plain struct{ got **Nav }
 
-func (p plain) Render(c *Ctx) *Element {
+func (p plain) Render(c *Ctx) Component {
 	*p.got = Navigation(c)
 	return View(Style{})
 }
@@ -120,7 +120,7 @@ func TestNavigationOutsideAStack(t *testing.T) {
 // in the stack's screen, below the root component whose props never change.
 type countingScreen struct{}
 
-func (countingScreen) Render(c *Ctx) *Element {
+func (countingScreen) Render(c *Ctx) Component {
 	n, setN := State(c, 0)
 	return Pressable(func() { setN(n + 1) }, Style{Height: Pt(44)},
 		Text(fmt.Sprint("taps ", n), Style{}).TestID("taps")).TestID("tap")
@@ -128,7 +128,7 @@ func (countingScreen) Render(c *Ctx) *Element {
 
 type deepApp struct{}
 
-func (deepApp) Render(c *Ctx) *Element { return Stack("Home", countingScreen{}, Flex(1)) }
+func (deepApp) Render(c *Ctx) Component { return Stack("Home", countingScreen{}, Flex(1)) }
 
 func TestStateBelowSkippedComponent(t *testing.T) {
 	h := start(t, deepApp{})

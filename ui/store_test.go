@@ -11,13 +11,13 @@ var testCart = NewStore(func() []string { return nil })
 
 type cartBadge struct{}
 
-func (cartBadge) Render(c *Ctx) *Element {
+func (cartBadge) Render(c *Ctx) Component {
 	return Text(fmt.Sprintf("%d in cart", len(testCart.Use(c))), Style{}).TestID("badge")
 }
 
 type addButton struct{}
 
-func (addButton) Render(c *Ctx) *Element {
+func (addButton) Render(c *Ctx) Component {
 	return Pressable(func() {
 		testCart.Update(c, func(items []string) []string { return append(append([]string(nil), items...), "tea") })
 	}, Style{Height: Pt(44)}).TestID("add")
@@ -25,7 +25,7 @@ func (addButton) Render(c *Ctx) *Element {
 
 type shopScreen struct{}
 
-func (shopScreen) Render(c *Ctx) *Element { return View(Style{}, C(cartBadge{}), C(addButton{})) }
+func (shopScreen) Render(c *Ctx) Component { return View(Style{}, C(cartBadge{}), C(addButton{})) }
 
 // A store re-renders the components using it, and each runtime (each
 // browser tab on the web) has its own value.

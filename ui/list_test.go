@@ -11,7 +11,7 @@ var appRenders int
 
 type feed struct{ varied bool } // comparable props, so scrolling can skip it
 
-func (f feed) Render(c *Ctx) *Element {
+func (f feed) Render(c *Ctx) Component {
 	appRenders++
 	return View(Style{},
 		List(1000, func(i int) Component {

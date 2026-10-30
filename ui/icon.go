@@ -22,7 +22,7 @@ type iconView struct {
 	color Color
 }
 
-func (i iconView) Render(c *Ctx) *Element {
+func (i iconView) Render(c *Ctx) Component {
 	color := i.color
 	if color == 0 {
 		color = UseTheme(c).Text

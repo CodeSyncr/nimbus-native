@@ -22,7 +22,7 @@ func init() { theme.Apply() }
 // navigation stacks with ui.Tabs and ui.Stack.
 type App struct{}
 
-func (App) Render(c *ui.Ctx) *ui.Element {
+func (App) Render(c *ui.Ctx) ui.Component {
 	home, _, _ := router.Match("/")
-	return ui.C(home)
+	return home
 }

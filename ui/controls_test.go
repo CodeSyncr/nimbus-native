@@ -9,7 +9,7 @@ import (
 
 type settingsScreen struct{ locked bool }
 
-func (s settingsScreen) Render(c *Ctx) *Element {
+func (s settingsScreen) Render(c *Ctx) Component {
 	on, setOn := State(c, false)
 	change := setOn
 	if s.locked {
@@ -56,7 +56,7 @@ func TestSwitch(t *testing.T) {
 
 type refreshFeed struct{}
 
-func (refreshFeed) Render(c *Ctx) *Element {
+func (refreshFeed) Render(c *Ctx) Component {
 	loading, setLoading := State(c, false)
 	return Scroll(Flex(1), Text("item", Style{})).OnRefresh(loading, func() { setLoading(true) }).TestID("feed")
 }
@@ -84,7 +84,7 @@ func TestPullToRefresh(t *testing.T) {
 
 type keyboardForm struct{}
 
-func (keyboardForm) Render(c *Ctx) *Element {
+func (keyboardForm) Render(c *Ctx) Component {
 	return SafeArea(Style{Grow: 1}, View(Style{Height: Pt(20)}).TestID("body"))
 }
 
@@ -103,7 +103,7 @@ func TestSafeAreaClearsKeyboard(t *testing.T) {
 
 type volumeScreen struct{}
 
-func (volumeScreen) Render(c *Ctx) *Element {
+func (volumeScreen) Render(c *Ctx) Component {
 	v, setV := State(c, float32(0.25))
 	n, setN := State(c, 0)
 	return View(Style{},
@@ -132,7 +132,7 @@ func TestSliderLongPressTransition(t *testing.T) {
 
 type dragged struct{ pans *[]Pan }
 
-func (d dragged) Render(c *Ctx) *Element {
+func (d dragged) Render(c *Ctx) Component {
 	dir, setDir := State(c, Swipe(0))
 	scale, setScale := State(c, float32(0))
 	return View(Style{},
@@ -183,7 +183,7 @@ func TestSwipeOf(t *testing.T) {
 
 type overlayApp struct{}
 
-func (overlayApp) Render(c *Ctx) *Element {
+func (overlayApp) Render(c *Ctx) Component {
 	n, setN := State(c, 0)
 	return View(Style{Grow: 1},
 		Pressable(func() { setN(n + 1); Overlays(c).Toast("Saved", Good) }, Style{}, Text(fmt.Sprint("taps ", n), Style{})).TestID("save"))
@@ -203,7 +203,7 @@ func TestOverlayKeepsAppState(t *testing.T) {
 
 type componentsApp struct{}
 
-func (componentsApp) Render(c *Ctx) *Element {
+func (componentsApp) Render(c *Ctx) Component {
 	on, setOn := State(c, false)
 	at, setAt := State(c, 0)
 	return View(Style{Grow: 1},
@@ -237,11 +237,11 @@ func TestComponentsRender(t *testing.T) {
 
 type label struct{ text string }
 
-func (l label) Render(c *Ctx) *Element { return Text(l.text, Style{}) }
+func (l label) Render(c *Ctx) Component { return Text(l.text, Style{}) }
 
 type directChildren struct{}
 
-func (directChildren) Render(c *Ctx) *Element {
+func (directChildren) Render(c *Ctx) Component {
 	var none *Element // a nil child, of either kind, draws nothing
 	return View(Style{},
 		Text("plain", Style{}),
@@ -271,6 +271,60 @@ func TestListTakesComponents(t *testing.T) {
 
 type listOfComponents struct{}
 
-func (listOfComponents) Render(c *Ctx) *Element {
+func (listOfComponents) Render(c *Ctx) Component {
 	return List(3, func(i int) Component { return label{fmt.Sprint("row ", i)} }, Flex(1))
+}
+
+type returnsComponent struct{}
+
+func (returnsComponent) Render(c *Ctx) Component { return label{"from a component"} }
+
+type returnsNil struct{}
+
+func (returnsNil) Render(c *Ctx) Component { return nil }
+
+type card struct{}
+
+func (card) Render(c *Ctx) Component { return View(Style{Height: Pt(40)}, Text("card", Style{})) }
+
+type wrappedGestures struct {
+	swipes *[]Swipe
+	holds  *int
+}
+
+func (w wrappedGestures) Render(c *Ctx) Component {
+	return View(Style{},
+		returnsComponent{},
+		returnsNil{},
+		TestID("named", card{}),
+		C(card{}).OnSwipe(func(s Swipe) { *w.swipes = append(*w.swipes, s) }).TestID("swipe"),
+		Pressable(func() {}, Style{}, Text("p", Style{})),
+		C(pressCard{}).OnLongPress(func() { *w.holds++ }).TestID("hold"))
+}
+
+type pressCard struct{}
+
+func (pressCard) Render(c *Ctx) Component { return Pressable(func() {}, Style{Height: Pt(40)}) }
+
+func TestWrapperReachesTheView(t *testing.T) {
+	var swipes []Swipe
+	holds := 0
+	h := start(t, wrappedGestures{&swipes, &holds})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "from a component" }); len(got) == 0 {
+		t.Fatal("a component returned from Render did not draw")
+	}
+	h.tagOf("named")
+	tag := h.tagOf("swipe")
+	box := h.all(func(o render.Op) bool { b, ok := o.(*render.Box); return ok && b.Tag == tag })
+	if len(box) == 0 || box[0].(*render.Box).Pan == 0 {
+		t.Fatalf("the wrapper's swipe never reached the view: %+v", box)
+	}
+	h.send(&render.Panned{Tag: tag, Phase: render.GestureEnded, X: -200, VX: -900})
+	if len(swipes) != 1 || swipes[0] != SwipeLeft {
+		t.Fatalf("swipes: %v", swipes)
+	}
+	h.send(&render.LongPressed{Tag: h.tagOf("hold")})
+	if holds != 1 {
+		t.Fatalf("long presses: %d", holds)
+	}
 }

@@ -23,7 +23,7 @@ import "github.com/CodeSyncr/nimbus-native/ui"
 
 type Page struct{ `+fields+` }
 
-func (Page) Render(c *ui.Ctx) *ui.Element { return nil }
+func (Page) Render(c *ui.Ctx) ui.Component { return nil }
 `)
 	}
 	page("", "pages", "")

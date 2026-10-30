@@ -55,7 +55,7 @@ type Button struct {
 	Full     bool // as wide as its container
 }
 
-func (b Button) Render(c *Ctx) *Element {
+func (b Button) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	bg, fg, border := b.Variant.colors(th)
 	height, pad, font, icon := float32(46), float32(18), float32(15), float32(19)
@@ -106,7 +106,7 @@ type IconButton struct {
 	Filled  bool // solid Primary, not the plain icon
 }
 
-func (b IconButton) Render(c *Ctx) *Element {
+func (b IconButton) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	bg, fg, border := Color(0), th.Text, Color(0)
 	if b.Filled {
@@ -137,7 +137,7 @@ type FloatingButton struct {
 	Extended bool
 }
 
-func (b FloatingButton) Render(c *Ctx) *Element {
+func (b FloatingButton) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	vp := Viewport(c)
 	s := Style{Absolute: true, Right: Pt(20), Bottom: Pt(20 + vp.SafeBottom), Height: Pt(58), Radius: 29, Background: th.Primary,

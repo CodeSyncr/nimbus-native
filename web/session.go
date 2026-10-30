@@ -52,7 +52,7 @@ func newSession(id, path string, s *site) *session {
 // webRoot shows the page for the session's path inside the site's layout.
 type webRoot struct{ s *session }
 
-func (r webRoot) Render(c *ui.Ctx) *ui.Element {
+func (r webRoot) Render(c *ui.Ctx) ui.Component {
 	path, setPath := ui.State(c, r.s.path)
 	r.s.mu.Lock()
 	r.s.setPath = setPath
@@ -65,7 +65,7 @@ func (r webRoot) Render(c *ui.Ctx) *ui.Element {
 	if r.s.site.o.Layout != nil {
 		shown = r.s.site.o.Layout(path, shown)
 	}
-	return ui.C(shown)
+	return shown
 }
 
 // pageFrame holds the page, keyed by its path so each URL starts fresh.
@@ -74,13 +74,13 @@ type pageFrame struct {
 	path string
 }
 
-func (p pageFrame) Render(c *ui.Ctx) *ui.Element {
+func (p pageFrame) Render(c *ui.Ctx) ui.Component {
 	return ui.View(ui.Style{Grow: 1, Shrink: 1}, ui.C(p.page).Key(p.path))
 }
 
 type notFound struct{}
 
-func (notFound) Render(c *ui.Ctx) *ui.Element {
+func (notFound) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	return ui.View(ui.Style{Grow: 1, Justify: ui.JustifyCenter, AlignItems: ui.AlignCenter, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
 		ui.Text("Page not found", ui.Style{FontSize: th.Title, FontWeight: 700}),

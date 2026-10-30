@@ -17,7 +17,7 @@ type safeArea struct {
 	children []Component
 }
 
-func (a safeArea) Render(c *Ctx) *Element {
+func (a safeArea) Render(c *Ctx) Component {
 	vp := Viewport(c)
 	s := a.style
 	top, bottom := vp.SafeTop, vp.SafeBottom

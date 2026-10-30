@@ -38,7 +38,7 @@ func orders() []order {
 // App is the root component: two tabs, each with its own navigation stack.
 type App struct{}
 
-func (App) Render(c *ui.Ctx) *ui.Element {
+func (App) Render(c *ui.Ctx) ui.Component {
 	return ui.Tabs(ui.Flex(1),
 		ui.Tab{Title: "Orders", Icon: "list.bullet", Screen: OrdersTab{}},
 		ui.Tab{Title: "Account", Icon: "person.crop.circle", Screen: AccountTab{}},
@@ -47,20 +47,20 @@ func (App) Render(c *ui.Ctx) *ui.Element {
 
 type OrdersTab struct{}
 
-func (OrdersTab) Render(c *ui.Ctx) *ui.Element {
+func (OrdersTab) Render(c *ui.Ctx) ui.Component {
 	return ui.Stack("Orders", OrdersScreen{}, ui.Flex(1)).TestID("stack")
 }
 
 type AccountTab struct{}
 
-func (AccountTab) Render(c *ui.Ctx) *ui.Element {
+func (AccountTab) Render(c *ui.Ctx) ui.Component {
 	return ui.Stack("Account", AccountScreen{}, ui.Flex(1))
 }
 
 // AccountScreen is the second tab's first screen.
 type AccountScreen struct{}
 
-func (AccountScreen) Render(c *ui.Ctx) *ui.Element {
+func (AccountScreen) Render(c *ui.Ctx) ui.Component {
 	tabs, th := ui.TabsOf(c), ui.UseTheme(c)
 	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: th.SpaceM},
 		ui.Text("Asha Rao", ui.Style{FontSize: th.Title, FontWeight: 700}).TestID("account-title"),
@@ -80,7 +80,7 @@ func button(th ui.Theme, label string, onPress func()) *ui.Element {
 // OrdersScreen is the first screen.
 type OrdersScreen struct{}
 
-func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
+func (OrdersScreen) Render(c *ui.Ctx) ui.Component {
 	taps, setTaps := ui.State(c, 0)
 	name, setName := ui.State(c, "")
 	list := ui.Memo(c, orders, ui.Once)
@@ -117,7 +117,7 @@ func (OrdersScreen) Render(c *ui.Ctx) *ui.Element {
 				).TestID("new-order"),
 			),
 		),
-		ui.List(len(list), func(i int) ui.Component { return ui.C(OrderRow{list[i]}) }, ui.Flex(1)).
+		ui.List(len(list), func(i int) ui.Component { return OrderRow{list[i]} }, ui.Flex(1)).
 			ItemKey(func(i int) string { return fmt.Sprint(list[i].id) }).TestID("list"),
 	)
 }
@@ -128,7 +128,7 @@ type OrderRow struct{ o order }
 var badges = map[string]ui.Color{"Paid": ui.Hex("#dbeafe"), "Packed": ui.Hex("#fef3c7"),
 	"Shipped": ui.Hex("#ede9fe"), "Delivered": ui.Hex("#dcfce7")}
 
-func (r OrderRow) Render(c *ui.Ctx) *ui.Element {
+func (r OrderRow) Render(c *ui.Ctx) ui.Component {
 	o := r.o
 	nav, th := ui.Navigation(c), ui.UseTheme(c)
 	return ui.Pressable(func() { nav.Push(fmt.Sprintf("Order #%d", o.id), OrderDetail{o}) },
@@ -175,7 +175,7 @@ func validateNewOrder(v newOrderForm) error {
 	return errs
 }
 
-func (NewOrder) Render(c *ui.Ctx) *ui.Element {
+func (NewOrder) Render(c *ui.Ctx) ui.Component {
 	form := ui.UseForm(c, newOrderForm{}, validateNewOrder)
 	modals, th := ui.Modals(c), ui.UseTheme(c)
 	return ui.SafeArea(ui.Style{Grow: 1, Padding: ui.All(th.SpaceL), Gap: 16},
@@ -191,7 +191,7 @@ func (NewOrder) Render(c *ui.Ctx) *ui.Element {
 // OrderDetail is the screen a row opens.
 type OrderDetail struct{ o order }
 
-func (d OrderDetail) Render(c *ui.Ctx) *ui.Element {
+func (d OrderDetail) Render(c *ui.Ctx) ui.Component {
 	o, nav, th := d.o, ui.Navigation(c), ui.UseTheme(c)
 	field := func(label, value string) *ui.Element {
 		return ui.View(ui.Style{Direction: ui.Row, Justify: ui.JustifySpaceBetween, Padding: ui.XY(0, 12)},

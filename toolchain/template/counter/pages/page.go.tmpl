@@ -19,4 +19,4 @@ func (Page) Head() router.Head {
 	return router.Head{Title: "__NAME__", Description: "A counter, in Go, on every screen."}
 }
 
-func (Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.CounterScreen{}) }
+func (Page) Render(c *ui.Ctx) ui.Component { return presentation.CounterScreen{} }

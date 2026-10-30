@@ -22,7 +22,7 @@ nimbus native dev ios            # the app, plus the server and web app on :3333
 ```go
 type Counter struct{}
 
-func (Counter) Render(c *ui.Ctx) *ui.Element {
+func (Counter) Render(c *ui.Ctx) ui.Component {
 	n, setN := ui.State(c, 0)
 	return ui.SafeArea(ui.Style{Padding: ui.All(16)},
 		ui.Pressable(func() { setN(n + 1) }, ui.Style{Padding: ui.All(12)},
@@ -198,7 +198,7 @@ type Page struct {
 }
 
 func (p Page) Title() string                  { return fmt.Sprintf("Order #%d", p.ID) }
-func (p Page) Render(c *ui.Ctx) *ui.Element { return ui.C(presentation.OrderScreen{ID: p.ID}) }
+func (p Page) Render(c *ui.Ctx) ui.Component { return presentation.OrderScreen{ID: p.ID} }
 ```
 
 Every build regenerates `pages/routes_gen.go`, a static table: no reflection

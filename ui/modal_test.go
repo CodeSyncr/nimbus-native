@@ -8,7 +8,7 @@ import (
 
 type modalApp struct{}
 
-func (modalApp) Render(c *Ctx) *Element {
+func (modalApp) Render(c *Ctx) Component {
 	m := Modals(c)
 	return View(Style{},
 		Pressable(func() { m.Present("New order", newOrder{}) }, Style{Height: Pt(44)}).TestID("open"),
@@ -17,7 +17,7 @@ func (modalApp) Render(c *Ctx) *Element {
 
 type newOrder struct{}
 
-func (newOrder) Render(c *Ctx) *Element {
+func (newOrder) Render(c *Ctx) Component {
 	nav, m := Navigation(c), Modals(c)
 	return View(Style{},
 		Text("form", Style{}).TestID("form"),
@@ -28,7 +28,7 @@ func (newOrder) Render(c *Ctx) *Element {
 
 type step2 struct{}
 
-func (step2) Render(c *Ctx) *Element { return Text("step 2", Style{}).TestID("step2") }
+func (step2) Render(c *Ctx) Component { return Text("step 2", Style{}).TestID("step2") }
 
 func (h *host) modalTag() uint32 {
 	for tag, in := range h.rt.byTag {

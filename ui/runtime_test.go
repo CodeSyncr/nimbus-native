@@ -83,7 +83,7 @@ func (h *host) tagOf(testID string) uint32 {
 
 type counter struct{}
 
-func (counter) Render(c *Ctx) *Element {
+func (counter) Render(c *Ctx) Component {
 	n, setN := State(c, 0)
 	return View(Style{Padding: All(10)},
 		Text(fmt.Sprintf("Tapped %d times", n), Style{}).TestID("label"),
@@ -119,7 +119,7 @@ func TestFirstRenderAndTap(t *testing.T) {
 
 type list struct{ items *[]string }
 
-func (l list) Render(c *Ctx) *Element {
+func (l list) Render(c *Ctx) Component {
 	var rows []Component
 	for _, it := range *l.items {
 		rows = append(rows, C(row{it}).Key(it))
@@ -129,7 +129,7 @@ func (l list) Render(c *Ctx) *Element {
 
 type row struct{ name string }
 
-func (r row) Render(c *Ctx) *Element {
+func (r row) Render(c *Ctx) Component {
 	mounted := Ref(c, 0)
 	Effect(c, func(ctx context.Context) func() {
 		*mounted++
@@ -172,7 +172,7 @@ func TestKeyedReorderKeepsViews(t *testing.T) {
 
 type wrapped struct{ text *string }
 
-func (w wrapped) Render(c *Ctx) *Element {
+func (w wrapped) Render(c *Ctx) Component {
 	return View(Style{Width: Pt(100), AlignItems: AlignStart}, Text(*w.text, Style{}))
 }
 
@@ -200,7 +200,7 @@ func TestTextMeasuredOncePerChange(t *testing.T) {
 
 type panicky struct{}
 
-func (panicky) Render(c *Ctx) *Element { panic("boom") }
+func (panicky) Render(c *Ctx) Component { panic("boom") }
 
 func TestPanickingComponentRendersNothing(t *testing.T) {
 	logf = func(string, ...any) {}
@@ -215,14 +215,14 @@ var rowRenders int
 
 type countedRow struct{ id int }
 
-func (r countedRow) Render(c *Ctx) *Element {
+func (r countedRow) Render(c *Ctx) Component {
 	rowRenders++
 	return View(Style{Height: Pt(40)}, Text(fmt.Sprint(r.id), Style{}))
 }
 
 type page struct{}
 
-func (page) Render(c *Ctx) *Element {
+func (page) Render(c *Ctx) Component {
 	n, setN := State(c, 0)
 	rows := []Component{Pressable(func() { setN(n + 1) }, Style{}, Text(fmt.Sprint(n), Style{})).TestID("button")}
 	for i := 0; i < 100; i++ {

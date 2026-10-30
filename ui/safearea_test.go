@@ -8,7 +8,7 @@ import (
 
 type safeApp struct{ stacked bool }
 
-func (a safeApp) Render(c *Ctx) *Element {
+func (a safeApp) Render(c *Ctx) Component {
 	content := SafeArea(Style{Grow: 1, Padding: All(10)}, View(Style{Height: Pt(20)}).TestID("content"))
 	if a.stacked {
 		return Stack("Home", safeScreen{}, Flex(1))
@@ -18,7 +18,7 @@ func (a safeApp) Render(c *Ctx) *Element {
 
 type safeScreen struct{}
 
-func (safeScreen) Render(c *Ctx) *Element {
+func (safeScreen) Render(c *Ctx) Component {
 	return SafeArea(Style{Grow: 1, Padding: All(10)}, View(Style{Height: Pt(20)}).TestID("content"))
 }
 

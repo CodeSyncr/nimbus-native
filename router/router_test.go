@@ -8,20 +8,20 @@ import (
 
 type home struct{}
 
-func (home) Render(*ui.Ctx) *ui.Element { return nil }
+func (home) Render(*ui.Ctx) ui.Component { return nil }
 
 type order struct{ ID int }
 
-func (order) Render(*ui.Ctx) *ui.Element { return nil }
-func (o order) Title() string            { return "Order" }
+func (order) Render(*ui.Ctx) ui.Component { return nil }
+func (o order) Title() string             { return "Order" }
 
 type newOrder struct{}
 
-func (newOrder) Render(*ui.Ctx) *ui.Element { return nil }
+func (newOrder) Render(*ui.Ctx) ui.Component { return nil }
 
 type list struct{ Tab string }
 
-func (list) Render(*ui.Ctx) *ui.Element { return nil }
+func (list) Render(*ui.Ctx) ui.Component { return nil }
 
 func table() Table {
 	return Table{

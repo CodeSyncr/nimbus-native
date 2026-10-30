@@ -170,7 +170,7 @@ type textField struct {
 	o FieldOptions
 }
 
-func (t textField) Render(c *Ctx) *Element {
+func (t textField) Render(c *Ctx) Component {
 	f, o, th := t.f, t.o, UseTheme(c)
 	box := Style{BorderWidth: 1, BorderColor: th.Border, Radius: th.Radius - 2, FontSize: th.Body, Background: th.Surface}.With(o.Style)
 	if f.Error != "" {

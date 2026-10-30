@@ -8,7 +8,7 @@ import (
 
 type plainText struct{}
 
-func (plainText) Render(c *Ctx) *Element {
+func (plainText) Render(c *Ctx) Component {
 	th := UseTheme(c)
 	return View(Style{Background: th.Surface}, Text("hello", Style{}).TestID("t")).TestID("card")
 }

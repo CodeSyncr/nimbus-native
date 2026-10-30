@@ -15,7 +15,7 @@ import (
 // CounterScreen is the app's home: the count, its goal, and the controls.
 type CounterScreen struct{}
 
-func (CounterScreen) Render(c *ui.Ctx) *ui.Element {
+func (CounterScreen) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	counter := data.Store.Use(c)
 	ui.Effect(c, func(ctx context.Context) func() {
@@ -69,7 +69,7 @@ func header(th ui.Theme) *ui.Element {
 // countCard is the count, large, with how far it is to the goal.
 type countCard struct{ count int }
 
-func (k countCard) Render(c *ui.Ctx) *ui.Element {
+func (k countCard) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	progress := float32(k.count) / constants.Goal
 	if progress > 1 {

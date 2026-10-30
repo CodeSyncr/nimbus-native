@@ -9,14 +9,14 @@ import (
 
 type pathOpener struct{ path string }
 
-func (o pathOpener) Render(c *Ctx) *Element {
+func (o pathOpener) Render(c *Ctx) Component {
 	nav := Navigation(c)
 	return Pressable(func() { nav.PushPath("Order", o.path, detailScreen{id: 7}) }, Style{Height: Pt(44)}).TestID("open-" + o.path)
 }
 
 type twoTabs struct{}
 
-func (twoTabs) Render(c *Ctx) *Element {
+func (twoTabs) Render(c *Ctx) Component {
 	return Tabs(Flex(1),
 		Tab{Title: "Home", Screen: stackOf{"Home", homeScreen{}}},
 		Tab{Title: "Orders", Screen: stackOf{"Orders", pathOpener{"/orders/7"}}},
@@ -28,7 +28,7 @@ type stackOf struct {
 	root  Component
 }
 
-func (s stackOf) Render(c *Ctx) *Element { return Stack(s.title, s.root, Flex(1)) }
+func (s stackOf) Render(c *Ctx) Component { return Stack(s.title, s.root, Flex(1)) }
 
 // A dev reload reopens the selected tab and the screens pushed by path.
 func TestNavStateSurvivesReload(t *testing.T) {
