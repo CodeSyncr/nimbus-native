@@ -88,7 +88,17 @@ public final class Renderer {
     private let schema: UInt64
 
     /// schema is the app's generated NimbusSchema.combined.
-    public init(schema: UInt64) { self.schema = schema }
+    public init(schema: UInt64) {
+        self.schema = schema
+        // Where a view is in the window, for what opens beside it (ui.Menu).
+        Plugins.register("nimbusView") { [weak self] call in
+            guard let tag = (call.args["tag"] as? NSNumber)?.uint32Value, let v = self?.views[tag] else {
+                return call.reject(Plugins.notFound, "no such view")
+            }
+            let f = v.convert(v.bounds, to: nil)
+            call.resolve(["X": f.minX, "Y": f.minY, "W": f.width, "H": f.height])
+        }
+    }
 
     public func start() {
         let bridge = Bridge.shared
@@ -379,6 +389,8 @@ public final class Renderer {
         for (i, v) in wanted.enumerated() where base + i >= parent.subviews.count || parent.subviews[base + i] !== v {
             parent.insertSubview(v, at: base + i)
         }
+        // A child put at the bottom went under the gradient: it stays below them.
+        decor[o.tag]?.keepGradientBelow(parent)
     }
 
     private func box(_ o: Render.Box) {
@@ -704,6 +716,12 @@ final class Decor {
     private var corners: UInt8 = 0
 
     var isEmpty: Bool { blur == nil && gradient == nil && !shadow }
+
+    /// Above the blur, under everything else.
+    func keepGradientBelow(_ v: UIView) {
+        guard let gradient else { return }
+        if let blur { v.layer.insertSublayer(gradient, above: blur.layer) } else { v.layer.insertSublayer(gradient, at: 0) }
+    }
 
     static func corners(_ mask: UInt8) -> CACornerMask {
         guard mask != 0 else { return [.layerMinXMinYCorner, .layerMaxXMinYCorner, .layerMaxXMaxYCorner, .layerMinXMaxYCorner] }

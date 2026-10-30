@@ -307,7 +307,7 @@ func (rt *runtime) commit() {
 	t0 := time.Now()
 	rt.dirty, rt.measures = false, 0
 	rt.chrome()
-	rt.rootInst = rt.reconcile(rt.rootInst, C(rt.root), nil)
+	rt.rootInst = rt.reconcile(rt.rootInst, C(overlayRoot{rt.root}), nil)
 	rt.reconcileModals()
 	rt.forceAll = false
 	for in := range rt.rechild {
@@ -328,6 +328,13 @@ func (rt *runtime) commit() {
 	}
 	c := &render.Commit{}
 	host := hostRoot(rt.rootInst)
+	// The app fills the root, under whatever overlays are open.
+	if host != nil && len(host.children) > 0 {
+		if app := hostRoot(host.children[0]); app != nil && app.node != nil && app.node.Style.Grow != 1 {
+			app.node.Style.Grow = 1
+			app.node.MarkDirty()
+		}
+	}
 	if host != nil && host.tag != rt.rootTag {
 		rt.rootTag, c.Root = host.tag, host.tag
 	}

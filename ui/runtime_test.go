@@ -98,8 +98,8 @@ func TestFirstRenderAndTap(t *testing.T) {
 		t.Fatal("first commit names no root")
 	}
 	creates := h.find(c, func(o render.Op) bool { _, ok := o.(*render.Create); return ok })
-	if len(creates) != 3 {
-		t.Fatalf("%d creates, want 3", len(creates))
+	if len(creates) != 4 { // with the overlays' root
+		t.Fatalf("%d creates, want 4", len(creates))
 	}
 
 	h.send(&render.Press{Tag: h.tagOf("button")})
@@ -205,8 +205,9 @@ func (panicky) Render(c *Ctx) *Element { panic("boom") }
 func TestPanickingComponentRendersNothing(t *testing.T) {
 	logf = func(string, ...any) {}
 	h := start(t, panicky{})
-	if len(h.commits) != 1 || h.last().Root != 0 {
-		t.Fatalf("commits %v", h.commits)
+	creates := h.find(h.last(), func(o render.Op) bool { _, ok := o.(*render.Create); return ok })
+	if len(h.commits) != 1 || len(creates) != 1 { // only the overlays' root
+		t.Fatalf("commits %v, %d creates", h.commits, len(creates))
 	}
 }
 

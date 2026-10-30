@@ -17,6 +17,8 @@ type Theme struct {
 	Primary    Color // buttons, links, selected tabs
 	OnPrimary  Color // text on Primary
 	Danger     Color // errors
+	Success    Color // done, paid, online
+	Warning    Color // needs attention
 	Bar        Color // navigation and tab bars
 	BarText    Color // titles on bars
 
@@ -34,14 +36,14 @@ var (
 	LightTheme = Theme{
 		Background: Hex("#f9fafb"), Surface: Hex("#ffffff"), Text: Hex("#111827"), TextMuted: Hex("#6b7280"),
 		Border: Hex("#e5e7eb"), Primary: Hex("#2563eb"), OnPrimary: Hex("#ffffff"), Danger: Hex("#dc2626"),
-		Bar: Hex("#ffffff"), BarText: Hex("#111827"),
+		Bar: Hex("#ffffff"), BarText: Hex("#111827"), Success: Hex("#16a34a"), Warning: Hex("#d97706"),
 		Radius: 12, Title: 24, Heading: 17, Body: 15, Caption: 13, SpaceS: 8, SpaceM: 12, SpaceL: 20,
 	}
 	DarkTheme = Theme{
 		Dark:       true,
 		Background: Hex("#0b0f17"), Surface: Hex("#151b26"), Text: Hex("#f3f4f6"), TextMuted: Hex("#9ca3af"),
 		Border: Hex("#273041"), Primary: Hex("#3b82f6"), OnPrimary: Hex("#ffffff"), Danger: Hex("#f87171"),
-		Bar: Hex("#151b26"), BarText: Hex("#f3f4f6"),
+		Bar: Hex("#151b26"), BarText: Hex("#f3f4f6"), Success: Hex("#4ade80"), Warning: Hex("#fbbf24"),
 		Radius: 12, Title: 24, Heading: 17, Body: 15, Caption: 13, SpaceS: 8, SpaceM: 12, SpaceL: 20,
 	}
 )

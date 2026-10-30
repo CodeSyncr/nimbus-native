@@ -91,7 +91,7 @@ func (keyboardForm) Render(c *Ctx) *Element {
 func TestSafeAreaClearsKeyboard(t *testing.T) {
 	h := start(t, keyboardForm{})
 	h.send(&render.Viewport{W: 320, H: 480, Scale: 2, Platform: "ios", SafeBottom: 34, Keyboard: 300})
-	root := hostRoot(h.rt.rootInst)
+	root := hostRoot(hostRoot(h.rt.rootInst).children[0]) // under the overlays' root
 	if p := root.node.Style.Padding.Bottom; p != 300 {
 		t.Fatalf("bottom padding %v, want the keyboard's 300", p)
 	}
@@ -178,5 +178,59 @@ func TestSwipeOf(t *testing.T) {
 		if got := swipeOf(c.p); got != c.want {
 			t.Errorf("%+v: got %d", c.p, got)
 		}
+	}
+}
+
+type overlayApp struct{}
+
+func (overlayApp) Render(c *Ctx) *Element {
+	n, setN := State(c, 0)
+	return View(Style{Grow: 1},
+		Pressable(func() { setN(n + 1); Overlays(c).Toast("Saved", Good) }, Style{}, Text(fmt.Sprint("taps ", n), Style{})).TestID("save"))
+}
+
+func TestOverlayKeepsAppState(t *testing.T) {
+	h := start(t, overlayApp{})
+	h.send(&render.Press{Tag: h.tagOf("save")})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "Saved" }); len(got) == 0 {
+		t.Fatal("no toast")
+	}
+	h.send(&render.Press{Tag: h.tagOf("save")})
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "taps 2" }); len(got) == 0 {
+		t.Fatal("the app lost its state under the overlay")
+	}
+}
+
+type componentsApp struct{}
+
+func (componentsApp) Render(c *Ctx) *Element {
+	on, setOn := State(c, false)
+	at, setAt := State(c, 0)
+	return View(Style{Grow: 1},
+		C(Button{Label: "Save", Icon: "check", OnPress: func() {}, Loading: true}),
+		C(Checkbox{Label: "Receipts", Checked: on, OnChange: setOn}),
+		C(SegmentedControl{Options: []string{"Day", "Week"}, Selected: at, OnChange: setAt}),
+		C(Avatar{Name: "Asha Rao"}),
+		C(Badge{Label: "Paid", Tone: Good}),
+		C(ListRow{Title: "Orders", Icon: "cart", OnPress: func() {}}),
+		C(ProgressBar{Value: 0.4}),
+		C(EmptyState{Title: "Nothing yet"}),
+		C(Grid{Items: []*Element{Text("a", Style{}), Text("b", Style{}), Text("c", Style{})}}),
+		C(Accordion{Items: []AccordionItem{{"One", Text("inside", Style{})}, {"Two", Text("hidden", Style{})}}}),
+		C(SwipeRow{Content: Text("row", Style{}), Actions: []SwipeAction{{Label: "Delete", Icon: "trash", Tone: Bad}}}),
+		C(Carousel{Pages: []*Element{Text("p1", Style{})}, Height: 100}),
+		C(Banner{Title: "Offline", Tone: Caution}),
+		C(AppBar{Title: "Orders", Large: true}))
+}
+
+func TestComponentsRender(t *testing.T) {
+	h := start(t, componentsApp{})
+	for _, want := range []string{"Save", "Receipts", "AR", "Paid", "Orders", "Nothing yet", "inside", "row", "p1", "Offline"} {
+		if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == want }); len(got) == 0 {
+			t.Errorf("%q did not render", want)
+		}
+	}
+	if got := h.all(func(o render.Op) bool { x, ok := o.(*render.Text); return ok && x.Text == "hidden" }); len(got) != 0 {
+		t.Error("a closed accordion item rendered")
 	}
 }
