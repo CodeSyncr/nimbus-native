@@ -21,6 +21,7 @@ import (
 var (
 	Addr      string
 	AppSchema uint64
+	Session   uint64 // the dev session this shell belongs to
 )
 
 var (
@@ -57,8 +58,13 @@ func run() {
 		mu.Lock()
 		conn = c
 		mu.Unlock()
-		send(frame.Hello, frame.HelloPayload(frame.RoleDevice, AppSchema))
+		send(frame.Hello, frame.HelloPayload(frame.RoleDevice, AppSchema, Session))
+		began := time.Now()
 		serve(c)
+		if time.Since(began) < time.Second {
+			// Turned away (a newer session's relay): don't hammer it.
+			time.Sleep(2 * time.Second)
+		}
 		mu.Lock()
 		conn = nil
 		mu.Unlock()

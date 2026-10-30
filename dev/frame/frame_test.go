@@ -7,13 +7,13 @@ import (
 
 func TestRoundTrip(t *testing.T) {
 	var b bytes.Buffer
-	Write(&b, Hello, HelloPayload(RoleApp, 0xfeed))
+	Write(&b, Hello, HelloPayload(RoleApp, 0xfeed, 7))
 	Write(&b, HostCall, WithID(7, []byte("measure")))
 	Write(&b, HostReply, Reply(7, 3, []byte("panic")))
 	Write(&b, Reset, nil)
 
 	ty, p, _ := Read(&b)
-	if role, schema, ok := ParseHello(p); ty != Hello || !ok || role != RoleApp || schema != 0xfeed {
+	if role, schema, session, ok := ParseHello(p); ty != Hello || !ok || role != RoleApp || schema != 0xfeed || session != 7 {
 		t.Fatalf("hello: %v %v %v %x", ty, ok, role, schema)
 	}
 	ty, p, _ = Read(&b)

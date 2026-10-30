@@ -50,7 +50,7 @@ func Main() {
 		fmt.Fprintln(os.Stderr, "nimbus native dev: cannot reach the relay:", err)
 		os.Exit(1)
 	}
-	if err := write(frame.Hello, frame.HelloPayload(frame.RoleApp, wire.Combined())); err != nil {
+	if err := write(frame.Hello, frame.HelloPayload(frame.RoleApp, wire.Combined(), 0)); err != nil {
 		os.Exit(1)
 	}
 	started.Store(true)

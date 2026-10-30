@@ -61,17 +61,23 @@ func Read(r io.Reader) (Type, []byte, error) {
 	return Type(h[0]), p, nil
 }
 
-// HelloPayload is a Hello frame's payload.
-func HelloPayload(role byte, schema uint64) []byte {
-	return binary.LittleEndian.AppendUint64([]byte{role}, schema)
+// HelloPayload is a Hello frame's payload. session is the dev session a
+// dev shell was built for (0 for an app process), so the relay can tell
+// this session's shell from one another session left open on the device.
+func HelloPayload(role byte, schema, session uint64) []byte {
+	b := binary.LittleEndian.AppendUint64([]byte{role}, schema)
+	return binary.LittleEndian.AppendUint64(b, session)
 }
 
-// ParseHello reads a Hello payload.
-func ParseHello(p []byte) (role byte, schema uint64, ok bool) {
-	if len(p) != 9 {
-		return 0, 0, false
+// ParseHello reads a Hello payload (a shell from before sessions sends none).
+func ParseHello(p []byte) (role byte, schema, session uint64, ok bool) {
+	switch len(p) {
+	case 9:
+		return p[0], binary.LittleEndian.Uint64(p[1:]), 0, true
+	case 17:
+		return p[0], binary.LittleEndian.Uint64(p[1:]), binary.LittleEndian.Uint64(p[9:]), true
 	}
-	return p[0], binary.LittleEndian.Uint64(p[1:]), true
+	return 0, 0, 0, false
 }
 
 // WithID prefixes a call or host call with its id.

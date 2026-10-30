@@ -25,7 +25,7 @@ func dial(t *testing.T, addr string, role byte, schema uint64) *end {
 	if err != nil {
 		t.Fatal(err)
 	}
-	frame.Write(c, frame.Hello, frame.HelloPayload(role, schema))
+	frame.Write(c, frame.Hello, frame.HelloPayload(role, schema, 0))
 	return &end{t, c}
 }
 
@@ -146,3 +146,40 @@ func TestSnapshotIgnoresGeneratedAndBuild(t *testing.T) {
 func mkdirFor(p string) error { return os.MkdirAll(filepath.Dir(p), 0o755) }
 
 func writeFile(p, s string) error { return os.WriteFile(p, []byte(s), 0o644) }
+
+// A dev shell left open from another session is turned away, so it can't
+// take the device's place from this session's shell.
+func TestRelayTurnsAwayOtherSessions(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	devices := make(chan struct{}, 4)
+	r := &relay{con: newConsole(io.Discard), session: 5, onDevice: func() { devices <- struct{}{} }}
+	r.setExpected(42)
+	go r.serve(ln)
+
+	c, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	frame.Write(c, frame.Hello, frame.HelloPayload(frame.RoleDevice, 42, 9))
+	c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := frame.Read(c); err == nil {
+		t.Fatal("a stranger's shell was kept")
+	}
+	select {
+	case <-devices:
+		t.Fatal("a stranger's shell counted as this session's device")
+	default:
+	}
+
+	c2, _ := net.Dial("tcp", ln.Addr().String())
+	frame.Write(c2, frame.Hello, frame.HelloPayload(frame.RoleDevice, 42, 5))
+	select {
+	case <-devices:
+	case <-time.After(2 * time.Second):
+		t.Fatal("this session's shell was not taken")
+	}
+}
