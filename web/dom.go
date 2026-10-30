@@ -144,14 +144,17 @@ func (t *translator) op(op render.Op) []instr {
 			instr{"a": []any{o.Tag, "placeholder", nullable(o.Placeholder)}},
 			instr{"a": []any{o.Tag, "inputmode", nullable(mode)}},
 			instr{"p": []any{o.Tag, "value", o.Value}},
-			instr{"s": []any{o.Tag, "x", fontCSS(o.Font, o.Color)}})
+			instr{"s": []any{o.Tag, "x", fontCSS(o.Font, o.Color)}},
+			instr{"a": []any{o.Tag, "data-submit", boolAttr(o.Submit)}},
+			instr{"a": []any{o.Tag, "enterkeyhint", nullable(map[bool]string{true: "send"}[o.Submit])}},
+			instr{"a": []any{o.Tag, "data-af", boolAttr(o.AutoFocus)}})
 		return out
 	case *render.Scroll:
 		x := "overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;"
 		if o.Horizontal {
 			x = "overflow-x:auto;overflow-y:hidden;"
 		}
-		return []instr{{"s": []any{o.Tag, "x", x}}}
+		return []instr{{"s": []any{o.Tag, "x", x}}, {"a": []any{o.Tag, "data-stick", boolAttr(o.StickToEnd)}}}
 	case *render.Spinner:
 		return []instr{{"s": []any{o.Tag, "x", "border-top-color:" + cssColor(o.Color) + ";"}}}
 	case *render.Switch:

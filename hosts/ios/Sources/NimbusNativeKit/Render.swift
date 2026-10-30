@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xa70843207e81f783
+    public static let schemaHash: UInt64 = 0x53f7f91b99c19e5c
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -442,8 +442,10 @@ public enum Render {
         public var secure: Bool
         public var keyboard: Keyboard
         public var multiline: Bool
+        public var submit: Bool
+        public var autoFocus: Bool
 
-        public init(tag: UInt32 = 0, value: String = "", placeholder: String = "", font: Font = Font(), color: UInt32 = 0, secure: Bool = false, keyboard: Keyboard = Keyboard(rawValue: 0), multiline: Bool = false) {
+        public init(tag: UInt32 = 0, value: String = "", placeholder: String = "", font: Font = Font(), color: UInt32 = 0, secure: Bool = false, keyboard: Keyboard = Keyboard(rawValue: 0), multiline: Bool = false, submit: Bool = false, autoFocus: Bool = false) {
             self.tag = tag
             self.value = value
             self.placeholder = placeholder
@@ -452,6 +454,8 @@ public enum Render {
             self.secure = secure
             self.keyboard = keyboard
             self.multiline = multiline
+            self.submit = submit
+            self.autoFocus = autoFocus
         }
 
         public func write(to w: inout WireWriter) {
@@ -463,6 +467,8 @@ public enum Render {
             w.bool(self.secure)
             w.uint(UInt64(self.keyboard.rawValue))
             w.bool(self.multiline)
+            w.bool(self.submit)
+            w.bool(self.autoFocus)
         }
 
         public static func read(from r: inout WireReader) throws -> Input {
@@ -475,6 +481,8 @@ public enum Render {
             m.secure = try r.bool()
             m.keyboard = Keyboard(rawValue: UInt8(try r.uint(max: 255)))
             m.multiline = try r.bool()
+            m.submit = try r.bool()
+            m.autoFocus = try r.bool()
             return m
         }
     }
@@ -632,8 +640,9 @@ public enum Render {
         public var report: Bool
         public var refreshable: Bool
         public var refreshing: Bool
+        public var stickToEnd: Bool
 
-        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false, report: Bool = false, refreshable: Bool = false, refreshing: Bool = false) {
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, horizontal: Bool = false, report: Bool = false, refreshable: Bool = false, refreshing: Bool = false, stickToEnd: Bool = false) {
             self.tag = tag
             self.w = w
             self.h = h
@@ -641,6 +650,7 @@ public enum Render {
             self.report = report
             self.refreshable = refreshable
             self.refreshing = refreshing
+            self.stickToEnd = stickToEnd
         }
 
         public func write(to w: inout WireWriter) {
@@ -651,6 +661,7 @@ public enum Render {
             w.bool(self.report)
             w.bool(self.refreshable)
             w.bool(self.refreshing)
+            w.bool(self.stickToEnd)
         }
 
         public static func read(from r: inout WireReader) throws -> Scroll {
@@ -662,6 +673,7 @@ public enum Render {
             m.report = try r.bool()
             m.refreshable = try r.bool()
             m.refreshing = try r.bool()
+            m.stickToEnd = try r.bool()
             return m
         }
     }
@@ -673,6 +685,9 @@ public enum Render {
     /// DrawCubicTo c1x c1y c2x c2y x y · DrawClose
     /// DrawCircle cx cy r · DrawRect x y w h radius   (add to the path)
     /// DrawFill color · DrawStroke width color        (paint the path, then start a new one)
+    /// DrawFillGradient radial x0 y0 x1 y1 n stop×n colors×n
+    /// (fill with a gradient from (x0, y0) to (x1, y1);
+    /// radial: from (x0, y0) out to the distance to (x1, y1))
     public struct Draw: Equatable {
         public var tag: UInt32
         public var w: Float
@@ -1015,6 +1030,25 @@ public enum Render {
             m.w = try r.float32()
             m.h = try r.float32()
             m.bottom = try r.float32()
+            return m
+        }
+    }
+
+    /// Submitted reports Return on an input that submits (Input.Submit).
+    public struct Submitted: Equatable {
+        public var tag: UInt32
+
+        public init(tag: UInt32 = 0) {
+            self.tag = tag
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Submitted {
+            var m = Submitted()
+            m.tag = UInt32(try r.uint(max: 4294967295))
             return m
         }
     }
@@ -1443,6 +1477,7 @@ public enum Render {
         case dismissed(Dismissed)
         case selected(Selected)
         case resized(Resized)
+        case submitted(Submitted)
         case changed(Changed)
         case measureText(MeasureText)
         case textSize(TextSize)
@@ -1484,41 +1519,44 @@ public enum Render {
             case .resized(let x)?:
                 w.uint(8)
                 x.write(to: &w)
-            case .changed(let x)?:
+            case .submitted(let x)?:
                 w.uint(9)
                 x.write(to: &w)
-            case .measureText(let x)?:
+            case .changed(let x)?:
                 w.uint(10)
                 x.write(to: &w)
-            case .textSize(let x)?:
+            case .measureText(let x)?:
                 w.uint(11)
                 x.write(to: &w)
-            case .pluginCall(let x)?:
+            case .textSize(let x)?:
                 w.uint(12)
                 x.write(to: &w)
-            case .pluginAck(let x)?:
+            case .pluginCall(let x)?:
                 w.uint(13)
                 x.write(to: &w)
-            case .pluginResult(let x)?:
+            case .pluginAck(let x)?:
                 w.uint(14)
                 x.write(to: &w)
-            case .toggled(let x)?:
+            case .pluginResult(let x)?:
                 w.uint(15)
                 x.write(to: &w)
-            case .refresh(let x)?:
+            case .toggled(let x)?:
                 w.uint(16)
                 x.write(to: &w)
-            case .reattach(let x)?:
+            case .refresh(let x)?:
                 w.uint(17)
                 x.write(to: &w)
-            case .open(let x)?:
+            case .reattach(let x)?:
                 w.uint(18)
                 x.write(to: &w)
-            case .slid(let x)?:
+            case .open(let x)?:
                 w.uint(19)
                 x.write(to: &w)
-            case .longPressed(let x)?:
+            case .slid(let x)?:
                 w.uint(20)
+                x.write(to: &w)
+            case .longPressed(let x)?:
+                w.uint(21)
                 x.write(to: &w)
             }
         }
@@ -1544,28 +1582,30 @@ public enum Render {
             case 8:
                 return .resized(try Resized.read(from: &r))
             case 9:
-                return .changed(try Changed.read(from: &r))
+                return .submitted(try Submitted.read(from: &r))
             case 10:
-                return .measureText(try MeasureText.read(from: &r))
+                return .changed(try Changed.read(from: &r))
             case 11:
-                return .textSize(try TextSize.read(from: &r))
+                return .measureText(try MeasureText.read(from: &r))
             case 12:
-                return .pluginCall(try PluginCall.read(from: &r))
+                return .textSize(try TextSize.read(from: &r))
             case 13:
-                return .pluginAck(try PluginAck.read(from: &r))
+                return .pluginCall(try PluginCall.read(from: &r))
             case 14:
-                return .pluginResult(try PluginResult.read(from: &r))
+                return .pluginAck(try PluginAck.read(from: &r))
             case 15:
-                return .toggled(try Toggled.read(from: &r))
+                return .pluginResult(try PluginResult.read(from: &r))
             case 16:
-                return .refresh(try Refresh.read(from: &r))
+                return .toggled(try Toggled.read(from: &r))
             case 17:
-                return .reattach(try Reattach.read(from: &r))
+                return .refresh(try Refresh.read(from: &r))
             case 18:
-                return .open(try Open.read(from: &r))
+                return .reattach(try Reattach.read(from: &r))
             case 19:
-                return .slid(try Slid.read(from: &r))
+                return .open(try Open.read(from: &r))
             case 20:
+                return .slid(try Slid.read(from: &r))
+            case 21:
                 return .longPressed(try LongPressed.read(from: &r))
             default:
                 throw WireError.variant

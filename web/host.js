@@ -31,6 +31,13 @@
       else if (k === 6) { const x = v(), y = v(), w = v(), h = v(), r = Math.min(v(), w / 2, h / 2); p.roundRect(x, y, w, h, Math.max(r, 0)); }
       else if (k === 7) { g.fillStyle = d.c[c++]; g.fill(p); p = new Path2D(); }
       else if (k === 8) { g.lineWidth = v(); g.lineCap = g.lineJoin = "round"; g.strokeStyle = d.c[c++]; g.stroke(p); p = new Path2D(); }
+      else if (k === 9) {
+        const radial = v(), x0 = v(), y0 = v(), x1 = v(), y1 = v(), n2 = v(), stops = [];
+        for (let j = 0; j < n2; j++) stops.push(v());
+        const gr = radial ? g.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0)) : g.createLinearGradient(x0, y0, x1, y1);
+        for (let j = 0; j < n2; j++) gr.addColorStop(Math.min(Math.max(stops[j], 0), 1), d.c[c++]);
+        g.fillStyle = gr; g.fill(p); p = new Path2D();
+      }
       else break;
     }
   }
@@ -108,6 +115,13 @@
   }
 
   function apply(list) {
+    // Sticky scroll views (a chat) follow their content's end as it grows.
+    const sticky = [...root.querySelectorAll("[data-stick]")].map((el) => [el, el.scrollHeight]);
+    applyAll(list);
+    for (const [el, h] of sticky) if (el.scrollHeight > h) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    for (const el of root.querySelectorAll("[data-af]:not([data-focused])")) { el.dataset.focused = ""; el.focus(); }
+  }
+  function applyAll(list) {
     for (const i of list) {
       if (i.c) create(i.c[0], i.c[1], i.c[2]);
       else if (i.k) { const el = els.get(i.k[0]); if (el) children(el, i.k[1]); }
@@ -217,6 +231,13 @@
   });
   root.addEventListener("input", (e) => {
     if (e.target.classList?.contains("in")) send({ t: "changed", tag: tagOf(e.target), text: e.target.value });
+  });
+  // Return sends on an input that submits (Shift+Return still breaks a line).
+  root.addEventListener("keydown", (e) => {
+    const t = e.target;
+    if (e.key !== "Enter" || e.shiftKey || e.isComposing || !t.classList?.contains("in") || t.dataset.submit == null) return;
+    e.preventDefault();
+    send({ t: "submitted", tag: tagOf(t) });
   });
   root.addEventListener("input", (e) => {
     if (e.target.classList?.contains("sl")) send({ t: "slid", tag: tagOf(e.target), value: +e.target.value });

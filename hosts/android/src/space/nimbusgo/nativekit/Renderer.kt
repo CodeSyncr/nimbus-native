@@ -195,7 +195,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 is Render.Image -> (views[op.tag.toInt()] as? NNImage)?.load(op)
                 is Render.Input -> (views[op.tag.toInt()] as? NNInput)?.apply(op, density)
                 is Render.Scroll -> (views[op.tag.toInt()] as? NNScroll)?.let {
-                    it.setContent((op.w * density).roundToInt(), (op.h * density).roundToInt(), op.horizontal, op.report)
+                    it.setContent((op.w * density).roundToInt(), (op.h * density).roundToInt(), op.horizontal, op.report, op.stickToEnd)
                     it.setRefresh(op.refreshable, op.refreshing, argb(if (chrome.accent != 0L) chrome.accent else 0x2563ebffL))
                 }
                 is Render.Switch -> (views[op.tag.toInt()] as? NNSwitch)?.apply(op)
@@ -409,9 +409,21 @@ class Renderer internal constructor(private val root: NimbusView) {
         private var applying = false
 
         private var multiline = false
+        private var submits = false
+        private var focusedOnce = false
 
         init {
             isSingleLine = true
+            // The keyboard's action key (Send) on an input that submits.
+            setOnEditorActionListener { _, action, event ->
+                val enter = event?.keyCode == android.view.KeyEvent.KEYCODE_ENTER && event.action == android.view.KeyEvent.ACTION_DOWN
+                if (submits && (action == android.view.inputmethod.EditorInfo.IME_ACTION_SEND || enter)) {
+                    Bridge.send(Render.encode(Render.Submitted(tag = tag.toLong())))
+                    true
+                } else {
+                    false
+                }
+            }
             background = null
             val pad = (10 * density).roundToInt() // the runtime measures inputs with 10 dp padding
             setPadding(pad, pad, pad, pad)
@@ -450,6 +462,16 @@ class Renderer internal constructor(private val root: NimbusView) {
                 multiline = o.multiline
                 isSingleLine = !multiline
                 gravity = if (multiline) Gravity.TOP or Gravity.START else Gravity.CENTER_VERTICAL or Gravity.START
+            }
+            submits = o.submit
+            imeOptions = if (o.submit) android.view.inputmethod.EditorInfo.IME_ACTION_SEND else android.view.inputmethod.EditorInfo.IME_ACTION_UNSPECIFIED
+            if (o.autoFocus && !focusedOnce) {
+                focusedOnce = true
+                post {
+                    requestFocus()
+                    val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+                    imm.showSoftInput(this, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                }
             }
         }
     }

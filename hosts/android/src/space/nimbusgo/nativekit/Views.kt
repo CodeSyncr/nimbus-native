@@ -102,7 +102,8 @@ internal class NNScroll(c: Context, r: Renderer) : NNGroup(c, r) {
     private var indicator: ProgressBar? = null
     private var accent = 0xff2563eb.toInt()
 
-    fun setContent(wPx: Int, hPx: Int, horizontal: Boolean, report: Boolean) {
+    fun setContent(wPx: Int, hPx: Int, horizontal: Boolean, report: Boolean, stickToEnd: Boolean = false) {
+        val grew = hPx > content.fixedH && content.fixedH >= 0
         var s = scroller
         if (s == null || horizontal != this.horizontal) {
             if (s != null) {
@@ -118,6 +119,11 @@ internal class NNScroll(c: Context, r: Renderer) : NNGroup(c, r) {
         content.fixedW = wPx
         content.fixedH = hPx
         content.requestLayout()
+        // A chat: when the content gets longer, show its end.
+        if (stickToEnd && grew && !horizontal) {
+            val sv = s as? ScrollView
+            sv?.post { sv.smoothScrollTo(0, maxOf(0, content.fixedH - sv.height)) }
+        }
         s.setOnScrollChangeListener(
             if (report) View.OnScrollChangeListener { v, x, y, _, _ -> r.scrolled(id, x, y, v.width, v.height) } else null,
         )

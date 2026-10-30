@@ -69,6 +69,29 @@ func (p *Painter) Fill(c Color) {
 	p.colors = append(p.colors, uint32(c))
 }
 
+// FillGradient paints the path's inside with g, then starts a new path. Its
+// points are in the canvas's own space (not the unit square a Style's
+// gradient uses); a radial one spreads from From out to the distance to To.
+func (p *Painter) FillGradient(g *Gradient) {
+	if g == nil || len(g.Colors) == 0 {
+		return
+	}
+	radial := float32(0)
+	if g.Radial {
+		radial = 1
+	}
+	n := len(g.Colors)
+	p.add(render.DrawFillGradient, radial, g.From.X, g.From.Y, g.To.X, g.To.Y, float32(n))
+	for i := 0; i < n; i++ {
+		stop := float32(i) / float32(max(n-1, 1))
+		if len(g.Stops) == n {
+			stop = g.Stops[i]
+		}
+		p.nums = append(p.nums, stop)
+		p.colors = append(p.colors, uint32(g.Colors[i]))
+	}
+}
+
 // Stroke draws the path's outline width wide in c, then starts a new path.
 func (p *Painter) Stroke(width float32, c Color) {
 	p.add(render.DrawStroke, width)

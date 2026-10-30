@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xa70843207e81f783uL.toLong()
+    val SCHEMA_HASH: Long = 0x53f7f91b99c19e5cuL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -368,6 +368,8 @@ object Render {
         var secure: Boolean = false,
         var keyboard: Int = 0,
         var multiline: Boolean = false,
+        var submit: Boolean = false,
+        var autoFocus: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -378,6 +380,8 @@ object Render {
             w.bool(this.secure)
             w.uint(this.keyboard.toLong())
             w.bool(this.multiline)
+            w.bool(this.submit)
+            w.bool(this.autoFocus)
         }
 
         companion object {
@@ -391,6 +395,8 @@ object Render {
                 m.secure = r0.bool()
                 m.keyboard = r0.uintMax(255L).toInt()
                 m.multiline = r0.bool()
+                m.submit = r0.bool()
+                m.autoFocus = r0.bool()
                 return m
             }
         }
@@ -523,6 +529,7 @@ object Render {
         var report: Boolean = false,
         var refreshable: Boolean = false,
         var refreshing: Boolean = false,
+        var stickToEnd: Boolean = false,
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -532,6 +539,7 @@ object Render {
             w.bool(this.report)
             w.bool(this.refreshable)
             w.bool(this.refreshing)
+            w.bool(this.stickToEnd)
         }
 
         companion object {
@@ -544,12 +552,13 @@ object Render {
                 m.report = r0.bool()
                 m.refreshable = r0.bool()
                 m.refreshing = r0.bool()
+                m.stickToEnd = r0.bool()
                 return m
             }
         }
     }
 
-    /** Draw sets what a canvas draws: commands in a W×H space fitted to the view (centred, keeping its aspect, like an SVG viewBox). Each command takes its numbers from Nums and its colors from Colors, in order:  DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y DrawCubicTo c1x c1y c2x c2y x y · DrawClose DrawCircle cx cy r · DrawRect x y w h radius   (add to the path) DrawFill color · DrawStroke width color        (paint the path, then start a new one) */
+    /** Draw sets what a canvas draws: commands in a W×H space fitted to the view (centred, keeping its aspect, like an SVG viewBox). Each command takes its numbers from Nums and its colors from Colors, in order:  DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y DrawCubicTo c1x c1y c2x c2y x y · DrawClose DrawCircle cx cy r · DrawRect x y w h radius   (add to the path) DrawFill color · DrawStroke width color        (paint the path, then start a new one) DrawFillGradient radial x0 y0 x1 y1 n stop×n colors×n (fill with a gradient from (x0, y0) to (x1, y1); radial: from (x0, y0) out to the distance to (x1, y1)) */
     data class Draw(
         var tag: Long = 0L,
         var w: Float = 0f,
@@ -832,6 +841,23 @@ object Render {
                 m.w = r0.f32()
                 m.h = r0.f32()
                 m.bottom = r0.f32()
+                return m
+            }
+        }
+    }
+
+    /** Submitted reports Return on an input that submits (Input.Submit). */
+    data class Submitted(
+        var tag: Long = 0L,
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Submitted {
+                val m = Submitted()
+                m.tag = r0.uintMax(4294967295L)
                 return m
             }
         }
@@ -1144,18 +1170,19 @@ object Render {
             is Dismissed -> { w.uint(6); v.write(w) }
             is Selected -> { w.uint(7); v.write(w) }
             is Resized -> { w.uint(8); v.write(w) }
-            is Changed -> { w.uint(9); v.write(w) }
-            is MeasureText -> { w.uint(10); v.write(w) }
-            is TextSize -> { w.uint(11); v.write(w) }
-            is PluginCall -> { w.uint(12); v.write(w) }
-            is PluginAck -> { w.uint(13); v.write(w) }
-            is PluginResult -> { w.uint(14); v.write(w) }
-            is Toggled -> { w.uint(15); v.write(w) }
-            is Refresh -> { w.uint(16); v.write(w) }
-            is Reattach -> { w.uint(17); v.write(w) }
-            is Open -> { w.uint(18); v.write(w) }
-            is Slid -> { w.uint(19); v.write(w) }
-            is LongPressed -> { w.uint(20); v.write(w) }
+            is Submitted -> { w.uint(9); v.write(w) }
+            is Changed -> { w.uint(10); v.write(w) }
+            is MeasureText -> { w.uint(11); v.write(w) }
+            is TextSize -> { w.uint(12); v.write(w) }
+            is PluginCall -> { w.uint(13); v.write(w) }
+            is PluginAck -> { w.uint(14); v.write(w) }
+            is PluginResult -> { w.uint(15); v.write(w) }
+            is Toggled -> { w.uint(16); v.write(w) }
+            is Refresh -> { w.uint(17); v.write(w) }
+            is Reattach -> { w.uint(18); v.write(w) }
+            is Open -> { w.uint(19); v.write(w) }
+            is Slid -> { w.uint(20); v.write(w) }
+            is LongPressed -> { w.uint(21); v.write(w) }
         }
     }
 
@@ -1169,18 +1196,19 @@ object Render {
         6L -> Dismissed.read(r0)
         7L -> Selected.read(r0)
         8L -> Resized.read(r0)
-        9L -> Changed.read(r0)
-        10L -> MeasureText.read(r0)
-        11L -> TextSize.read(r0)
-        12L -> PluginCall.read(r0)
-        13L -> PluginAck.read(r0)
-        14L -> PluginResult.read(r0)
-        15L -> Toggled.read(r0)
-        16L -> Refresh.read(r0)
-        17L -> Reattach.read(r0)
-        18L -> Open.read(r0)
-        19L -> Slid.read(r0)
-        20L -> LongPressed.read(r0)
+        9L -> Submitted.read(r0)
+        10L -> Changed.read(r0)
+        11L -> MeasureText.read(r0)
+        12L -> TextSize.read(r0)
+        13L -> PluginCall.read(r0)
+        14L -> PluginAck.read(r0)
+        15L -> PluginResult.read(r0)
+        16L -> Toggled.read(r0)
+        17L -> Refresh.read(r0)
+        18L -> Reattach.read(r0)
+        19L -> Open.read(r0)
+        20L -> Slid.read(r0)
+        21L -> LongPressed.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

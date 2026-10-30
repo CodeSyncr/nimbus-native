@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xa70843207e81f783
+const SchemaHash uint64 = 0x53f7f91b99c19e5c
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -263,6 +263,8 @@ func (m *Input) AppendWire(b []byte) []byte {
 	b = wire.AppendBool(b, m.Secure)
 	b = wire.AppendUint(b, uint64(m.Keyboard))
 	b = wire.AppendBool(b, m.Multiline)
+	b = wire.AppendBool(b, m.Submit)
+	b = wire.AppendBool(b, m.AutoFocus)
 	return b
 }
 
@@ -276,6 +278,8 @@ func (m *Input) ReadWire(r *wire.Reader) {
 	m.Secure = r.Bool()
 	m.Keyboard = Keyboard(r.UintMax(1<<8 - 1))
 	m.Multiline = r.Bool()
+	m.Submit = r.Bool()
+	m.AutoFocus = r.Bool()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -364,6 +368,7 @@ func (m *Scroll) AppendWire(b []byte) []byte {
 	b = wire.AppendBool(b, m.Report)
 	b = wire.AppendBool(b, m.Refreshable)
 	b = wire.AppendBool(b, m.Refreshing)
+	b = wire.AppendBool(b, m.StickToEnd)
 	return b
 }
 
@@ -376,6 +381,7 @@ func (m *Scroll) ReadWire(r *wire.Reader) {
 	m.Report = r.Bool()
 	m.Refreshable = r.Bool()
 	m.Refreshing = r.Bool()
+	m.StickToEnd = r.Bool()
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -581,6 +587,17 @@ func (m *Resized) ReadWire(r *wire.Reader) {
 	m.W = r.Float32()
 	m.H = r.Float32()
 	m.Bottom = r.Float32()
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Submitted) AppendWire(b []byte) []byte {
+	b = wire.AppendUint(b, uint64(m.Tag))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Submitted) ReadWire(r *wire.Reader) {
+	m.Tag = uint32(r.UintMax(1<<32 - 1))
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -898,6 +915,7 @@ func (*Popped) isMessage()       {}
 func (*Dismissed) isMessage()    {}
 func (*Selected) isMessage()     {}
 func (*Resized) isMessage()      {}
+func (*Submitted) isMessage()    {}
 func (*Changed) isMessage()      {}
 func (*MeasureText) isMessage()  {}
 func (*TextSize) isMessage()     {}
@@ -932,30 +950,32 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 7))
 	case *Resized:
 		return v.AppendWire(wire.AppendUint(b, 8))
-	case *Changed:
+	case *Submitted:
 		return v.AppendWire(wire.AppendUint(b, 9))
-	case *MeasureText:
+	case *Changed:
 		return v.AppendWire(wire.AppendUint(b, 10))
-	case *TextSize:
+	case *MeasureText:
 		return v.AppendWire(wire.AppendUint(b, 11))
-	case *PluginCall:
+	case *TextSize:
 		return v.AppendWire(wire.AppendUint(b, 12))
-	case *PluginAck:
+	case *PluginCall:
 		return v.AppendWire(wire.AppendUint(b, 13))
-	case *PluginResult:
+	case *PluginAck:
 		return v.AppendWire(wire.AppendUint(b, 14))
-	case *Toggled:
+	case *PluginResult:
 		return v.AppendWire(wire.AppendUint(b, 15))
-	case *Refresh:
+	case *Toggled:
 		return v.AppendWire(wire.AppendUint(b, 16))
-	case *Reattach:
+	case *Refresh:
 		return v.AppendWire(wire.AppendUint(b, 17))
-	case *Open:
+	case *Reattach:
 		return v.AppendWire(wire.AppendUint(b, 18))
-	case *Slid:
+	case *Open:
 		return v.AppendWire(wire.AppendUint(b, 19))
-	case *LongPressed:
+	case *Slid:
 		return v.AppendWire(wire.AppendUint(b, 20))
+	case *LongPressed:
+		return v.AppendWire(wire.AppendUint(b, 21))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -998,50 +1018,54 @@ func ReadMessage(r *wire.Reader) Message {
 		v.ReadWire(r)
 		return v
 	case 9:
-		v := new(Changed)
+		v := new(Submitted)
 		v.ReadWire(r)
 		return v
 	case 10:
-		v := new(MeasureText)
+		v := new(Changed)
 		v.ReadWire(r)
 		return v
 	case 11:
-		v := new(TextSize)
+		v := new(MeasureText)
 		v.ReadWire(r)
 		return v
 	case 12:
-		v := new(PluginCall)
+		v := new(TextSize)
 		v.ReadWire(r)
 		return v
 	case 13:
-		v := new(PluginAck)
+		v := new(PluginCall)
 		v.ReadWire(r)
 		return v
 	case 14:
-		v := new(PluginResult)
+		v := new(PluginAck)
 		v.ReadWire(r)
 		return v
 	case 15:
-		v := new(Toggled)
+		v := new(PluginResult)
 		v.ReadWire(r)
 		return v
 	case 16:
-		v := new(Refresh)
+		v := new(Toggled)
 		v.ReadWire(r)
 		return v
 	case 17:
-		v := new(Reattach)
+		v := new(Refresh)
 		v.ReadWire(r)
 		return v
 	case 18:
-		v := new(Open)
+		v := new(Reattach)
 		v.ReadWire(r)
 		return v
 	case 19:
-		v := new(Slid)
+		v := new(Open)
 		v.ReadWire(r)
 		return v
 	case 20:
+		v := new(Slid)
+		v.ReadWire(r)
+		return v
+	case 21:
 		v := new(LongPressed)
 		v.ReadWire(r)
 		return v

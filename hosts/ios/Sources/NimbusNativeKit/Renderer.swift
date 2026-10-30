@@ -244,7 +244,13 @@ public final class Renderer {
             case .input(let o): (views[o.tag] as? NNInput)?.apply(o)
             case .scroll(let o):
                 if let s = views[o.tag] as? UIScrollView {
+                    let grew = CGFloat(o.h) > s.contentSize.height
                     s.contentSize = CGSize(width: CGFloat(o.w), height: CGFloat(o.h))
+                    if o.stickToEnd, grew, s.window != nil {
+                        // A chat: show the newest at the end.
+                        let end = max(-s.adjustedContentInset.top, s.contentSize.height - s.bounds.height + s.adjustedContentInset.bottom)
+                        s.setContentOffset(CGPoint(x: s.contentOffset.x, y: end), animated: true)
+                    }
                     s.alwaysBounceVertical = !o.horizontal
                     s.alwaysBounceHorizontal = o.horizontal
                     s.delegate = o.report ? scrollReporter : nil
@@ -301,7 +307,9 @@ public final class Renderer {
             v = p
         case .scroll: v = UIScrollView()
         case .input:
-            v = NNInput { [weak self] text in self?.send(.changed(Render.Changed(tag: o.tag, text: text))) }
+            let input = NNInput { [weak self] text in self?.send(.changed(Render.Changed(tag: o.tag, text: text))) }
+            input.onSubmit = { [weak self] in self?.send(.submitted(Render.Submitted(tag: o.tag))) }
+            v = input
         case .slider:
             let sl = UISlider()
             sl.addAction(UIAction { [weak self, weak sl] _ in
@@ -552,6 +560,26 @@ final class NNCanvas: UIView {
                 let w = num()
                 c.addPath(path); c.setStrokeColor(col()); c.setLineWidth(w); c.setLineCap(.round); c.setLineJoin(.round); c.strokePath()
                 path = CGMutablePath()
+            case 9:
+                let radial = num() != 0
+                let a = CGPoint(x: num(), y: num()), b = CGPoint(x: num(), y: num())
+                let count = Int(num())
+                var stops: [CGFloat] = [], cols: [CGColor] = []
+                for _ in 0..<max(count, 0) { stops.append(num()) }
+                for _ in 0..<max(count, 0) { cols.append(col()) }
+                if count > 0, let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols as CFArray, locations: stops) {
+                    c.saveGState()
+                    c.addPath(path)
+                    c.clip()
+                    if radial {
+                        c.drawRadialGradient(g, startCenter: a, startRadius: 0, endCenter: a, endRadius: hypot(b.x - a.x, b.y - a.y),
+                                             options: [.drawsAfterEndLocation])
+                    } else {
+                        c.drawLinearGradient(g, start: a, end: b, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+                    }
+                    c.restoreGState()
+                }
+                path = CGMutablePath()
             default: return // a newer command: stop rather than draw it wrong
             }
         }
@@ -718,9 +746,14 @@ final class NNPressable: UIControl {
 final class NNInput: UIView, UITextViewDelegate {
     private let pad: CGFloat = 10
     private let onChange: (String) -> Void
+    var onSubmit: (() -> Void)?
+    private var submits = false
+    private var focusedOnce = false
     private lazy var field: UITextField = {
         let f = UITextField()
         f.addAction(UIAction { [weak self, weak f] _ in self?.onChange(f?.text ?? "") }, for: .editingChanged)
+        // Return: send, keeping the keyboard up (a chat goes on).
+        f.addAction(UIAction { [weak self] _ in if self?.submits == true { self?.onSubmit?() } }, for: .primaryActionTriggered)
         return f
     }()
     private var area: UITextView?
@@ -765,6 +798,23 @@ final class NNInput: UIView, UITextViewDelegate {
         }
         field.keyboardType = type
         area?.keyboardType = type
+        submits = o.submit
+        field.returnKeyType = o.submit ? .send : .default
+        area?.returnKeyType = o.submit ? .send : .default
+        if o.autoFocus && !focusedOnce {
+            focusedOnce = true
+            // Once on screen: focusing a view outside a window does nothing.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.window != nil else { return }
+                _ = (self.area as UIView?)?.becomeFirstResponder() ?? self.field.becomeFirstResponder()
+            }
+        }
+    }
+
+    /// Return in a text view that submits sends instead of breaking the line.
+    func textView(_ t: UITextView, shouldChangeTextIn range: NSRange, replacementText s: String) -> Bool {
+        if submits, s == "\n" { onSubmit?(); return false }
+        return true
     }
 
     private func switchMode(_ multi: Bool) {

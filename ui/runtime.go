@@ -179,6 +179,10 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onPress != nil {
 				in.el.onPress()
 			}
+		case *render.Submitted:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onSubmit != nil {
+				in.el.onSubmit()
+			}
 		case *render.Changed:
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onChange != nil {
 				in.el.onChange(m.Text)
@@ -635,7 +639,8 @@ func (rt *runtime) props(in *instance, first bool) {
 		}
 	case render.KindInput:
 		inp := render.Input{Tag: in.tag, Value: el.text, Placeholder: el.placeholder, Font: font,
-			Color: uint32(textColor), Secure: el.secure, Keyboard: el.keyboard, Multiline: el.multiline}
+			Color: uint32(textColor), Secure: el.secure, Keyboard: el.keyboard, Multiline: el.multiline,
+			Submit: el.onSubmit != nil, AutoFocus: el.autoFocus}
 		if first || inp != in.sent.input {
 			if inp.Font != in.sent.input.Font || inp.Multiline != in.sent.input.Multiline {
 				in.measured = nil
@@ -697,7 +702,7 @@ func (rt *runtime) emitFrames(in *instance) {
 	}
 	if in.el.kind == render.KindScroll {
 		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil || in.el.onScroll != nil,
-			Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing}
+			Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing, StickToEnd: in.el.stickToEnd}
 		if sc != in.sent.scroll {
 			in.sent.scroll = sc
 			rt.op(&sc)

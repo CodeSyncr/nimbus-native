@@ -221,6 +221,11 @@ type Input struct {
 	Secure      bool
 	Keyboard    Keyboard
 	Multiline   bool // wraps and grows with Return making new lines
+	// Submit makes Return send (Submitted) instead of a new line; the key
+	// says Send.
+	Submit bool
+	// AutoFocus focuses the input when it appears, keyboard up.
+	AutoFocus bool
 }
 
 // Screen sets a stack screen's title. Tag is the screen's root view, a
@@ -284,6 +289,9 @@ type Scroll struct {
 	// keeps the indicator showing until Go clears it.
 	Refreshable bool
 	Refreshing  bool
+	// StickToEnd keeps the end in view as the content grows (a chat): when
+	// it gets longer, the view scrolls to show its end.
+	StickToEnd bool
 }
 
 // Draw sets what a canvas draws: commands in a W×H space fitted to the
@@ -294,6 +302,9 @@ type Scroll struct {
 //	DrawCubicTo c1x c1y c2x c2y x y · DrawClose
 //	DrawCircle cx cy r · DrawRect x y w h radius   (add to the path)
 //	DrawFill color · DrawStroke width color        (paint the path, then start a new one)
+//	DrawFillGradient radial x0 y0 x1 y1 n stop×n colors×n
+//	                                               (fill with a gradient from (x0, y0) to (x1, y1);
+//	                                               radial: from (x0, y0) out to the distance to (x1, y1))
 //
 //wire:variant Op
 type Draw struct {
@@ -315,6 +326,7 @@ const (
 	DrawRect
 	DrawFill
 	DrawStroke
+	DrawFillGradient
 )
 
 // Slider sets a slider.
@@ -406,6 +418,13 @@ type Resized struct {
 	Tag    uint32
 	W, H   float32
 	Bottom float32
+}
+
+// Submitted reports Return on an input that submits (Input.Submit).
+//
+//wire:message
+type Submitted struct {
+	Tag uint32
 }
 
 // Changed reports an input's new text.

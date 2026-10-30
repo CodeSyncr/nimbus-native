@@ -259,6 +259,23 @@ internal class NNCanvas(c: android.content.Context) : View(c) {
                     canvas.drawPath(path, paint)
                     path = Path()
                 }
+                9 -> {
+                    val radial = num() != 0f
+                    val x0 = num(); val y0 = num(); val x1 = num(); val y1 = num()
+                    val count = num().toInt().coerceAtLeast(0)
+                    val stops = FloatArray(count) { num() }
+                    val cols = IntArray(count) { col() }
+                    if (count > 0) {
+                        val shader = if (radial) {
+                            RadialGradient(x0, y0, hypot(x1 - x0, y1 - y0).coerceAtLeast(0.01f), cols, stops, Shader.TileMode.CLAMP)
+                        } else {
+                            LinearGradient(x0, y0, x1, y1, cols, stops, Shader.TileMode.CLAMP)
+                        }
+                        val gp = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader }
+                        canvas.drawPath(path, gp)
+                    }
+                    path = Path()
+                }
                 else -> break // a newer command: stop rather than draw it wrong
             }
         }

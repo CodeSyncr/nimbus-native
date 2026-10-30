@@ -249,6 +249,8 @@ func (s *session) receive(m clientMessage) {
 		msg = &render.Press{Tag: m.Tag}
 	case "changed":
 		msg = &render.Changed{Tag: m.Tag, Text: m.Text}
+	case "submitted":
+		msg = &render.Submitted{Tag: m.Tag}
 	case "toggled":
 		msg = &render.Toggled{Tag: m.Tag, On: m.On}
 	case "slid":

@@ -39,6 +39,9 @@ type Element struct {
 	onSlide     func(float32)
 	draw        *render.Draw // a Canvas's shapes
 	onScroll    func(x, y float32)
+	onSubmit    func()
+	autoFocus   bool
+	stickToEnd  bool
 	list        *listSpec
 	stack       *stackSpec
 	tabs        *tabsSpec
@@ -107,6 +110,26 @@ func scrollFill(s Style) Style {
 // when something changes (to tuck a bar away, say).
 func (e *Element) OnScroll(f func(x, y float32)) *Element {
 	e.onScroll = f
+	return e
+}
+
+// OnSubmit makes Return on a TextInput call f (the key says Send), even on
+// a Multiline one: chat boxes send on Return.
+func (e *Element) OnSubmit(f func()) *Element {
+	e.onSubmit = f
+	return e
+}
+
+// AutoFocus focuses a TextInput when it appears, with the keyboard up.
+func (e *Element) AutoFocus() *Element {
+	e.autoFocus = true
+	return e
+}
+
+// StickToEnd keeps a Scroll's end in view as its content grows, as a chat
+// shows its newest message.
+func (e *Element) StickToEnd() *Element {
+	e.stickToEnd = true
 	return e
 }
 
