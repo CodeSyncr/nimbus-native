@@ -106,6 +106,7 @@ object Plugins {
         handlers["linking"] = Handler(Linking::handle)
         handlers["dialog"] = Handler(Dialogs::handle)
         handlers["haptics"] = Handler(Haptics::handle)
+        handlers["audio"] = Handler(Audio::handle)
     }
 
     /** Makes [name] callable from Go, replacing any plugin of that name. */

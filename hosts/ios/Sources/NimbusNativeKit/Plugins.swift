@@ -71,6 +71,7 @@ public enum Plugins {
         "linking": Linking.handle,
         "dialog": Dialogs.handle,
         "haptics": Haptics.handle,
+        "audio": Audio.handle,
     ]
 
     /// Makes `name` callable from Go, replacing any plugin of that name.

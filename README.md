@@ -93,7 +93,7 @@ Not yet: gestures beyond long press, plugins on the web.
 | `router/` | Path → page matching and `router.Push`; the table comes from `pages/` (`toolchain/routes.go`) |
 | `plugin/` | Calls native code: `plugin.Call` to a Swift/Kotlin plugin (`hosts/*/Plugins.*`) |
 | `web/` | The app's pages for browsers: server rendering, SEO tags, sitemap, and `host.js` |
-| `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, `dialog`, and `storage` (a key-value file) |
+| `plugins/` | Built-in plugins: `securestore`, `appinfo`, `linking`, `dialog`, `haptics`, `audio` (spoken turns: the microphone and a player) and `storage` (a key-value file) |
 
 ## Start a project
 
