@@ -624,8 +624,11 @@ func (rt *runtime) props(in *instance, first bool) {
 	switch el.kind {
 	case render.KindText:
 		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines, MinScale: s.MinScale}
-		if first || t != in.sent.text {
-			if t.Text != in.sent.text.Text || t.Font != in.sent.text.Font || t.Lines != in.sent.text.Lines {
+		for _, sp := range el.spans {
+			t.Spans = append(t.Spans, spanOf(sp, font, textColor))
+		}
+		if first || !textEqual(t, in.sent.text) {
+			if t.Text != in.sent.text.Text || t.Font != in.sent.text.Font || t.Lines != in.sent.text.Lines || !slices.Equal(t.Spans, in.sent.text.Spans) {
 				in.measured = nil
 				in.node.MarkDirty()
 			}
@@ -727,7 +730,7 @@ func (rt *runtime) textMeasure(in *instance) layout.MeasureFunc {
 		}
 		t := in.sent.text
 		rt.measures++
-		sz := rt.measure(&render.MeasureText{Text: t.Text, Font: t.Font, MaxWidth: w, Lines: t.Lines})
+		sz := rt.measure(&render.MeasureText{Text: t.Text, Font: t.Font, MaxWidth: w, Lines: t.Lines, Spans: t.Spans})
 		if in.measured == nil {
 			in.measured = map[measureKey]render.TextSize{}
 		}
@@ -824,5 +827,39 @@ func boxEqual(a, b render.Box) bool {
 		return false
 	}
 	a.GradientColors, a.GradientStops, b.GradientColors, b.GradientStops = nil, nil, nil, nil
+	return reflect.DeepEqual(a, b) // the rest are plain values
+}
+
+// spanOf is a Rich text's run as sent: its own look where it has one, the
+// text's elsewhere.
+func spanOf(sp Span, f render.Font, color Color) render.Span {
+	s := sp.Style
+	if s.FontFamily != "" {
+		f.Family = s.FontFamily
+	}
+	if s.FontSize > 0 {
+		f.Size = s.FontSize
+	}
+	if s.FontWeight > 0 {
+		f.Weight = s.FontWeight
+	}
+	if s.LetterSpacing != 0 {
+		f.Tracking = s.LetterSpacing
+	}
+	if s.TabularDigits {
+		f.Tabular = true
+	}
+	if s.Color != 0 {
+		color = s.Color
+	}
+	return render.Span{Text: sp.Text, Font: f, Color: uint32(color)}
+}
+
+// textEqual reports whether two Text ops would look the same.
+func textEqual(a, b render.Text) bool {
+	if !slices.Equal(a.Spans, b.Spans) {
+		return false
+	}
+	a.Spans, b.Spans = nil, nil
 	return reflect.DeepEqual(a, b) // the rest are plain values
 }

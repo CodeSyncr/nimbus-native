@@ -419,13 +419,15 @@ public final class Renderer {
 
     private func text(_ l: UILabel, _ o: Render.Text) {
         l.font = Renderer.font(o.font)
-        if let attrs = Renderer.extraAttributes(o.font) {
+        if !o.spans.isEmpty {
+            l.attributedText = Renderer.rich(o.spans, base: o.font)
+        } else if let attrs = Renderer.extraAttributes(o.font) {
             l.attributedText = NSAttributedString(string: o.text, attributes: attrs)
         } else {
             l.attributedText = nil
             l.text = o.text
         }
-        l.textColor = color(o.color) ?? .label
+        if o.spans.isEmpty { l.textColor = color(o.color) ?? .label } // spans carry their own
         l.textAlignment = o.align == .center ? .center : o.align == .end ? .right : .left
         l.numberOfLines = Int(o.lines)
         // Shrink to fit (Style.MinScale): one line, smaller rather than cut.
@@ -481,14 +483,31 @@ public final class Renderer {
         let maxW = m.maxWidth < 0 ? CGFloat.greatestFiniteMagnitude : CGFloat(m.maxWidth)
         var attrs: [NSAttributedString.Key: Any] = [.font: font]
         extraAttributes(m.font)?.forEach { attrs[$0.key] = $0.value }
-        let r = (m.text as NSString).boundingRect(with: CGSize(width: maxW, height: .greatestFiniteMagnitude),
-                                                  options: [.usesLineFragmentOrigin, .usesFontLeading],
-                                                  attributes: attrs, context: nil)
+        let size = CGSize(width: maxW, height: .greatestFiniteMagnitude)
+        let r = m.spans.isEmpty
+            ? (m.text as NSString).boundingRect(with: size, options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: attrs, context: nil)
+            : rich(m.spans, base: m.font).boundingRect(with: size, options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
         let line = m.font.lineHeight > 0 ? CGFloat(m.font.lineHeight) : font.lineHeight
         var h = ceil(r.height)
         if m.lines > 0 { h = min(h, ceil(line * CGFloat(m.lines))) }
         if m.text.isEmpty { h = ceil(line) }
         return Data(Render.Message.textSize(Render.TextSize(w: Float(ceil(r.width)), h: Float(h))).encode())
+    }
+
+    /// A rich text (ui.Rich): each run in its own font, spacing and color, the
+    /// paragraph's line height from the text's own font.
+    static func rich(_ spans: [Render.Span], base: Render.Font) -> NSAttributedString {
+        let out = NSMutableAttributedString()
+        for sp in spans {
+            var a: [NSAttributedString.Key: Any] = [.font: font(sp.font)]
+            if sp.font.tracking != 0 { a[.kern] = CGFloat(sp.font.tracking) }
+            if let c = color(sp.color) { a[.foregroundColor] = c }
+            out.append(NSAttributedString(string: sp.text, attributes: a))
+        }
+        if base.lineHeight > 0, let extra = extraAttributes(base), let p = extra[.paragraphStyle] {
+            out.addAttribute(.paragraphStyle, value: p, range: NSRange(location: 0, length: out.length))
+        }
+        return out
     }
 
     /// Letter spacing and line height, as text attributes; nil when the font

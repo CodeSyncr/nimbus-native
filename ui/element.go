@@ -40,6 +40,7 @@ type Element struct {
 	draw        *render.Draw // a Canvas's shapes
 	onScroll    func(x, y float32)
 	onSubmit    func()
+	spans       []Span // a Rich text's runs
 	autoFocus   bool
 	stickToEnd  bool
 	list        *listSpec
@@ -111,6 +112,29 @@ func scrollFill(s Style) Style {
 func (e *Element) OnScroll(f func(x, y float32)) *Element {
 	e.onScroll = f
 	return e
+}
+
+// Span is a run of a Rich text: its words and how they differ from the
+// text's own style (FontFamily, FontSize, FontWeight, Color, LetterSpacing,
+// TabularDigits; what a span leaves unset it takes from the text).
+type Span struct {
+	Text  string
+	Style Style
+}
+
+// Rich is a text whose runs look different, wrapping as one paragraph —
+// a name in bold, a figure in color, a dot in a lighter ink:
+//
+//	ui.Rich(ui.Style{FontSize: 14},
+//		ui.Span{Text: "70 orders"},
+//		ui.Span{Text: "  ·  ", Style: ui.Style{Color: rule}},
+//		ui.Span{Text: "₹689 average", Style: ui.Style{FontWeight: 600}})
+func Rich(s Style, spans ...Span) *Element {
+	text := ""
+	for _, sp := range spans {
+		text += sp.Text
+	}
+	return &Element{kind: render.KindText, style: s, text: text, spans: spans}
 }
 
 // OnSubmit makes Return on a TextInput call f (the key says Send), even on

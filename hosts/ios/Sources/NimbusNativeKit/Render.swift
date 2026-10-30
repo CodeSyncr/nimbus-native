@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x5270e9fdeb5a7ef2
+    public static let schemaHash: UInt64 = 0x0d37f99f42e89974
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -387,8 +387,9 @@ public enum Render {
         public var align: Align
         public var lines: UInt32
         public var minScale: Float
+        public var spans: [Span]
 
-        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0, minScale: Float = 0) {
+        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0, minScale: Float = 0, spans: [Span] = []) {
             self.tag = tag
             self.text = text
             self.font = font
@@ -396,6 +397,7 @@ public enum Render {
             self.align = align
             self.lines = lines
             self.minScale = minScale
+            self.spans = spans
         }
 
         public func write(to w: inout WireWriter) {
@@ -406,6 +408,10 @@ public enum Render {
             w.uint(UInt64(self.align.rawValue))
             w.uint(UInt64(self.lines))
             w.float32(self.minScale)
+            w.uint(UInt64(self.spans.count))
+            for v0 in self.spans {
+                v0.write(to: &w)
+            }
         }
 
         public static func read(from r: inout WireReader) throws -> Text {
@@ -417,6 +423,34 @@ public enum Render {
             m.align = Align(rawValue: UInt8(try r.uint(max: 255)))
             m.lines = UInt32(try r.uint(max: 4294967295))
             m.minScale = try r.float32()
+            m.spans = try r.list { r in try Span.read(from: &r) }
+            return m
+        }
+    }
+
+    /// Span is a run of a text with its own font and color.
+    public struct Span: Equatable {
+        public var text: String
+        public var font: Font
+        public var color: UInt32
+
+        public init(text: String = "", font: Font = Font(), color: UInt32 = 0) {
+            self.text = text
+            self.font = font
+            self.color = color
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.string(self.text)
+            self.font.write(to: &w)
+            w.uint(UInt64(self.color))
+        }
+
+        public static func read(from r: inout WireReader) throws -> Span {
+            var m = Span()
+            m.text = try r.string()
+            m.font = try Font.read(from: &r)
+            m.color = UInt32(try r.uint(max: 4294967295))
             return m
         }
     }
@@ -1098,12 +1132,14 @@ public enum Render {
         public var font: Font
         public var maxWidth: Float
         public var lines: UInt32
+        public var spans: [Span]
 
-        public init(text: String = "", font: Font = Font(), maxWidth: Float = 0, lines: UInt32 = 0) {
+        public init(text: String = "", font: Font = Font(), maxWidth: Float = 0, lines: UInt32 = 0, spans: [Span] = []) {
             self.text = text
             self.font = font
             self.maxWidth = maxWidth
             self.lines = lines
+            self.spans = spans
         }
 
         public func write(to w: inout WireWriter) {
@@ -1111,6 +1147,10 @@ public enum Render {
             self.font.write(to: &w)
             w.float32(self.maxWidth)
             w.uint(UInt64(self.lines))
+            w.uint(UInt64(self.spans.count))
+            for v0 in self.spans {
+                v0.write(to: &w)
+            }
         }
 
         public static func read(from r: inout WireReader) throws -> MeasureText {
@@ -1119,6 +1159,7 @@ public enum Render {
             m.font = try Font.read(from: &r)
             m.maxWidth = try r.float32()
             m.lines = UInt32(try r.uint(max: 4294967295))
+            m.spans = try r.list { r in try Span.read(from: &r) }
             return m
         }
     }

@@ -186,6 +186,16 @@ type Text struct {
 	// MinScale lets a one-line text shrink to fit its width, down to this
 	// share of its size (0.6: 60%); 0 truncates instead.
 	MinScale float32
+	// Spans, when there are any, are the text in runs of their own look
+	// (Text is then all of them, joined).
+	Spans []Span
+}
+
+// Span is a run of a text with its own font and color.
+type Span struct {
+	Text  string
+	Font  Font
+	Color uint32
 }
 
 // Fit is how an image fills its frame.
@@ -453,6 +463,7 @@ type MeasureText struct {
 	Font     Font
 	MaxWidth float32 // < 0: no limit
 	Lines    uint32
+	Spans    []Span // a rich text's runs (Text is them joined)
 }
 
 // TextSize answers MeasureText.

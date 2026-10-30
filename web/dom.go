@@ -113,6 +113,14 @@ func (t *translator) op(op render.Op) []instr {
 		if o.Lines > 0 {
 			x += fmt.Sprintf("display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:%d;overflow:hidden;", o.Lines)
 		}
+		if len(o.Spans) > 0 {
+			// A rich text: its runs as spans, each with its own font and color.
+			var spans [][2]string
+			for _, sp := range o.Spans {
+				spans = append(spans, [2]string{sp.Text, fontCSS(sp.Font, sp.Color)})
+			}
+			return []instr{{"h": []any{o.Tag, spans}}, {"s": []any{o.Tag, "x", x}}}
+		}
 		return []instr{{"t": []any{o.Tag, o.Text}}, {"s": []any{o.Tag, "x", x}}}
 	case *render.Image:
 		fit := [...]string{"cover", "contain", "fill"}[o.Fit%3]
@@ -415,6 +423,7 @@ type node struct {
 	attrs       map[string]string
 	props       map[string]any
 	text        string
+	spans       [][2]string // a rich text's runs: text, CSS
 	children    []uint32
 }
 
@@ -459,7 +468,12 @@ func (d *dom) apply(in []instr) {
 			case "t":
 				a := v.([]any)
 				if n := d.nodes[a[0].(uint32)]; n != nil {
-					n.text = a[1].(string)
+					n.text, n.spans = a[1].(string), nil
+				}
+			case "h":
+				a := v.([]any)
+				if n := d.nodes[a[0].(uint32)]; n != nil {
+					n.text, n.spans = "", a[1].([][2]string)
 				}
 			case "d":
 				for _, tag := range v.([]uint32) {
@@ -525,6 +539,9 @@ func (d *dom) write(b *strings.Builder, tag uint32) {
 	}
 	b.WriteString(">")
 	b.WriteString(html.EscapeString(n.text))
+	for _, sp := range n.spans {
+		b.WriteString(`<span style="` + html.EscapeString(sp[1]) + `">` + html.EscapeString(sp[0]) + `</span>`)
+	}
 	for _, c := range n.children {
 		d.write(b, c)
 	}

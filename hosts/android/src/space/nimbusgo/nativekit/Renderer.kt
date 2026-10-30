@@ -353,7 +353,7 @@ class Renderer internal constructor(private val root: NimbusView) {
     }
 
     private fun text(t: TextView, o: Render.Text) {
-        t.text = o.text
+        t.text = if (o.spans.isEmpty()) o.text else rich(o.spans, density, ctx)
         t.setTextSize(TypedValue.COMPLEX_UNIT_PX, o.font.size * density)
         t.typeface = fontFor(o.font, ctx)
         applyExtras(t.paint, o.font, density)
@@ -575,7 +575,7 @@ class Renderer internal constructor(private val root: NimbusView) {
                 typeface = fontFor(mt.font, Plugins.context)
             }
             applyExtras(p, mt.font, d)
-            val text = mt.text
+            val text: CharSequence = if (mt.spans.isEmpty()) mt.text else rich(mt.spans, d, Plugins.context)
             val desired = ceil(Layout.getDesiredWidth(text, p)).toInt()
             // Round, don't truncate: a width Go got from an earlier measurement
             // converts back to 99.9999 px, and truncating that loses a pixel and
@@ -612,6 +612,31 @@ class Renderer internal constructor(private val root: NimbusView) {
             } ?: Typeface.DEFAULT
             if (Build.VERSION.SDK_INT >= 28) return Typeface.create(base, w, false)
             return Typeface.create(base, if (w >= 600) Typeface.BOLD else Typeface.NORMAL)
+        }
+
+        /** A rich text (ui.Rich): each run in its own typeface, size, spacing and color. */
+        internal fun rich(spans: List<Render.Span>, d: Float, c: Context): CharSequence {
+            val out = android.text.SpannableStringBuilder()
+            for (sp in spans) {
+                val start = out.length
+                out.append(sp.text)
+                out.setSpan(FontSpan(fontFor(sp.font, c), sp.font, d), start, out.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                if (sp.color != 0L) {
+                    out.setSpan(android.text.style.ForegroundColorSpan(argb(sp.color)), start, out.length, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
+            return out
+        }
+
+        /** One run's font: typeface, size, letter spacing and digits, for drawing and measuring alike. */
+        private class FontSpan(val tf: Typeface, val f: Render.Font, val d: Float) : android.text.style.MetricAffectingSpan() {
+            override fun updateMeasureState(p: TextPaint) = apply(p)
+            override fun updateDrawState(p: TextPaint) = apply(p)
+            private fun apply(p: TextPaint) {
+                p.typeface = tf
+                p.textSize = f.size * d
+                applyExtras(p, f, d)
+            }
         }
 
         /** Letter spacing (points → em) and tabular digits on a paint: what text views and

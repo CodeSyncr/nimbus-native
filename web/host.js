@@ -139,7 +139,11 @@
       } else if (i.p) {
         const el = els.get(i.p[0]);
         if (el && el[i.p[1]] !== i.p[2]) el[i.p[1]] = i.p[2];
-      } else if (i.t) { const el = els.get(i.t[0]); if (el && el.textContent !== i.t[1]) el.textContent = i.t[1]; }
+      } else if (i.t) { const el = els.get(i.t[0]); if (el && (el.textContent !== i.t[1] || el.children.length)) el.textContent = i.t[1]; }
+      else if (i.h) { // a rich text: its runs as spans
+        const el = els.get(i.h[0]);
+        if (el) el.replaceChildren(...i.h[1].map(([t, css]) => { const s = document.createElement("span"); s.style.cssText = css; s.textContent = t; return s; }));
+      }
       else if (i.d) {
         for (const tag of i.d) {
           const el = els.get(tag);

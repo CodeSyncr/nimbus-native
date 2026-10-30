@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x5270e9fdeb5a7ef2
+const SchemaHash uint64 = 0x0d37f99f42e89974
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -232,6 +232,10 @@ func (m *Text) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Align))
 	b = wire.AppendUint(b, uint64(m.Lines))
 	b = wire.AppendFloat32(b, m.MinScale)
+	b = wire.AppendUint(b, uint64(len(m.Spans)))
+	for _, v0 := range m.Spans {
+		b = v0.AppendWire(b)
+	}
 	return b
 }
 
@@ -244,6 +248,29 @@ func (m *Text) ReadWire(r *wire.Reader) {
 	m.Align = Align(r.UintMax(1<<8 - 1))
 	m.Lines = uint32(r.UintMax(1<<32 - 1))
 	m.MinScale = r.Float32()
+	if n0 := r.Count(); n0 > 0 {
+		m.Spans = make([]Span, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 Span
+			v0.ReadWire(r)
+			m.Spans = append(m.Spans, v0)
+		}
+	}
+}
+
+// AppendWire appends m's wire encoding to b.
+func (m *Span) AppendWire(b []byte) []byte {
+	b = wire.AppendString(b, m.Text)
+	b = m.Font.AppendWire(b)
+	b = wire.AppendUint(b, uint64(m.Color))
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *Span) ReadWire(r *wire.Reader) {
+	m.Text = r.String()
+	m.Font.ReadWire(r)
+	m.Color = uint32(r.UintMax(1<<32 - 1))
 }
 
 // AppendWire appends m's wire encoding to b.
@@ -627,6 +654,10 @@ func (m *MeasureText) AppendWire(b []byte) []byte {
 	b = m.Font.AppendWire(b)
 	b = wire.AppendFloat32(b, m.MaxWidth)
 	b = wire.AppendUint(b, uint64(m.Lines))
+	b = wire.AppendUint(b, uint64(len(m.Spans)))
+	for _, v0 := range m.Spans {
+		b = v0.AppendWire(b)
+	}
 	return b
 }
 
@@ -636,6 +667,14 @@ func (m *MeasureText) ReadWire(r *wire.Reader) {
 	m.Font.ReadWire(r)
 	m.MaxWidth = r.Float32()
 	m.Lines = uint32(r.UintMax(1<<32 - 1))
+	if n0 := r.Count(); n0 > 0 {
+		m.Spans = make([]Span, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 Span
+			v0.ReadWire(r)
+			m.Spans = append(m.Spans, v0)
+		}
+	}
 }
 
 // AppendWire appends m's wire encoding to b.

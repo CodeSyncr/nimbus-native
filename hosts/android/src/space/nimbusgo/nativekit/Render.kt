@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x5270e9fdeb5a7ef2uL.toLong()
+    val SCHEMA_HASH: Long = 0x0d37f99f42e89974uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -322,6 +322,7 @@ object Render {
         var align: Int = 0,
         var lines: Long = 0L,
         var minScale: Float = 0f,
+        var spans: MutableList<Span> = mutableListOf(),
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -331,6 +332,10 @@ object Render {
             w.uint(this.align.toLong())
             w.uint(this.lines)
             w.f32(this.minScale)
+            w.uint(this.spans.size.toLong())
+            for (v0 in this.spans) {
+                v0.write(w)
+            }
         }
 
         companion object {
@@ -343,6 +348,30 @@ object Render {
                 m.align = r0.uintMax(255L).toInt()
                 m.lines = r0.uintMax(4294967295L)
                 m.minScale = r0.f32()
+                m.spans = r0.list { r1 -> Span.read(r1) }
+                return m
+            }
+        }
+    }
+
+    /** Span is a run of a text with its own font and color. */
+    data class Span(
+        var text: String = "",
+        var font: Font = Font(),
+        var color: Long = 0L,
+    ) {
+        fun write(w: WireWriter) {
+            w.string(this.text)
+            this.font.write(w)
+            w.uint(this.color)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Span {
+                val m = Span()
+                m.text = r0.string()
+                m.font = Font.read(r0)
+                m.color = r0.uintMax(4294967295L)
                 return m
             }
         }
@@ -901,12 +930,17 @@ object Render {
         var font: Font = Font(),
         var maxWidth: Float = 0f,
         var lines: Long = 0L,
+        var spans: MutableList<Span> = mutableListOf(),
     ) : Message {
         fun write(w: WireWriter) {
             w.string(this.text)
             this.font.write(w)
             w.f32(this.maxWidth)
             w.uint(this.lines)
+            w.uint(this.spans.size.toLong())
+            for (v0 in this.spans) {
+                v0.write(w)
+            }
         }
 
         companion object {
@@ -916,6 +950,7 @@ object Render {
                 m.font = Font.read(r0)
                 m.maxWidth = r0.f32()
                 m.lines = r0.uintMax(4294967295L)
+                m.spans = r0.list { r1 -> Span.read(r1) }
                 return m
             }
         }
