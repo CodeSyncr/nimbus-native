@@ -16,7 +16,7 @@ import (
 //
 // Scrolling renders no components but the items coming into view.
 func List(count int, item func(i int) *Element, s Style) *Element {
-	return &Element{kind: render.KindScroll, style: s, list: &listSpec{count: count, item: item}}
+	return &Element{kind: render.KindScroll, style: scrollFill(s), list: &listSpec{count: count, item: item}}
 }
 
 // ItemKey names a List's items, so an item keeps its native views and

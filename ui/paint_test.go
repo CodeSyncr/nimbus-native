@@ -24,3 +24,18 @@ func TestBoxEqualGradients(t *testing.T) {
 		t.Fatal("changed corners compared equal")
 	}
 }
+
+// A scroll view told to grow fills its space instead of growing to its
+// content (which would leave nothing to scroll).
+func TestScrollGrowFills(t *testing.T) {
+	s := Scroll(Style{Grow: 1}).style
+	if s.Basis != Pt(0) || s.Shrink != 1 {
+		t.Fatalf("Grow: basis %v, shrink %v", s.Basis, s.Shrink)
+	}
+	if s := Scroll(Style{Grow: 1, Shrink: 2}).style; s.Basis != (Value{}) {
+		t.Fatal("an explicit Shrink was overridden")
+	}
+	if s := Scroll(Style{}).style; s.Basis != (Value{}) || s.Shrink != 0 {
+		t.Fatal("a scroll view that doesn't grow changed")
+	}
+}

@@ -82,9 +82,22 @@ func Pressable(onPress func(), s Style, children ...*Element) *Element {
 }
 
 // Scroll scrolls its children vertically (Horizontal() for sideways). Give
-// it a size or Flex: its content is as long as its children.
+// it a size, or Grow to fill the space: its content is as long as its
+// children.
 func Scroll(s Style, children ...*Element) *Element {
-	return &Element{kind: render.KindScroll, style: s, children: children}
+	return &Element{kind: render.KindScroll, style: scrollFill(s), children: children}
+}
+
+// scrollFill makes a growing scroll view fill the space it is given rather
+// than grow to its content's length, which would leave nothing to scroll:
+// with Grow and no Basis or Shrink of its own, it starts from nothing and
+// may shrink (as ui.Flex does). A scroll view that doesn't grow keeps its
+// content's length, up to its MaxHeight.
+func scrollFill(s Style) Style {
+	if s.Grow > 0 && s.Basis == (Value{}) && s.Shrink == 0 {
+		s.Basis, s.Shrink = Pt(0), 1
+	}
+	return s
 }
 
 // TextInput is a single-line text field showing value; onChange gets every
