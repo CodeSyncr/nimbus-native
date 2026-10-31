@@ -1,0 +1,2 @@
+{ "description": "The system's rate-this-app prompt", "handler": "AppReviewPlugin",
+  "android": { "dependencies": ["com.google.android.play:review:2.0.2"] } }

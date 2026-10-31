@@ -1,0 +1,2 @@
+{ "description": "Open a web page inside the app", "handler": "BrowserPlugin",
+  "android": { "dependencies": ["androidx.browser:browser:1.8.0"] } }

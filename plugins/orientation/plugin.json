@@ -1,0 +1,1 @@
+{ "description": "Lock the screen to portrait or landscape", "handler": "OrientationPlugin" }

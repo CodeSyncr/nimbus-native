@@ -14,7 +14,9 @@ open class NimbusViewController: UIViewController {
     }
     public static var statusBarStyle: UIStatusBarStyle = .default
     public static var statusBarHidden = false
+    public static var orientations: UIInterfaceOrientationMask = .all
 
+    open override var supportedInterfaceOrientations: UIInterfaceOrientationMask { Self.orientations }
     open override var preferredStatusBarStyle: UIStatusBarStyle { Self.statusBarStyle }
     open override var prefersStatusBarHidden: Bool { Self.statusBarHidden }
 

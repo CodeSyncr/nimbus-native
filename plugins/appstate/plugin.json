@@ -1,0 +1,1 @@
+{ "description": "Know when the app goes to the background or comes back", "handler": "AppStatePlugin", "boot": true }

@@ -1,0 +1,3 @@
+{ "description": "Pick a contact, or read the list", "handler": "ContactsPlugin",
+  "ios": { "info": { "NSContactsUsageDescription": "This app finds people in your contacts." } },
+  "android": { "permissions": ["android.permission.READ_CONTACTS"] } }

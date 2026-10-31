@@ -1,0 +1,1 @@
+{ "description": "Read text aloud", "handler": "SpeechPlugin" }

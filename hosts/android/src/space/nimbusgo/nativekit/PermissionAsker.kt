@@ -39,6 +39,7 @@ class PermissionAsker : android.app.Fragment() {
 class ResultAsker : android.app.Fragment() {
     private var intent: android.content.Intent? = null
     private var done: ((Int, android.content.Intent?) -> Unit)? = null
+    private var missing: (() -> Unit)? = null
 
     override fun onCreate(state: android.os.Bundle?) {
         super.onCreate(state)
@@ -47,7 +48,13 @@ class ResultAsker : android.app.Fragment() {
             fragmentManager.beginTransaction().remove(this).commit() // rebuilt after a restart: nobody is waiting
             return
         }
-        startActivityForResult(i, 1)
+        try {
+            startActivityForResult(i, 1)
+        } catch (e: android.content.ActivityNotFoundException) {
+            done = null
+            missing?.invoke()
+            fragmentManager.beginTransaction().remove(this).commit()
+        }
     }
 
     override fun onActivityResult(request: Int, result: Int, data: android.content.Intent?) {
@@ -57,10 +64,13 @@ class ResultAsker : android.app.Fragment() {
     }
 
     internal companion object {
-        fun start(activity: Activity, intent: android.content.Intent, done: (Int, android.content.Intent?) -> Unit) {
+        /** missing runs if no app on the phone handles the intent. Asking beforehand doesn't work:
+         *  since Android 11 other apps are hidden from an app that hasn't declared them. */
+        fun start(activity: Activity, intent: android.content.Intent, missing: (() -> Unit)? = null, done: (Int, android.content.Intent?) -> Unit) {
             val asker = ResultAsker()
             asker.intent = intent
             asker.done = done
+            asker.missing = missing
             activity.fragmentManager.beginTransaction().add(asker, "nimbus-result").commit()
         }
     }
