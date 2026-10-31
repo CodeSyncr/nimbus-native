@@ -1,0 +1,16 @@
+{
+  "description": "Google Maps inside your screen",
+  "handler": "GoogleMapsPlugin",
+  "boot": true,
+  "needs": ["key"],
+  "ios": {
+    "info": { "GMSApiKey": "{{key}}" },
+    "packages": [
+      { "url": "https://github.com/googlemaps/ios-maps-sdk", "from": "9.4.0", "package": "ios-maps-sdk", "product": "GoogleMaps" }
+    ]
+  },
+  "android": {
+    "dependencies": ["com.google.android.gms:play-services-maps:19.0.0"],
+    "application": ["<meta-data android:name=\"com.google.android.geo.API_KEY\" android:value=\"{{key}}\" />"]
+  }
+}

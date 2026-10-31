@@ -1,0 +1,14 @@
+{
+  "description": "Push notifications from your server",
+  "handler": "PushPlugin",
+  "boot": true,
+  "ios": {
+    "arrays": { "UIBackgroundModes": ["remote-notification"] },
+    "entitlements": { "aps-environment": "development" }
+  },
+  "android": {
+    "permissions": ["android.permission.POST_NOTIFICATIONS"],
+    "dependencies": ["com.google.firebase:firebase-messaging:24.1.0"],
+    "application": ["<service android:name=\"space.nimbusgo.nativekit.PushService\" android:exported=\"false\"><intent-filter><action android:name=\"com.google.firebase.MESSAGING_EVENT\" /></intent-filter></service>"]
+  }
+}

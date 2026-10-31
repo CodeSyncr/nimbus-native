@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x0ea9eb20363b5115uL.toLong()
+    val SCHEMA_HASH: Long = 0x5b510f1c1bf23decuL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -22,6 +22,7 @@ object Render {
         const val SWITCH: Int = 10
         const val SLIDER: Int = 11
         const val CANVAS: Int = 12
+        const val NATIVE: Int = 13
     }
 
     /** Blur is how strongly what is behind a view is blurred: the platform's materials on iOS, a blur radius elsewhere. */
@@ -606,6 +607,29 @@ object Render {
                 m.refreshable = r0.bool()
                 m.refreshing = r0.bool()
                 m.stickToEnd = r0.bool()
+                return m
+            }
+        }
+    }
+
+    /** Native sets a KindNative view's kind, once, and its props, as JSON. */
+    data class Native(
+        var tag: Long = 0L,
+        var type: String = "",
+        var props: String = "",
+    ) : Op {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.string(this.type)
+            w.string(this.props)
+        }
+
+        companion object {
+            fun read(r0: WireReader): Native {
+                val m = Native()
+                m.tag = r0.uintMax(4294967295L)
+                m.type = r0.string()
+                m.props = r0.string()
                 return m
             }
         }
@@ -1197,6 +1221,29 @@ object Render {
         }
     }
 
+    /** NativeEvent is what a native view has to say (ui.Native): a name, and JSON. */
+    data class NativeEvent(
+        var tag: Long = 0L,
+        var name: String = "",
+        var data: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.uint(this.tag)
+            w.string(this.name)
+            w.string(this.data)
+        }
+
+        companion object {
+            fun read(r0: WireReader): NativeEvent {
+                val m = NativeEvent()
+                m.tag = r0.uintMax(4294967295L)
+                m.name = r0.string()
+                m.data = r0.string()
+                return m
+            }
+        }
+    }
+
     /** Pinched reports a two-finger pinch: Scale is the fingers' distance over what it was at the start. */
     data class Pinched(
         var tag: Long = 0L,
@@ -1240,10 +1287,11 @@ object Render {
             is Chrome -> { w.uint(12); v.write(w) }
             is Present -> { w.uint(13); v.write(w) }
             is Scroll -> { w.uint(14); v.write(w) }
-            is Draw -> { w.uint(15); v.write(w) }
-            is Slider -> { w.uint(16); v.write(w) }
-            is Switch -> { w.uint(17); v.write(w) }
-            is Spinner -> { w.uint(18); v.write(w) }
+            is Native -> { w.uint(15); v.write(w) }
+            is Draw -> { w.uint(16); v.write(w) }
+            is Slider -> { w.uint(17); v.write(w) }
+            is Switch -> { w.uint(18); v.write(w) }
+            is Spinner -> { w.uint(19); v.write(w) }
         }
     }
 
@@ -1263,10 +1311,11 @@ object Render {
         12L -> Chrome.read(r0)
         13L -> Present.read(r0)
         14L -> Scroll.read(r0)
-        15L -> Draw.read(r0)
-        16L -> Slider.read(r0)
-        17L -> Switch.read(r0)
-        18L -> Spinner.read(r0)
+        15L -> Native.read(r0)
+        16L -> Draw.read(r0)
+        17L -> Slider.read(r0)
+        18L -> Switch.read(r0)
+        19L -> Spinner.read(r0)
         else -> throw WireException("unknown Op variant $i")
     }
 
@@ -1298,7 +1347,8 @@ object Render {
             is Slid -> { w.uint(20); v.write(w) }
             is LongPressed -> { w.uint(21); v.write(w) }
             is Panned -> { w.uint(22); v.write(w) }
-            is Pinched -> { w.uint(23); v.write(w) }
+            is NativeEvent -> { w.uint(23); v.write(w) }
+            is Pinched -> { w.uint(24); v.write(w) }
         }
     }
 
@@ -1326,7 +1376,8 @@ object Render {
         20L -> Slid.read(r0)
         21L -> LongPressed.read(r0)
         22L -> Panned.read(r0)
-        23L -> Pinched.read(r0)
+        23L -> NativeEvent.read(r0)
+        24L -> Pinched.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

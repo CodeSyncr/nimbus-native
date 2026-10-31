@@ -165,7 +165,11 @@ func (e *Env) syncIOSKit(dir, root string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	files := map[string][]byte{"Package.swift": []byte(kitPackageSwift), "Sources/NimbusNativeC/include/nn.h": header}
+	pkg, err := e.kitPackage(root)
+	if err != nil {
+		return false, err
+	}
+	files := map[string][]byte{"Package.swift": []byte(pkg), "Sources/NimbusNativeC/include/nn.h": header}
 	src := filepath.Join(e.Repo, "hosts/ios/Sources")
 	err = filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {

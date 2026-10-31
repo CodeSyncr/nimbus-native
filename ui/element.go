@@ -43,6 +43,8 @@ type Element struct {
 	min, max    float32
 	onSlide     func(float32)
 	draw        *render.Draw // a Canvas's shapes
+	native      *render.Native
+	onEvent     func(name, data string)
 	onScroll    func(x, y float32)
 	onSubmit    func()
 	spans       []Span // a Rich text's runs

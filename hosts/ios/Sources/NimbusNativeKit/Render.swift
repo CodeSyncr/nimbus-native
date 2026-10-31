@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x0ea9eb20363b5115
+    public static let schemaHash: UInt64 = 0x5b510f1c1bf23dec
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -22,6 +22,7 @@ public enum Render {
         public static let `switch` = Kind(rawValue: 10)
         public static let slider = Kind(rawValue: 11)
         public static let canvas = Kind(rawValue: 12)
+        public static let native = Kind(rawValue: 13)
     }
 
     /// Blur is how strongly what is behind a view is blurred: the platform's
@@ -744,6 +745,33 @@ public enum Render {
         }
     }
 
+    /// Native sets a KindNative view's kind, once, and its props, as JSON.
+    public struct Native: Equatable {
+        public var tag: UInt32
+        public var type: String
+        public var props: String
+
+        public init(tag: UInt32 = 0, type: String = "", props: String = "") {
+            self.tag = tag
+            self.type = type
+            self.props = props
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.string(self.type)
+            w.string(self.props)
+        }
+
+        public static func read(from r: inout WireReader) throws -> Native {
+            var m = Native()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.type = try r.string()
+            m.props = try r.string()
+            return m
+        }
+    }
+
     /// Draw sets what a canvas draws: commands in a W×H space fitted to the
     /// view (centred, keeping its aspect, like an SVG viewBox). Each command takes
     /// its numbers from Nums and its colors from Colors, in order:
@@ -1453,6 +1481,34 @@ public enum Render {
         }
     }
 
+    /// NativeEvent is what a native view has to say (ui.Native): a name, and
+    /// JSON.
+    public struct NativeEvent: Equatable {
+        public var tag: UInt32
+        public var name: String
+        public var data: String
+
+        public init(tag: UInt32 = 0, name: String = "", data: String = "") {
+            self.tag = tag
+            self.name = name
+            self.data = data
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.uint(UInt64(self.tag))
+            w.string(self.name)
+            w.string(self.data)
+        }
+
+        public static func read(from r: inout WireReader) throws -> NativeEvent {
+            var m = NativeEvent()
+            m.tag = UInt32(try r.uint(max: 4294967295))
+            m.name = try r.string()
+            m.data = try r.string()
+            return m
+        }
+    }
+
     /// Pinched reports a two-finger pinch: Scale is the fingers' distance over
     /// what it was at the start.
     public struct Pinched: Equatable {
@@ -1497,6 +1553,7 @@ public enum Render {
         case chrome(Chrome)
         case present(Present)
         case scroll(Scroll)
+        case native(Native)
         case draw(Draw)
         case slider(Slider)
         case `switch`(Switch)
@@ -1548,17 +1605,20 @@ public enum Render {
             case .scroll(let x)?:
                 w.uint(14)
                 x.write(to: &w)
-            case .draw(let x)?:
+            case .native(let x)?:
                 w.uint(15)
                 x.write(to: &w)
-            case .slider(let x)?:
+            case .draw(let x)?:
                 w.uint(16)
                 x.write(to: &w)
-            case .switch(let x)?:
+            case .slider(let x)?:
                 w.uint(17)
                 x.write(to: &w)
-            case .spinner(let x)?:
+            case .switch(let x)?:
                 w.uint(18)
+                x.write(to: &w)
+            case .spinner(let x)?:
+                w.uint(19)
                 x.write(to: &w)
             }
         }
@@ -1596,12 +1656,14 @@ public enum Render {
             case 14:
                 return .scroll(try Scroll.read(from: &r))
             case 15:
-                return .draw(try Draw.read(from: &r))
+                return .native(try Native.read(from: &r))
             case 16:
-                return .slider(try Slider.read(from: &r))
+                return .draw(try Draw.read(from: &r))
             case 17:
-                return .switch(try Switch.read(from: &r))
+                return .slider(try Slider.read(from: &r))
             case 18:
+                return .switch(try Switch.read(from: &r))
+            case 19:
                 return .spinner(try Spinner.read(from: &r))
             default:
                 throw WireError.variant
@@ -1633,6 +1695,7 @@ public enum Render {
         case slid(Slid)
         case longPressed(LongPressed)
         case panned(Panned)
+        case nativeEvent(NativeEvent)
         case pinched(Pinched)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
@@ -1705,8 +1768,11 @@ public enum Render {
             case .panned(let x)?:
                 w.uint(22)
                 x.write(to: &w)
-            case .pinched(let x)?:
+            case .nativeEvent(let x)?:
                 w.uint(23)
+                x.write(to: &w)
+            case .pinched(let x)?:
+                w.uint(24)
                 x.write(to: &w)
             }
         }
@@ -1760,6 +1826,8 @@ public enum Render {
             case 22:
                 return .panned(try Panned.read(from: &r))
             case 23:
+                return .nativeEvent(try NativeEvent.read(from: &r))
+            case 24:
                 return .pinched(try Pinched.read(from: &r))
             default:
                 throw WireError.variant

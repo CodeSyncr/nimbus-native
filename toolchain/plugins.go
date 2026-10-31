@@ -26,10 +26,19 @@ type pluginManifest struct {
 	Description string `json:"description"`
 	Handler     string `json:"handler"` // the Swift enum and Kotlin object with handle()
 	Boot        bool   `json:"boot"`    // it has a boot() to run at launch
-	IOS         struct {
+	// Needs are values the project supplies when it adds the plugin, such
+	// as an API key: -key VALUE, used as {{key}} in what follows.
+	Needs []string `json:"needs"`
+	IOS   struct {
 		// Info is what the app's Info.plist must say, such as the reason
 		// iOS shows when it asks for a permission.
 		Info map[string]string `json:"info"`
+		// Arrays are Info.plist lists to add to.
+		Arrays map[string][]string `json:"arrays"`
+		// Entitlements go in Runner.entitlements.
+		Entitlements map[string]string `json:"entitlements"`
+		// Packages are Swift packages for the kit.
+		Packages []swiftPackage `json:"packages"`
 	} `json:"ios"`
 	Android struct {
 		Permissions []string `json:"permissions"`
@@ -39,6 +48,14 @@ type pluginManifest struct {
 		// Dependencies are Gradle coordinates for the kit.
 		Dependencies []string `json:"dependencies"`
 	} `json:"android"`
+}
+
+// swiftPackage is a Swift package a plugin builds on.
+type swiftPackage struct {
+	URL     string `json:"url"`
+	From    string `json:"from"`
+	Package string `json:"package"`
+	Product string `json:"product"`
 }
 
 func (e *Env) pluginManifest(name string) (*pluginManifest, error) {
@@ -136,6 +153,17 @@ func (e *Env) addPluginSources(root, platform, pattern, into string, gen func(ma
 		}
 	}
 	files[register] = []byte(gen(handlers, boots, names))
+	if platform == "android" && slices.Contains(names, "push") {
+		id, err := AndroidProjectID(root)
+		if err != nil {
+			return err
+		}
+		k, err := pushConfigKotlin(root, id)
+		if err != nil {
+			return err
+		}
+		files[filepath.Join(into, "push", "PushConfig.kt")] = []byte(k)
+	}
 	return nil
 }
 
@@ -167,7 +195,7 @@ func (e *Env) ListPlugins(a *App, out io.Writer) error {
 
 // AddPlugins enables plugins: their sources reach the kit, and the app asks
 // for what they need.
-func (e *Env) AddPlugins(a *App, names []string, out io.Writer) error {
+func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out io.Writer) error {
 	if e.Repo = moduleDir(a.Root); e.Repo == "" {
 		return fmt.Errorf("nimbus-native module not found from %s", a.Root)
 	}
@@ -184,13 +212,23 @@ func (e *Env) AddPlugins(a *App, names []string, out io.Writer) error {
 			Infof(out, "%s is already in this project", n)
 			continue
 		}
-		if err := requirePlugin(a.Root, m); err != nil {
+		for _, need := range m.Needs {
+			if values[need] == "" {
+				return fmt.Errorf("%s needs -%s: nimbus native plugin add %s -%s VALUE", n, need, n, need)
+			}
+		}
+		if err := requirePlugin(a.Root, fill(m, values)); err != nil {
 			return err
 		}
 		on = append(on, n)
 		Successf(out, "Added %s: %s", n, m.Description)
 		for k := range m.IOS.Info {
-			Infof(out, "Info.plist says why with %s: reword it for your app", k)
+			if strings.HasSuffix(k, "UsageDescription") {
+				Infof(out, "Info.plist says why with %s: reword it for your app", k)
+			}
+		}
+		if n == "push" && !exists(filepath.Join(a.Root, googleServices)) {
+			Warnf(out, "Put your Firebase google-services.json at %s", googleServices)
 		}
 	}
 	if err := writePluginList(a.Root, on); err != nil {
@@ -269,6 +307,29 @@ func edit(root, name string, f func(string) string) error {
 	return nil
 }
 
+// fill puts the project's values into a manifest's {{name}}s.
+func fill(m *pluginManifest, values map[string]string) *pluginManifest {
+	put := func(s string) string {
+		for k, v := range values {
+			s = strings.ReplaceAll(s, "{{"+k+"}}", xmlEscape(v))
+		}
+		return s
+	}
+	c := *m
+	c.IOS.Info = map[string]string{}
+	for k, v := range m.IOS.Info {
+		for n, val := range values {
+			v = strings.ReplaceAll(v, "{{"+n+"}}", val) // plistSet escapes
+		}
+		c.IOS.Info[k] = v
+	}
+	c.Android.Application = make([]string, len(m.Android.Application))
+	for i, x := range m.Android.Application {
+		c.Android.Application[i] = put(x)
+	}
+	return &c
+}
+
 func requirePlugin(root string, m *pluginManifest) error {
 	if err := edit(root, projectPlist, func(s string) string {
 		keys := make([]string, 0, len(m.IOS.Info))
@@ -279,9 +340,17 @@ func requirePlugin(root string, m *pluginManifest) error {
 		for _, k := range keys {
 			s = plistSet(s, k, m.IOS.Info[k])
 		}
+		for k, list := range m.IOS.Arrays {
+			s = plistAppend(s, k, list)
+		}
 		return s
 	}); err != nil {
 		return err
+	}
+	if len(m.IOS.Entitlements) > 0 {
+		if err := writeEntitlements(root, m.IOS.Entitlements); err != nil {
+			return err
+		}
 	}
 	if err := edit(root, projectKitGradle, func(s string) string {
 		for _, d := range m.Android.Dependencies {
@@ -320,9 +389,17 @@ func dropPlugin(root string, m *pluginManifest, keepInfo, keepPerm map[string]bo
 				s = plistDrop(s, k)
 			}
 		}
+		for k, list := range m.IOS.Arrays {
+			s = plistRemove(s, k, list)
+		}
 		return s
 	}); err != nil {
 		return err
+	}
+	if len(m.IOS.Entitlements) > 0 {
+		if err := dropEntitlements(root, m.IOS.Entitlements); err != nil {
+			return err
+		}
 	}
 	if err := edit(root, projectKitGradle, func(s string) string {
 		for _, d := range m.Android.Dependencies {
@@ -339,7 +416,7 @@ func dropPlugin(root string, m *pluginManifest, keepInfo, keepPerm map[string]bo
 			}
 		}
 		for _, x := range m.Android.Application {
-			s = strings.Replace(s, "        "+x+"\n", "", 1)
+			s = applicationDrop(s, x)
 		}
 		return s
 	})
@@ -355,6 +432,16 @@ func applicationAdd(s, xml string) string {
 		return s
 	}
 	return s[:i] + "        " + xml + "\n" + s[i:]
+}
+
+// applicationDrop removes a line applicationAdd put there; a {{value}} in it
+// can be anything.
+func applicationDrop(s, xml string) string {
+	parts := regexp.MustCompile(`\{\{\w+\}\}`).Split(xml, -1)
+	for i, p := range parts {
+		parts[i] = regexp.QuoteMeta(p)
+	}
+	return regexp.MustCompile(`        `+strings.Join(parts, `[^"]*`)+`\n`).ReplaceAllString(s, "")
 }
 
 func gradleLine(dep string) string {
@@ -391,6 +478,36 @@ func plistDrop(s, key string) string {
 	return re.ReplaceAllString(s, "")
 }
 
+// plistAppend adds values to a list in the top dict, making it if needed.
+func plistAppend(s, key string, values []string) string {
+	head := "<key>" + key + "</key>"
+	i := strings.Index(s, head)
+	if i < 0 {
+		end := strings.LastIndex(s, "</dict>")
+		if end < 0 {
+			return s
+		}
+		s = s[:end] + "\t" + head + "\n\t<array>\n\t</array>\n" + s[end:]
+		i = strings.Index(s, head)
+	}
+	for _, v := range values {
+		item := "<string>" + xmlEscape(v) + "</string>"
+		close := i + strings.Index(s[i:], "</array>")
+		if !strings.Contains(s[i:close], item) {
+			s = s[:close] + "\t" + item + "\n\t" + s[close:]
+		}
+	}
+	return s
+}
+
+// plistRemove takes values out of a list, and the list when it's empty.
+func plistRemove(s, key string, values []string) string {
+	for _, v := range values {
+		s = regexp.MustCompile(`[ \t]*<string>`+regexp.QuoteMeta(xmlEscape(v))+`</string>\n`).ReplaceAllString(s, "")
+	}
+	return regexp.MustCompile(`[ \t]*<key>`+regexp.QuoteMeta(key)+`</key>\s*<array>\s*</array>\n?`).ReplaceAllString(s, "")
+}
+
 func xmlEscape(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;").Replace(s)
 }
@@ -419,4 +536,145 @@ func manifestAdd(s, permission string) string {
 func manifestDrop(s, permission string) string {
 	re := regexp.MustCompile(`[ \t]*<uses-permission android:name="` + regexp.QuoteMeta(permission) + `"\s*/>\n?`)
 	return re.ReplaceAllString(s, "")
+}
+
+const (
+	projectEntitlements = "native/ios/Runner/Runner.entitlements"
+	projectXcode        = "native/ios/Runner.xcodeproj/project.pbxproj"
+	entitlementsSetting = "CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;"
+)
+
+// writeEntitlements adds to the app's entitlements, and points the Xcode
+// project at the file.
+func writeEntitlements(root string, values map[string]string) error {
+	p := filepath.Join(root, projectEntitlements)
+	if !exists(filepath.Dir(p)) {
+		return nil // no iOS app in this project
+	}
+	if !exists(p) {
+		body := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+</dict>
+</plist>
+`
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			return err
+		}
+	}
+	if err := edit(root, projectEntitlements, func(s string) string {
+		for k, v := range values {
+			s = plistSet(s, k, v)
+		}
+		return s
+	}); err != nil {
+		return err
+	}
+	return edit(root, projectXcode, func(s string) string {
+		if strings.Contains(s, entitlementsSetting) {
+			return s
+		}
+		return strings.ReplaceAll(s, "CODE_SIGN_STYLE = Automatic;\n", "CODE_SIGN_STYLE = Automatic;\n\t\t\t\t"+entitlementsSetting+"\n")
+	})
+}
+
+// dropEntitlements takes values out, and the file with them when it's empty.
+func dropEntitlements(root string, values map[string]string) error {
+	if err := edit(root, projectEntitlements, func(s string) string {
+		for k := range values {
+			s = plistDrop(s, k)
+		}
+		return s
+	}); err != nil {
+		return err
+	}
+	b, err := os.ReadFile(filepath.Join(root, projectEntitlements))
+	if err != nil || strings.Contains(string(b), "<key>") {
+		return nil
+	}
+	if err := os.Remove(filepath.Join(root, projectEntitlements)); err != nil {
+		return err
+	}
+	return edit(root, projectXcode, func(s string) string {
+		return strings.ReplaceAll(s, "\t\t\t\t"+entitlementsSetting+"\n", "")
+	})
+}
+
+// kitPackage is the kit's Package.swift, with what the enabled plugins need.
+func (e *Env) kitPackage(root string) (string, error) {
+	names, err := enabledPlugins(root)
+	if err != nil {
+		return "", err
+	}
+	var deps, products strings.Builder
+	for _, n := range names {
+		m, err := e.pluginManifest(n)
+		if err != nil {
+			return "", err
+		}
+		for _, p := range m.IOS.Packages {
+			fmt.Fprintf(&deps, "        .package(url: %q, from: %q),\n", p.URL, p.From)
+			fmt.Fprintf(&products, ", .product(name: %q, package: %q)", p.Product, p.Package)
+		}
+	}
+	pkg := strings.Replace(kitPackageSwift, "    targets: [\n", "    dependencies: [\n"+deps.String()+"    ],\n    targets: [\n", 1)
+	return strings.Replace(pkg, `dependencies: ["NimbusNativeC"]`, `dependencies: ["NimbusNativeC"`+products.String()+`]`, 1), nil
+}
+
+// googleServices is Android's Firebase settings, from the file the app's
+// owner downloads from Firebase.
+const googleServices = "native/android/app/google-services.json"
+
+// pushConfigKotlin is the settings as code: Firebase starts from these, so
+// the Gradle project needs no plugin of Google's.
+func pushConfigKotlin(root, appID string) (string, error) {
+	var appKey, projectID, sender, firebaseApp string
+	b, err := os.ReadFile(filepath.Join(root, googleServices))
+	if err != nil && !os.IsNotExist(err) {
+		return "", err
+	}
+	if err == nil {
+		var f struct {
+			Project struct {
+				Number string `json:"project_number"`
+				ID     string `json:"project_id"`
+			} `json:"project_info"`
+			Client []struct {
+				Info struct {
+					ID      string `json:"mobilesdk_app_id"`
+					Android struct {
+						Package string `json:"package_name"`
+					} `json:"android_client_info"`
+				} `json:"client_info"`
+				APIKey []struct {
+					Current string `json:"current_key"`
+				} `json:"api_key"`
+			} `json:"client"`
+		}
+		if err := json.Unmarshal(b, &f); err != nil {
+			return "", fmt.Errorf("%s: %w", googleServices, err)
+		}
+		found := false
+		for _, c := range f.Client {
+			if c.Info.Android.Package == appID && len(c.APIKey) > 0 {
+				found, firebaseApp, appKey = true, c.Info.ID, c.APIKey[0].Current
+				projectID, sender = f.Project.ID, f.Project.Number
+			}
+		}
+		if !found {
+			return "", fmt.Errorf("%s has no app for %s: add that package in Firebase and download it again", googleServices, appID)
+		}
+	}
+	return fmt.Sprintf(`// Code generated by nimbus native lib from google-services.json; DO NOT EDIT.
+
+package space.nimbusgo.nativekit
+
+internal object PushConfig {
+    const val APP_ID = %q
+    const val API_KEY = %q
+    const val PROJECT_ID = %q
+    const val SENDER = %q
+}
+`, firebaseApp, appKey, projectID, sender), nil
 }

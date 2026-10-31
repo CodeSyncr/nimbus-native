@@ -34,6 +34,8 @@ const (
 	KindSlider
 	// KindCanvas draws shapes Go describes (Draw).
 	KindCanvas
+	// KindNative holds a view the host makes itself, such as a map (Native).
+	KindNative
 )
 
 // Commit is one render: apply its ops in order, in one UI-thread pass.
@@ -337,6 +339,15 @@ type Scroll struct {
 	StickToEnd bool
 }
 
+// Native sets a KindNative view's kind, once, and its props, as JSON.
+//
+//wire:variant Op
+type Native struct {
+	Tag   uint32
+	Type  string
+	Props string
+}
+
 // Draw sets what a canvas draws: commands in a W×H space fitted to the
 // view (centred, keeping its aspect, like an SVG viewBox). Each command takes
 // its numbers from Nums and its colors from Colors, in order:
@@ -570,6 +581,16 @@ type Panned struct {
 	Tag          uint32
 	Phase        uint8
 	X, Y, VX, VY float32
+}
+
+// NativeEvent is what a native view has to say (ui.Native): a name, and
+// JSON.
+//
+//wire:message
+type NativeEvent struct {
+	Tag  uint32
+	Name string
+	Data string
 }
 
 // Pinched reports a two-finger pinch: Scale is the fingers' distance over

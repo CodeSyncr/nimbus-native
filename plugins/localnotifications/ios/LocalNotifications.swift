@@ -6,7 +6,7 @@ final class LocalNotificationsPlugin: NSObject, UNUserNotificationCenterDelegate
 
     static func handle(_ call: PluginCall) {
         let center = UNUserNotificationCenter.current()
-        center.delegate = shared
+        if center.delegate == nil { center.delegate = shared } // push may have it
         switch call.method {
         case "request":
             center.requestAuthorization(options: [.alert, .sound, .badge]) { ok, _ in call.resolve(["granted": ok]) }

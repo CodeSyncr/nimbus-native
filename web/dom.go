@@ -75,6 +75,7 @@ var elements = map[render.Kind][2]string{
 	render.KindSwitch:    {"input", "sw"},
 	render.KindSlider:    {"input", "sl"},
 	render.KindCanvas:    {"canvas", "cv"},
+	render.KindNative:    {"div", "v"},
 }
 
 func (t *translator) op(op render.Op) []instr {

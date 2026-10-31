@@ -363,7 +363,16 @@ func pluginCmd(args []string) error {
 		return err
 	}
 	env := toolchain.Detect(app.Root)
-	verb, names := args[0], args[1:]
+	verb, names := args[0], []string{}
+	values := map[string]string{}
+	for i := 1; i < len(args); i++ {
+		if k, ok := strings.CutPrefix(args[i], "-"); ok && i+1 < len(args) {
+			values[k] = args[i+1]
+			i++
+			continue
+		}
+		names = append(names, args[i])
+	}
 	for i, n := range names {
 		names[i] = strings.ReplaceAll(n, "-", "") // status-bar is the package statusbar
 		if names[i] == "location" {
@@ -374,7 +383,7 @@ func pluginCmd(args []string) error {
 	case verb == "list":
 		return env.ListPlugins(app, os.Stdout)
 	case verb == "add" && len(names) > 0:
-		return env.AddPlugins(app, names, os.Stdout)
+		return env.AddPlugins(app, names, values, os.Stdout)
 	case verb == "remove" && len(names) > 0:
 		return env.RemovePlugins(app, names, os.Stdout)
 	}

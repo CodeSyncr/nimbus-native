@@ -221,6 +221,10 @@ func (rt *runtime) receive(b []byte) {
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onLongPress != nil {
 				in.el.onLongPress()
 			}
+		case *render.NativeEvent:
+			if in := rt.byTag[m.Tag]; in != nil && in.el.onEvent != nil {
+				in.el.onEvent(m.Name, m.Data)
+			}
 		case *render.Panned:
 			if in := rt.byTag[m.Tag]; in != nil {
 				p := Pan{Phase(m.Phase), m.X, m.Y, m.VX, m.VY}
@@ -294,6 +298,7 @@ type sentProps struct {
 	toggle render.Switch
 	slider render.Slider
 	draw   render.Draw
+	native render.Native
 	frame  render.Frame
 }
 
@@ -731,6 +736,14 @@ func (rt *runtime) props(in *instance, first bool) {
 				!slices.Equal(d.Nums, old.Nums) || !slices.Equal(d.Colors, old.Colors) {
 				in.sent.draw = *d
 				rt.op(d)
+			}
+		}
+	case render.KindNative:
+		if n := el.native; n != nil {
+			n.Tag = in.tag
+			if first || *n != in.sent.native {
+				in.sent.native = *n
+				rt.op(n)
 			}
 		}
 	case render.KindSlider:

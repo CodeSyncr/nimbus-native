@@ -206,6 +206,12 @@ class Renderer internal constructor(private val root: NimbusView) {
                     }
                 }
                 is Render.Slider -> (views[op.tag.toInt()] as? NNSlider)?.apply(op)
+                is Render.Native -> {
+                    val tag = op.tag
+                    (views[tag.toInt()] as? NNNativeHost)?.set(op) { name, data ->
+                        Bridge.send(Render.encode(Render.NativeEvent(tag = tag, name = name, data = data)))
+                    }
+                }
                 is Render.Draw -> (views[op.tag.toInt()] as? NNCanvas)?.set(op)
                 is Render.Box -> box(op)
                 is Render.Text -> (views[op.tag.toInt()] as? TextView)?.let { text(it, op) }
@@ -265,6 +271,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.SWITCH -> NNSwitch(ctx, tag)
             Render.Kind.SLIDER -> NNSlider(ctx, tag)
             Render.Kind.CANVAS -> NNCanvas(ctx)
+            Render.Kind.NATIVE -> NNNativeHost(ctx)
             else -> NNGroup(ctx, this)
         }
         v.id = tag

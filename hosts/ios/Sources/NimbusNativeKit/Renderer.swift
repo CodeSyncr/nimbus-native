@@ -273,6 +273,11 @@ public final class Renderer {
                 }
             case .box(let o): box(o)
             case .draw(let o): (views[o.tag] as? NNCanvas)?.set(o)
+            case .native(let o):
+                let tag = o.tag
+                (views[o.tag] as? NNNativeHost)?.set(o) { [weak self] name, data in
+                    self?.send(.nativeEvent(Render.NativeEvent(tag: tag, name: name, data: data)))
+                }
             case .text(let o): (views[o.tag] as? UILabel).map { text($0, o) }
             case .image(let o): (views[o.tag] as? NNImageView)?.load(o)
             case .input(let o): (views[o.tag] as? NNInput)?.apply(o)
@@ -359,6 +364,7 @@ public final class Renderer {
             }, for: .valueChanged)
             v = sw
         case .canvas: v = NNCanvas()
+        case .native: v = NNNativeHost()
         case .spinner:
             let s = UIActivityIndicatorView(style: .medium)
             s.startAnimating()
@@ -645,6 +651,37 @@ enum Fonts {
 
 /// A canvas (ui.Canvas): Go's shapes, drawn with Core Graphics in a W×H space
 /// fitted to the view.
+/// A view a plugin makes, for ui.Native. update gets the props from Go.
+public protocol NimbusNativeView: AnyObject {
+    var view: UIView { get }
+    func update(_ props: [String: Any])
+}
+
+/// The native views Go can show. Register at launch, like Plugins.
+public enum NativeViews {
+    /// emit sends a name and JSON to Go (Element.OnEvent).
+    public typealias Maker = (_ emit: @escaping (String, String) -> Void) -> NimbusNativeView
+    private static var makers: [String: Maker] = [:]
+
+    public static func register(_ kind: String, _ make: @escaping Maker) { makers[kind] = make }
+    static func make(_ kind: String, _ emit: @escaping (String, String) -> Void) -> NimbusNativeView? { makers[kind]?(emit) }
+}
+
+final class NNNativeHost: UIView {
+    private var content: NimbusNativeView?
+
+    func set(_ o: Render.Native, emit: @escaping (String, String) -> Void) {
+        if content == nil, let made = NativeViews.make(o.type, emit) {
+            content = made
+            made.view.frame = bounds
+            made.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            addSubview(made.view)
+        }
+        let props = (try? JSONSerialization.jsonObject(with: Data(o.props.utf8))) as? [String: Any] ?? [:]
+        content?.update(props)
+    }
+}
+
 final class NNCanvas: UIView {
     private var d = Render.Draw()
 
