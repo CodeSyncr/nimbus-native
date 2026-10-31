@@ -151,7 +151,7 @@ func TestPlistArraysAndEntitlements(t *testing.T) {
 	os.MkdirAll(filepath.Join(root, "native/ios/Runner.xcodeproj"), 0o755)
 	xcode := filepath.Join(root, projectXcode)
 	os.WriteFile(xcode, []byte("\t\t\t\tCODE_SIGN_STYLE = Automatic;\n"), 0o644)
-	if err := writeEntitlements(root, map[string]string{"aps-environment": "development"}); err != nil {
+	if err := writeEntitlements(root, map[string]string{"aps-environment": "development"}, nil); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(xcode)
@@ -159,7 +159,7 @@ func TestPlistArraysAndEntitlements(t *testing.T) {
 	if !bytes.Contains(b, []byte(entitlementsSetting)) || !bytes.Contains(e, []byte("aps-environment")) {
 		t.Fatalf("%s\n%s", b, e)
 	}
-	if err := dropEntitlements(root, map[string]string{"aps-environment": ""}); err != nil {
+	if err := dropEntitlements(root, map[string]string{"aps-environment": ""}, nil); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = os.ReadFile(xcode)

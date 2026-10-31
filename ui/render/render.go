@@ -593,6 +593,11 @@ type NativeEvent struct {
 	Data string
 }
 
+// BackgroundRun asks Go to run a background task (plugins/backgroundtasks).
+//
+//wire:message
+type BackgroundRun struct{ Name string }
+
 // Pinched reports a two-finger pinch: Scale is the fingers' distance over
 // what it was at the start.
 //

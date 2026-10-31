@@ -169,6 +169,10 @@ func (rt *runtime) receive(b []byte) {
 		plugin.Deliver(r) // straight to the waiting call, not through the UI loop
 		return
 	}
+	if r, ok := m.(*render.BackgroundRun); ok {
+		plugin.RunBackground(r.Name) // the app may have no screen to run a UI loop for
+		return
+	}
 	rt.do(func() {
 		switch m := m.(type) {
 		case *render.Viewport:

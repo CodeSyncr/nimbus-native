@@ -37,6 +37,8 @@ type pluginManifest struct {
 		Arrays map[string][]string `json:"arrays"`
 		// Entitlements go in Runner.entitlements.
 		Entitlements map[string]string `json:"entitlements"`
+		// EntitlementArrays are lists there.
+		EntitlementArrays map[string][]string `json:"entitlementArrays"`
 		// Packages are Swift packages for the kit.
 		Packages []swiftPackage `json:"packages"`
 	} `json:"ios"`
@@ -347,8 +349,8 @@ func requirePlugin(root string, m *pluginManifest) error {
 	}); err != nil {
 		return err
 	}
-	if len(m.IOS.Entitlements) > 0 {
-		if err := writeEntitlements(root, m.IOS.Entitlements); err != nil {
+	if len(m.IOS.Entitlements)+len(m.IOS.EntitlementArrays) > 0 {
+		if err := writeEntitlements(root, m.IOS.Entitlements, m.IOS.EntitlementArrays); err != nil {
 			return err
 		}
 	}
@@ -396,8 +398,8 @@ func dropPlugin(root string, m *pluginManifest, keepInfo, keepPerm map[string]bo
 	}); err != nil {
 		return err
 	}
-	if len(m.IOS.Entitlements) > 0 {
-		if err := dropEntitlements(root, m.IOS.Entitlements); err != nil {
+	if len(m.IOS.Entitlements)+len(m.IOS.EntitlementArrays) > 0 {
+		if err := dropEntitlements(root, m.IOS.Entitlements, m.IOS.EntitlementArrays); err != nil {
 			return err
 		}
 	}
@@ -546,7 +548,7 @@ const (
 
 // writeEntitlements adds to the app's entitlements, and points the Xcode
 // project at the file.
-func writeEntitlements(root string, values map[string]string) error {
+func writeEntitlements(root string, values map[string]string, lists map[string][]string) error {
 	p := filepath.Join(root, projectEntitlements)
 	if !exists(filepath.Dir(p)) {
 		return nil // no iOS app in this project
@@ -567,6 +569,9 @@ func writeEntitlements(root string, values map[string]string) error {
 		for k, v := range values {
 			s = plistSet(s, k, v)
 		}
+		for k, l := range lists {
+			s = plistAppend(s, k, l)
+		}
 		return s
 	}); err != nil {
 		return err
@@ -580,10 +585,13 @@ func writeEntitlements(root string, values map[string]string) error {
 }
 
 // dropEntitlements takes values out, and the file with them when it's empty.
-func dropEntitlements(root string, values map[string]string) error {
+func dropEntitlements(root string, values map[string]string, lists map[string][]string) error {
 	if err := edit(root, projectEntitlements, func(s string) string {
 		for k := range values {
 			s = plistDrop(s, k)
+		}
+		for k, l := range lists {
+			s = plistRemove(s, k, l)
 		}
 		return s
 	}); err != nil {

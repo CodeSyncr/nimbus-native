@@ -140,3 +140,14 @@ func Deliver(r *render.PluginResult) {
 		ch <- r
 	}
 }
+
+// OnBackground is called with the name of each background task the host
+// starts; plugins/backgroundtasks sets it.
+var OnBackground func(name string)
+
+// RunBackground starts a background task. The UI runtime calls it.
+func RunBackground(name string) {
+	if OnBackground != nil {
+		go OnBackground(name)
+	}
+}

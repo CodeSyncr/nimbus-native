@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x5b510f1c1bf23dec
+    public static let schemaHash: UInt64 = 0xa3dce0b5384f4ba0
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -1509,6 +1509,25 @@ public enum Render {
         }
     }
 
+    /// BackgroundRun asks Go to run a background task (plugins/backgroundtasks).
+    public struct BackgroundRun: Equatable {
+        public var name: String
+
+        public init(name: String = "") {
+            self.name = name
+        }
+
+        public func write(to w: inout WireWriter) {
+            w.string(self.name)
+        }
+
+        public static func read(from r: inout WireReader) throws -> BackgroundRun {
+            var m = BackgroundRun()
+            m.name = try r.string()
+            return m
+        }
+    }
+
     /// Pinched reports a two-finger pinch: Scale is the fingers' distance over
     /// what it was at the start.
     public struct Pinched: Equatable {
@@ -1696,6 +1715,7 @@ public enum Render {
         case longPressed(LongPressed)
         case panned(Panned)
         case nativeEvent(NativeEvent)
+        case backgroundRun(BackgroundRun)
         case pinched(Pinched)
 
         public static func write(_ v: Message?, to w: inout WireWriter) {
@@ -1771,8 +1791,11 @@ public enum Render {
             case .nativeEvent(let x)?:
                 w.uint(23)
                 x.write(to: &w)
-            case .pinched(let x)?:
+            case .backgroundRun(let x)?:
                 w.uint(24)
+                x.write(to: &w)
+            case .pinched(let x)?:
+                w.uint(25)
                 x.write(to: &w)
             }
         }
@@ -1828,6 +1851,8 @@ public enum Render {
             case 23:
                 return .nativeEvent(try NativeEvent.read(from: &r))
             case 24:
+                return .backgroundRun(try BackgroundRun.read(from: &r))
+            case 25:
                 return .pinched(try Pinched.read(from: &r))
             default:
                 throw WireError.variant

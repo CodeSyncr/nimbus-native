@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x5b510f1c1bf23dec
+const SchemaHash uint64 = 0xa3dce0b5384f4ba0
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -865,6 +865,17 @@ func (m *NativeEvent) ReadWire(r *wire.Reader) {
 }
 
 // AppendWire appends m's wire encoding to b.
+func (m *BackgroundRun) AppendWire(b []byte) []byte {
+	b = wire.AppendString(b, m.Name)
+	return b
+}
+
+// ReadWire decodes m from r. Check r.Err() afterwards.
+func (m *BackgroundRun) ReadWire(r *wire.Reader) {
+	m.Name = r.String()
+}
+
+// AppendWire appends m's wire encoding to b.
 func (m *Pinched) AppendWire(b []byte) []byte {
 	b = wire.AppendUint(b, uint64(m.Tag))
 	b = wire.AppendUint(b, uint64(m.Phase))
@@ -1035,30 +1046,31 @@ func ReadOp(r *wire.Reader) Op {
 // Message is any top-level message in this schema.
 type Message interface{ isMessage() }
 
-func (*Commit) isMessage()       {}
-func (*Viewport) isMessage()     {}
-func (*Press) isMessage()        {}
-func (*Scrolled) isMessage()     {}
-func (*Popped) isMessage()       {}
-func (*Dismissed) isMessage()    {}
-func (*Selected) isMessage()     {}
-func (*Resized) isMessage()      {}
-func (*Submitted) isMessage()    {}
-func (*Changed) isMessage()      {}
-func (*MeasureText) isMessage()  {}
-func (*TextSize) isMessage()     {}
-func (*PluginCall) isMessage()   {}
-func (*PluginAck) isMessage()    {}
-func (*PluginResult) isMessage() {}
-func (*Toggled) isMessage()      {}
-func (*Refresh) isMessage()      {}
-func (*Reattach) isMessage()     {}
-func (*Open) isMessage()         {}
-func (*Slid) isMessage()         {}
-func (*LongPressed) isMessage()  {}
-func (*Panned) isMessage()       {}
-func (*NativeEvent) isMessage()  {}
-func (*Pinched) isMessage()      {}
+func (*Commit) isMessage()        {}
+func (*Viewport) isMessage()      {}
+func (*Press) isMessage()         {}
+func (*Scrolled) isMessage()      {}
+func (*Popped) isMessage()        {}
+func (*Dismissed) isMessage()     {}
+func (*Selected) isMessage()      {}
+func (*Resized) isMessage()       {}
+func (*Submitted) isMessage()     {}
+func (*Changed) isMessage()       {}
+func (*MeasureText) isMessage()   {}
+func (*TextSize) isMessage()      {}
+func (*PluginCall) isMessage()    {}
+func (*PluginAck) isMessage()     {}
+func (*PluginResult) isMessage()  {}
+func (*Toggled) isMessage()       {}
+func (*Refresh) isMessage()       {}
+func (*Reattach) isMessage()      {}
+func (*Open) isMessage()          {}
+func (*Slid) isMessage()          {}
+func (*LongPressed) isMessage()   {}
+func (*Panned) isMessage()        {}
+func (*NativeEvent) isMessage()   {}
+func (*BackgroundRun) isMessage() {}
+func (*Pinched) isMessage()       {}
 
 // AppendMessage appends a Message: its variant index (0 for nil), then the variant.
 func AppendMessage(b []byte, v Message) []byte {
@@ -1111,8 +1123,10 @@ func AppendMessage(b []byte, v Message) []byte {
 		return v.AppendWire(wire.AppendUint(b, 22))
 	case *NativeEvent:
 		return v.AppendWire(wire.AppendUint(b, 23))
-	case *Pinched:
+	case *BackgroundRun:
 		return v.AppendWire(wire.AppendUint(b, 24))
+	case *Pinched:
+		return v.AppendWire(wire.AppendUint(b, 25))
 	}
 	panic(fmt.Sprintf("render: %T is not a Message variant", v))
 }
@@ -1215,6 +1229,10 @@ func ReadMessage(r *wire.Reader) Message {
 		v.ReadWire(r)
 		return v
 	case 24:
+		v := new(BackgroundRun)
+		v.ReadWire(r)
+		return v
+	case 25:
 		v := new(Pinched)
 		v.ReadWire(r)
 		return v

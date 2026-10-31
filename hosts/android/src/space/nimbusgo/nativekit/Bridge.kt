@@ -49,6 +49,9 @@ object Bridge {
         hostHandler = h
     }
 
+    /** Whether something answers Go's calls yet: a screen, usually. */
+    internal fun hasHost() = hostHandler != null
+
     /**
      * Boots the app's Go side with the generated NimbusSchema.COMBINED; the runtime refuses to start
      * (ERR_SCHEMA) if the Go side was generated from a different schema. It starts once per process:

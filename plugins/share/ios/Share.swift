@@ -7,6 +7,12 @@ enum SharePlugin {
         var items: [Any] = []
         if let t = call.string("text") { items.append(t) }
         if let s = call.string("url"), let u = URL(string: s) { items.append(u) }
+        for f in call.args["files"] as? [[String: Any]] ?? [] {
+            guard let name = f["name"] as? String, let b = f["data"] as? String, let d = Data(base64Encoded: b) else { continue }
+            let u = FileManager.default.temporaryDirectory.appendingPathComponent((name as NSString).lastPathComponent)
+            guard (try? d.write(to: u)) != nil else { return call.reject(Plugins.failed, "the file couldn't be written") }
+            items.append(u)
+        }
         guard !items.isEmpty else { return call.reject(Plugins.failed, "nothing to share") }
         guard let root = NimbusViewController.current else { return call.reject(Plugins.failed, "no screen to share from") }
         let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)

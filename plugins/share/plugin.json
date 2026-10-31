@@ -1,1 +1,2 @@
-{ "description": "The system's share sheet", "handler": "SharePlugin" }
+{ "description": "The system's share sheet", "handler": "SharePlugin",
+  "android": { "application": ["<provider android:name=\"space.nimbusgo.nativekit.ShareFiles\" android:authorities=\"${applicationId}.nimbusshare\" android:exported=\"false\" android:grantUriPermissions=\"true\" />"] } }

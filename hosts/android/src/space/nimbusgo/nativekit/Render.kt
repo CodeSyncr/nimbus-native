@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0x5b510f1c1bf23decuL.toLong()
+    val SCHEMA_HASH: Long = 0xa3dce0b5384f4ba0uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -1244,6 +1244,23 @@ object Render {
         }
     }
 
+    /** BackgroundRun asks Go to run a background task (plugins/backgroundtasks). */
+    data class BackgroundRun(
+        var name: String = "",
+    ) : Message {
+        fun write(w: WireWriter) {
+            w.string(this.name)
+        }
+
+        companion object {
+            fun read(r0: WireReader): BackgroundRun {
+                val m = BackgroundRun()
+                m.name = r0.string()
+                return m
+            }
+        }
+    }
+
     /** Pinched reports a two-finger pinch: Scale is the fingers' distance over what it was at the start. */
     data class Pinched(
         var tag: Long = 0L,
@@ -1348,7 +1365,8 @@ object Render {
             is LongPressed -> { w.uint(21); v.write(w) }
             is Panned -> { w.uint(22); v.write(w) }
             is NativeEvent -> { w.uint(23); v.write(w) }
-            is Pinched -> { w.uint(24); v.write(w) }
+            is BackgroundRun -> { w.uint(24); v.write(w) }
+            is Pinched -> { w.uint(25); v.write(w) }
         }
     }
 
@@ -1377,7 +1395,8 @@ object Render {
         21L -> LongPressed.read(r0)
         22L -> Panned.read(r0)
         23L -> NativeEvent.read(r0)
-        24L -> Pinched.read(r0)
+        24L -> BackgroundRun.read(r0)
+        25L -> Pinched.read(r0)
         else -> throw WireException("unknown Message variant $i")
     }
 

@@ -108,6 +108,11 @@ object Plugins {
         handlers["haptics"] = Handler(Haptics::handle)
     }
 
+    /** The app's schema, for starting Go with no screen. */
+    @Volatile
+    var schema = 0L
+        internal set
+
     private var booted = false
 
     /** Registers the enabled plugins at launch, once there's an activity to work with. */
