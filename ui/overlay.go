@@ -310,6 +310,7 @@ type Menu struct {
 	Trigger Component
 	Items   []MenuAction
 	Label   string // what the trigger does, for screen readers
+	Open    bool   // opens by itself when it first appears
 }
 
 func (m Menu) Render(c *Ctx) Component {
@@ -317,11 +318,30 @@ func (m Menu) Render(c *Ctx) Component {
 	if label == "" {
 		label = "More"
 	}
-	return Pressable(func() {
+	open := func() {
 		anchored(c, func(x, y, w, h float32) {
 			Overlays(c).show("", func(close func()) *Element { return C(menuView{m.Items, x, y, w, h, close}) })
 		})
-	}, Style{AlignSelf: AlignStart}, m.Trigger).Label(label)
+	}
+	openOnAppear(c, m.Open, open)
+	return Pressable(open, Style{AlignSelf: AlignStart}, m.Trigger).Label(label)
+}
+
+// openOnAppear opens an anchored overlay once its trigger has been laid out.
+func openOnAppear(c *Ctx, on bool, open func()) {
+	Effect(c, func(ctx context.Context) func() {
+		if !on {
+			return nil
+		}
+		go func() {
+			select {
+			case <-ctx.Done():
+			case <-time.After(300 * time.Millisecond):
+				open()
+			}
+		}()
+		return nil
+	}, Once)
 }
 
 type menuView struct {
@@ -368,14 +388,17 @@ func (m menuView) Render(c *Ctx) Component {
 type Tooltip struct {
 	Text  string
 	Child Component
+	Open  bool // shows by itself when it first appears, to point something out
 }
 
 func (t Tooltip) Render(c *Ctx) Component {
-	return Pressable(func() {
+	open := func() {
 		anchored(c, func(x, y, w, h float32) {
 			Overlays(c).show("toast", func(close func()) *Element { return C(tipView{t.Text, x, y, w, close}) })
 		})
-	}, Style{AlignSelf: AlignStart}, t.Child).Label(t.Text)
+	}
+	openOnAppear(c, t.Open, open)
+	return Pressable(open, Style{AlignSelf: AlignStart}, t.Child).Label(t.Text)
 }
 
 type tipView struct {

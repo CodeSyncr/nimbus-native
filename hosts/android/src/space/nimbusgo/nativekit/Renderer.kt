@@ -64,12 +64,15 @@ class Renderer internal constructor(private val root: NimbusView) {
     internal fun start(schema: Long) {
         Plugins.context = ctx.applicationContext
         Plugins.schema = schema
-        // Where a view is in the window, for what opens beside it (ui.Menu).
+        // Where a view is on the app's root, for what opens beside it (ui.Menu). The root
+        // can start below the status bar, so it isn't the window's own position.
         Plugins.register("nimbusView", Plugins.Handler { call ->
             val v = views[call.args.optInt("tag")] ?: return@Handler call.reject(Plugins.NOT_FOUND, "no such view")
             val at = IntArray(2)
+            val origin = IntArray(2)
             v.getLocationInWindow(at)
-            call.resolve(mapOf("X" to at[0] / density, "Y" to at[1] / density, "W" to v.width / density, "H" to v.height / density))
+            root.getLocationInWindow(origin)
+            call.resolve(mapOf("X" to (at[0] - origin[0]) / density, "Y" to (at[1] - origin[1]) / density, "W" to v.width / density, "H" to v.height / density))
         })
         Plugins.activity = ctx as? android.app.Activity
         Plugins.boot()

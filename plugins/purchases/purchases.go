@@ -8,9 +8,9 @@
 //	// Check r on your server, unlock what they paid for, then:
 //	err = purchases.Finish(ctx, r)
 //
-// A purchase that isn't finished comes back from Owned, and the stores refund
-// what's never finished, so nothing is lost if the app dies halfway. To let
-// Cashier do the checking, use a Cashier.
+// A purchase that isn't finished comes back from Owned, so nothing is lost if
+// the app dies halfway, but Google Play refunds one left for three days. To
+// let Cashier do the checking, use a Cashier.
 package purchases
 
 import (

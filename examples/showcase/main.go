@@ -480,7 +480,7 @@ type menus struct{}
 
 func (menus) Render(c *ui.Ctx) ui.Component {
 	return page(c, "Orders", "Tap the dots for more.",
-		ui.ListRow{Title: "Order 1042", Subtitle: "Table 7", Icon: "cart", Trailing: ui.Menu{Trigger: ui.Icon("more", 26, 0), Items: []ui.MenuAction{
+		ui.ListRow{Title: "Order 1042", Subtitle: "Table 7", Icon: "cart", Trailing: ui.Menu{Open: true, Trigger: ui.Icon("more", 26, 0), Items: []ui.MenuAction{
 			{Label: "Edit", Icon: "edit"}, {Label: "Share", Icon: "share"}, {Label: "Delete", Icon: "trash", Destructive: true}}}})
 }
 
@@ -488,9 +488,10 @@ type tooltips struct{}
 
 func (tooltips) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
-	return page(c, "Service charge", "Tap the icon to learn more.",
+	return page(c, "Your bill", "Tap the icon to learn more.",
+		ui.View(ui.Style{Height: ui.Pt(44)}),
 		row(8, ui.Text("Service charge", ui.Style{FontSize: 16, Color: th.Text}),
-			ui.Tooltip{Text: "Shared between today's team.", Child: ui.Icon("info", 20, th.TextMuted)}))
+			ui.Tooltip{Open: true, Text: "Shared between today's team.", Child: ui.Icon("info", 20, th.TextMuted)}))
 }
 
 type appBars struct{}
