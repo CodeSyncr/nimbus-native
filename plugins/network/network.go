@@ -18,6 +18,8 @@ type Status struct {
 	Connected bool   `json:"connected"` // whether it is online
 	Type      string `json:"type"`      // "wifi", "cellular", "wired", "other" or "none"
 	Expensive bool   `json:"expensive"` // metered, such as mobile data
+	Address   string `json:"address"`   // the phone's IP on this network, not its public one
+	Airplane  bool   `json:"airplane"`  // airplane mode; Android only, as iOS doesn't say
 }
 
 // Get returns the connection now.

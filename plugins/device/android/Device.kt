@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 
 /** device: the phone's model, system, memory and battery. */
 internal object DevicePlugin {
@@ -25,7 +26,8 @@ internal object DevicePlugin {
                 val level = s?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
                 val scale = s?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
                 val status = s?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-                call.resolve(mapOf("level" to (if (scale > 0 && level >= 0) level.toFloat() / scale else -1f),
+                val power = c.getSystemService(Context.POWER_SERVICE) as PowerManager
+                call.resolve(mapOf("lowPower" to power.isPowerSaveMode, "level" to (if (scale > 0 && level >= 0) level.toFloat() / scale else -1f),
                     "charging" to (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL)))
             }
             else -> Plugins.unknownMethod(call)

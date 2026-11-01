@@ -3,6 +3,8 @@ package space.nimbusgo.nativekit
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.provider.Settings
+import java.net.Inet4Address
 
 /** network: the phone's connection. */
 internal object NetworkPlugin {
@@ -18,6 +20,10 @@ internal object NetworkPlugin {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "wired"
             else -> "other"
         }
-        call.resolve(mapOf("connected" to on, "type" to type, "expensive" to (on && cm.isActiveNetworkMetered)))
+        val addresses = cm.activeNetwork?.let { cm.getLinkProperties(it) }?.linkAddresses?.map { it.address }.orEmpty()
+        val address = (addresses.firstOrNull { it is Inet4Address } ?: addresses.firstOrNull())?.hostAddress ?: ""
+        val airplane = Settings.Global.getInt(Plugins.context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) == 1
+        call.resolve(mapOf("connected" to on, "type" to type, "expensive" to (on && cm.isActiveNetworkMetered),
+            "address" to address, "airplane" to airplane))
     }
 }

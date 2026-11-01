@@ -20,5 +20,10 @@ func (Online) Render(c *ui.Ctx) ui.Component {
 	if !s.Connected {
 		line = "You're offline"
 	}
-	return ui.SafeArea(ui.Style{Padding: ui.All(24)}, ui.Text(line, ui.Style{FontSize: 20}))
+	if s.Airplane {
+		line += ", in airplane mode"
+	}
+	return ui.SafeArea(ui.Style{Padding: ui.All(24), Gap: 8},
+		ui.Text(line, ui.Style{FontSize: 20}),
+		ui.Text("Address: "+s.Address, ui.Style{}))
 }

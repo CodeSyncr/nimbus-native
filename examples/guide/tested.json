@@ -296,11 +296,11 @@
   "device": [
     {
       "where": "Android emulator",
-      "result": "The example shows the real model, system, memory and battery."
+      "result": "The example shows the real model, system and memory. WatchBattery followed the level, charging and low power as they were set from outside, with no reload."
     },
     {
       "where": "iOS simulator",
-      "result": "The example shows the real model and system. Battery reads below zero, because a simulator has none."
+      "result": "The example shows the real model and system. Battery reads below zero, because a simulator has none, so changes and low power are untested on iOS."
     },
     {
       "where": "Real phones",
@@ -590,11 +590,11 @@
   "network": [
     {
       "where": "Android emulator",
-      "result": "Shows online over Wi-Fi. Going offline wasn't tried in this run."
+      "result": "Shows Wi-Fi and the address. With airplane mode on it showed offline, and it came back when it went off, with no reload. Mobile data wasn't tried."
     },
     {
       "where": "iOS simulator",
-      "result": "Shows online over Wi-Fi. Going offline wasn't tried in this run."
+      "result": "Shows Wi-Fi and the real address. Going offline wasn't tried, and iOS doesn't report airplane mode."
     },
     {
       "where": "Real phones",

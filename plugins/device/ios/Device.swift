@@ -19,7 +19,7 @@ enum DevicePlugin {
         case "battery":
             let d = UIDevice.current
             d.isBatteryMonitoringEnabled = true
-            call.resolve(["level": d.batteryLevel, "charging": d.batteryState == .charging || d.batteryState == .full])
+            call.resolve(["level": d.batteryLevel, "lowPower": ProcessInfo.processInfo.isLowPowerModeEnabled, "charging": d.batteryState == .charging || d.batteryState == .full])
         default:
             Plugins.unknownMethod(call)
         }

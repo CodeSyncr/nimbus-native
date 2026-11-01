@@ -8,6 +8,7 @@ package device
 
 import (
 	"context"
+	"time"
 
 	"github.com/CodeSyncr/nimbus-native/plugin"
 )
@@ -26,6 +27,8 @@ type Info struct {
 type Battery struct {
 	Level    float32 `json:"level"`    // 0..1; below 0 when the phone can't say
 	Charging bool    `json:"charging"` // whether it is plugged in
+	// LowPower is the phone's power saving mode: a good moment to do less.
+	LowPower bool `json:"lowPower"`
 }
 
 // Get returns the phone's Info.
@@ -34,4 +37,31 @@ func Get(ctx context.Context) (Info, error) { return plugin.Call[Info](ctx, "dev
 // GetBattery returns the battery's state.
 func GetBattery(ctx context.Context) (Battery, error) {
 	return plugin.Call[Battery](ctx, "device", "battery", nil)
+}
+
+// WatchBattery calls f with the battery now and whenever it changes, until
+// ctx ends. It blocks, so run it from a goroutine in an effect.
+//
+//nimbus:param f called with each change
+//nimbus:returns why it stopped, which is ctx.Err() when ctx ends
+func WatchBattery(ctx context.Context, f func(Battery)) error {
+	var last Battery
+	first := true
+	tick := time.NewTicker(2 * time.Second)
+	defer tick.Stop()
+	for {
+		b, err := GetBattery(ctx)
+		if err != nil {
+			return err
+		}
+		if first || b != last {
+			first, last = false, b
+			f(b)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tick.C:
+		}
+	}
 }
