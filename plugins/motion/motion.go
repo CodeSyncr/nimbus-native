@@ -12,22 +12,26 @@ import (
 	"github.com/CodeSyncr/nimbus-native/plugin"
 )
 
-// Vector is a reading on each axis: x across the screen, y up it, z out of it.
+// Vector is a reading on each axis, as the phone is held upright.
 type Vector struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
-	Z float64 `json:"z"`
+	X float64 `json:"x"` // across the screen, positive to the right
+	Y float64 `json:"y"` // up the screen, positive to the top
+	Z float64 `json:"z"` // out of the screen, positive toward you
 }
 
-// Reading is one moment.
+// Reading is one sample from both sensors.
 type Reading struct {
-	Accel Vector `json:"accel"` // in g, gravity included
-	Gyro  Vector `json:"gyro"`  // radians a second
+	Accel Vector `json:"accel"` // the accelerometer, in g, gravity included
+	Gyro  Vector `json:"gyro"`  // the gyroscope, in radians a second
 }
 
 // Watch calls f about hz times a second until ctx ends. It blocks, so run it
 // from a goroutine in an effect. Where there's no sensor, as on the iOS
 // simulator, it fails with plugin.Unavailable.
+//
+//nimbus:param hz readings a second; 30 if it's 0 or less
+//nimbus:param f called with each reading, on the goroutine that called Watch
+//nimbus:returns why it stopped, which is ctx.Err() when ctx ends
 func Watch(ctx context.Context, hz int, f func(Reading)) error {
 	if hz <= 0 {
 		hz = 30
