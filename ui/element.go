@@ -127,6 +127,9 @@ func Text(text string, s Style) *Element {
 }
 
 // Image shows a picture from a URL. Give it a size: it has none of its own.
+//
+//nimbus:param url where the picture is
+//nimbus:param s its size and place on the screen
 func Image(url string, s Style) *Element {
 	return &Element{kind: render.KindImage, style: s, src: url}
 }
@@ -239,7 +242,16 @@ func (e *Element) Secure() *Element { e.secure = true; return e }
 // Keyboard picks a text input's soft keyboard.
 func (e *Element) Keyboard(k render.Keyboard) *Element { e.keyboard = k; return e }
 
+// How an image fills its frame.
+const (
+	FitCover   = render.FitCover   // fills the frame, cropping what's over
+	FitContain = render.FitContain // fits inside, showing all of it
+	FitStretch = render.FitStretch // stretches to the frame
+)
+
 // Fit sets how an image fills its frame.
+//
+//nimbus:param f FitCover, FitContain or FitStretch
 func (e *Element) Fit(f render.Fit) *Element { e.fit = f; return e }
 
 // Horizontal makes a Scroll scroll sideways.

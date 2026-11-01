@@ -1102,6 +1102,12 @@ final class NNInput: UIView, UITextViewDelegate {
 /// An image view that loads its picture from a URL, with a shared cache.
 final class NNImageView: UIImageView {
     private static let cache = NSCache<NSString, UIImage>()
+    /// Pictures on disk, by the server's own rules: 100 MB, shared by every image view.
+    private static let session: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.urlCache = URLCache(memoryCapacity: 0, diskCapacity: 100 << 20, directory: nil)
+        return URLSession(configuration: c)
+    }()
     private var url = ""
 
     func load(_ o: Render.Image) {
@@ -1119,12 +1125,19 @@ final class NNImageView: UIImageView {
             return
         }
         guard let u = URL(string: o.url) else { return }
-        URLSession.shared.dataTask(with: u) { [weak self] data, _, _ in
-            guard let data, let img = UIImage(data: data) else { return }
+        let show = { [weak self] (data: Data?) -> Bool in
+            guard let data, let img = UIImage(data: data) else { return false }
             NNImageView.cache.setObject(img, forKey: o.url as NSString)
             DispatchQueue.main.async {
                 if self?.url == o.url { self?.image = img }
             }
+            return true
+        }
+        NNImageView.session.dataTask(with: u) { data, _, _ in
+            if show(data) { return }
+            // No network: an old copy beats an empty box.
+            let old = URLRequest(url: u, cachePolicy: .returnCacheDataDontLoad)
+            NNImageView.session.dataTask(with: old) { data, _, _ in _ = show(data) }.resume()
         }.resume()
     }
 }

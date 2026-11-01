@@ -18,6 +18,7 @@ var Screens = map[string]ui.Component{
 	"search-bar":        Menu{},
 	"otp-input":         Verify{},
 	"icon":              Icons{},
+	"image":             Photo{},
 	"avatar":            Team{},
 	"badge":             OrderStates{},
 	"chip":              Filters{},

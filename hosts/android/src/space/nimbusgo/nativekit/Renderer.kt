@@ -18,6 +18,7 @@ import android.text.TextPaint
 import android.text.TextUtils
 import android.text.TextWatcher
 import android.util.Log
+import android.net.http.HttpResponseCache
 import android.util.LruCache
 import android.util.TypedValue
 import android.view.Gravity
@@ -382,7 +383,8 @@ class Renderer internal constructor(private val root: NimbusView) {
             v.scaleY = scale
             v.rotation = o.rotate
         }
-        v.clipToOutline = o.clip
+        // A picture scaled to fill runs past its frame, so it's always kept inside, as on iOS.
+        v.clipToOutline = o.clip || v is NNImage
         // Only a change of Style.Hidden touches visibility: stacks and tabs set it on their screens.
         if (o.hidden) {
             if (hidden.add(o.tag.toInt())) v.visibility = View.INVISIBLE
@@ -430,6 +432,17 @@ class Renderer internal constructor(private val root: NimbusView) {
     private class NNImage(c: Context) : ImageView(c) {
         private var url: String? = null
 
+        init {
+            cropToPadding = true
+        }
+
+        private fun fetch(u: String, offline: Boolean): android.graphics.Bitmap? {
+            val conn = URL(u).openConnection() as HttpURLConnection
+            conn.instanceFollowRedirects = true
+            if (offline) conn.addRequestProperty("Cache-Control", "only-if-cached, max-stale=2592000")
+            return conn.inputStream.use { BitmapFactory.decodeStream(it) }
+        }
+
         fun load(o: Render.Image) {
             scaleType = when (o.fit) {
                 Render.Fit.CONTAIN -> ScaleType.FIT_CENTER
@@ -445,15 +458,20 @@ class Renderer internal constructor(private val root: NimbusView) {
                 return
             }
             loader.execute {
-                try {
-                    val conn = URL(u).openConnection() as HttpURLConnection
-                    conn.instanceFollowRedirects = true
-                    val b = conn.inputStream.use { BitmapFactory.decodeStream(it) } ?: return@execute
-                    bitmaps.put(u, b)
-                    main.post { if (u == url) setImageBitmap(b) }
+                diskCache(context)
+                val b = try {
+                    fetch(u, false)
                 } catch (e: Exception) {
-                    Log.w("NimbusNative", "image $u: $e")
-                }
+                    // No network: an old copy beats an empty box.
+                    try {
+                        fetch(u, true)
+                    } catch (e2: Exception) {
+                        Log.w("NimbusNative", "image $u: $e")
+                        null
+                    }
+                } ?: return@execute
+                bitmaps.put(u, b)
+                main.post { if (u == url) setImageBitmap(b) }
             }
         }
     }
@@ -599,6 +617,11 @@ class Renderer internal constructor(private val root: NimbusView) {
         val NO_FRAME = intArrayOf(0, 0, 0, 0)
         val loader = Executors.newFixedThreadPool(4)!!
         val main = Handler(Looper.getMainLooper())
+        /** Pictures on disk, by the server's own rules: 100 MB, shared by every image view. */
+        fun diskCache(c: Context) {
+            if (HttpResponseCache.getInstalled() == null) HttpResponseCache.install(java.io.File(c.cacheDir, "nimbus-images"), 100L shl 20)
+        }
+
         val bitmaps = object : LruCache<String, Bitmap>(16 shl 20) {
             override fun sizeOf(key: String, value: Bitmap) = value.byteCount
         }

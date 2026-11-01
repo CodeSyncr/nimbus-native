@@ -574,5 +574,23 @@
       "where": "Real phones",
       "result": "Not tried yet."
     }
+  ],
+  "image": [
+    {
+      "where": "Android emulator",
+      "result": "The picture loads, and after killing the app in airplane mode it still shows, from the disk cache."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The picture loads and is written to the disk cache. Loading it offline wasn't tried, because a simulator can't go offline by itself."
+    },
+    {
+      "where": "The web",
+      "result": "The picture loads. Caching is the browser's own."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
   ]
 }

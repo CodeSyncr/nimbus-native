@@ -120,5 +120,9 @@
     "Pinch",
     "Swipe",
     "Phase"
+  ],
+  "image": [
+    "Image",
+    "Element.Fit"
   ]
 }

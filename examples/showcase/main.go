@@ -49,6 +49,7 @@ var screens = map[string]func() ui.Component{
 	"search-bar":   func() ui.Component { return searchBars{} },
 	"otp":          func() ui.Component { return otps{} },
 	"avatar":       func() ui.Component { return avatars{} },
+	"image":        func() ui.Component { return images{} },
 	"badge":        func() ui.Component { return badges{} },
 	"chip":         func() ui.Component { return chips{} },
 	"divider":      func() ui.Component { return dividers{} },
@@ -576,4 +577,13 @@ func (gestures) Render(c *ui.Ctx) ui.Component {
 		ui.Text(fmt.Sprintf("Pinch: %.2f", scale), ui.Style{FontWeight: 600, Color: th.Text}).TestID("pinched"),
 		ui.View(ui.Style{Height: ui.Pt(90), Radius: 18, Background: th.Surface}).OnPinch(func(p ui.Pinch) { setScale(p.Scale) }),
 	)
+}
+
+type images struct{}
+
+func (images) Render(c *ui.Ctx) ui.Component {
+	url := "https://www.w3schools.com/css/img_5terre.jpg"
+	return page(c, "Our farms", "Where the beans are grown.",
+		ui.Image(url, ui.Style{Height: ui.Pt(200), Radius: 18}),
+		ui.Text("Manarola, on the Ligurian coast", ui.Style{FontSize: 15}))
 }
