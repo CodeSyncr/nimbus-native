@@ -21,6 +21,8 @@ const (
 )
 
 // Lock holds the screen in a mode.
+//
+//nimbus:param m how to hold the screen
 func Lock(ctx context.Context, m Mode) error {
 	_, err := plugin.CallJSON(ctx, "orientation", "set", map[string]Mode{"mode": m})
 	return err

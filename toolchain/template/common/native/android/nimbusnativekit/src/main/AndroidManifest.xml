@@ -2,4 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- The haptics plugin's vibrations (a normal permission: no prompt). -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- What linking.CanOpen can ask about: since Android 11 an app can't see other apps otherwise. -->
+    <queries>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="https" /></intent>
+        <intent><action android:name="android.intent.action.DIAL" /><data android:scheme="tel" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="tel" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="sms" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="mailto" /></intent>
+    </queries>
 </manifest>
