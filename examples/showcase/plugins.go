@@ -178,6 +178,8 @@ var shots = map[string]shot{
 		rows: []ui.ListRow{{Title: "receipt-1042.jpg", Subtitle: "Today, 1600×900", Icon: "image"}, {Title: "latte-art.jpg", Subtitle: "Yesterday, 4032×3024", Icon: "image"}}, button: "Save a picture"},
 	"image-manipulator": {title: "Your photo", line: "Made smaller before it's sent.", icon: "image", lead: "Ready to upload", text: "Plain Go, so it runs on your server too.",
 		facts: [][2]string{{"Before", "4032×3024, 3.4 MB"}, {"After", "1200×900, 210 KB"}}, button: "Upload"},
+	"camera-view": {title: "Scan your receipt", line: "The camera, inside your own screen.", icon: "camera", lead: "Hold it steady", text: "Your buttons and your design over a live picture.",
+		facts: [][2]string{{"Camera", "Back"}, {"Light", "Off"}}, button: "Take", quiet: "Flip"},
 	"purchases": {title: "Monsoon Club", line: "Free coffee, every Friday.", icon: "star", lead: "₹499 a month", text: "Cancel any time from the store.",
 		facts: [][2]string{{"Plan", "Monthly"}, {"Renews", "Dec 1"}}, button: "Join for ₹499", quiet: "Restore purchases"},
 	"sign-in": {title: "Welcome back", line: "One tap, no passwords.", icon: "user", lead: "Keep your stamps", text: "Sign in and they follow you to any phone.",

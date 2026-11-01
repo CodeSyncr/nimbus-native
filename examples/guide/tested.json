@@ -195,6 +195,20 @@
       "result": "Not tried yet."
     }
   ],
+  "cameraview": [
+    {
+      "where": "Android emulator",
+      "result": "The live picture shows, fills the view and is upright, on the emulator's virtual camera. Take returns an upright photo, and a missing front camera is reported. The light wasn't confirmed, because the emulator has none. Leaving the app and coming back wasn't tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Reports no camera, as it should: the simulator has none, so the live picture and Take are untested on iOS."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "cellular": [
     {
       "where": "Android emulator",

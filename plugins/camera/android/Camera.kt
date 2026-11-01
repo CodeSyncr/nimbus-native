@@ -1,5 +1,6 @@
 package space.nimbusgo.nativekit
 
+import android.Manifest
 import android.app.Activity
 import android.content.ContentProvider
 import android.content.ContentValues
@@ -39,16 +40,16 @@ internal object CameraPlugin {
         val a = Plugins.activity ?: return call.reject(Plugins.FAILED, "no screen to open it from")
         when (call.method) {
             "take" -> {
-                if (!a.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) return call.reject(Plugins.UNAVAILABLE, "this phone has no camera")
-                val file = File(a.cacheDir, "nimbus-photo.jpg")
-                file.delete()
-                val uri = Uri.parse("content://${a.packageName}.nimbuscamera/photo.jpg")
-                val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE).putExtra(MediaStore.EXTRA_OUTPUT, uri)
-                    .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                ResultAsker.start(a, i) { result, _ ->
-                    if (result != Activity.RESULT_OK || !file.exists()) return@start call.reject(Plugins.CANCELLED, "no photo")
-                    respond(call) { file.inputStream() to file.inputStream() }
+                // An app that declares the camera permission must hold it to use the camera app,
+                // or Android throws: camera-view declares it.
+                val declared = a.packageManager.getPackageInfo(a.packageName, PackageManager.GET_PERMISSIONS)
+                    .requestedPermissions?.contains(Manifest.permission.CAMERA) == true
+                if (declared && a.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    return PermissionAsker.ask(a, Manifest.permission.CAMERA) { ok ->
+                        if (ok) take(call, a) else call.reject(Plugins.DENIED, "they said no")
+                    }
                 }
+                take(call, a)
             }
             "pick" -> {
                 val i = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
@@ -61,6 +62,19 @@ internal object CameraPlugin {
             }
             else -> Plugins.unknownMethod(call)
         }
+    }
+
+    private fun take(call: PluginCall, a: Activity) {
+            if (!a.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) return call.reject(Plugins.UNAVAILABLE, "this phone has no camera")
+            val file = File(a.cacheDir, "nimbus-photo.jpg")
+            file.delete()
+            val uri = Uri.parse("content://${a.packageName}.nimbuscamera/photo.jpg")
+            val i = Intent(MediaStore.ACTION_IMAGE_CAPTURE).putExtra(MediaStore.EXTRA_OUTPUT, uri)
+                .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            ResultAsker.start(a, i) { result, _ ->
+                if (result != Activity.RESULT_OK || !file.exists()) return@start call.reject(Plugins.CANCELLED, "no photo")
+                respond(call) { file.inputStream() to file.inputStream() }
+            }
     }
 
     /** Reads, turns and sizes the picture off the main thread. */

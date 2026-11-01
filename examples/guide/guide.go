@@ -21,5 +21,6 @@ var Screens = map[string]ui.Component{
 	"brightness": BoardingPass{}, "navigationbar": Kiosk{}, "screencapture": CardNumber{},
 	"intentlauncher": FixWifi{}, "mailcomposer": SendReceipt{}, "printing": PrintReceipt{}, "sms": TextFriend{},
 	"cellular": PhoneNetwork{}, "imagemanipulator": Thumbnail{}, "localization": Prices{}, "medialibrary": SaveToPhotos{},
-	"storage": Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
+	"cameraview": Viewfinder{},
+	"storage":    Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }
