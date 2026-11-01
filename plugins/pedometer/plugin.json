@@ -1,0 +1,4 @@
+{ "description": "Step counting", "handler": "PedometerPlugin",
+  "platforms": { "ios": "device only" },
+  "ios": { "info": { "NSMotionUsageDescription": "This app counts your steps." } },
+  "android": { "permissions": ["android.permission.ACTIVITY_RECOGNITION"] } }

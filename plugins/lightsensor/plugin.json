@@ -1,0 +1,2 @@
+{ "description": "How bright it is around the phone", "handler": "LightSensorPlugin",
+  "platforms": { "ios": "none" } }

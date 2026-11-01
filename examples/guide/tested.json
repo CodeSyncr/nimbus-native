@@ -97,6 +97,20 @@
       "result": "Not tried yet."
     }
   ],
+  "barometer": [
+    {
+      "where": "Android emulator",
+      "result": "Readings follow the pressure set on the emulator, and a fall from 1013 to 995 hPa reads as about 153 m climbed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Says there's no barometer, as it should: the simulator has no sensors, so real readings are untested on iOS."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "biometrics": [
     {
       "where": "Android emulator",
@@ -335,6 +349,20 @@
       "result": "Not tried yet."
     }
   ],
+  "lightsensor": [
+    {
+      "where": "Android emulator",
+      "result": "Readings follow the light level set on the emulator."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Says it can't read the light, which is right: iOS doesn't allow it."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "linking": [
     {
       "where": "Android emulator",
@@ -357,6 +385,20 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "magnetometer": [
+    {
+      "where": "Android emulator",
+      "result": "Readings follow the field set on the emulator."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Says there's no magnetometer, as it should: the simulator has no sensors, so real readings are untested on iOS."
     },
     {
       "where": "Real phones",
@@ -413,6 +455,20 @@
     {
       "where": "iOS simulator",
       "result": "Locks to landscape, and unlocking returns to portrait."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "pedometer": [
+    {
+      "where": "Android emulator",
+      "result": "Says it can't count steps, because this emulator has no step counter. The permission prompt and a real count have never been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. Counting needs a real phone."
     },
     {
       "where": "Real phones",

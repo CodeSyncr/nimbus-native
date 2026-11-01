@@ -1,0 +1,3 @@
+{ "description": "The magnetic field around the phone", "handler": "MagnetometerPlugin",
+  "platforms": { "ios": "device only" },
+  "ios": { "info": { "NSMotionUsageDescription": "This app responds to magnetic fields near your phone." } } }

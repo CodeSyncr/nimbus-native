@@ -7,7 +7,7 @@ import (
 
 // AppBar is a screen's top bar when it has no navigation Stack of its own:
 //
-//	ui.AppBar{Title: "Orders", Actions: []*ui.Element{ui.C(ui.IconButton{Icon: "search", Label: "Search"})}}
+//	ui.AppBar{Title: "Orders", Actions: []ui.Component{ui.IconButton{Icon: "search", Label: "Search"}}}
 type AppBar struct {
 	Title    string      // The screen's name
 	Subtitle string      // Under it

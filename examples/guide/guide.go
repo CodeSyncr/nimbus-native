@@ -17,5 +17,6 @@ var Screens = map[string]ui.Component{
 	"nfc": ReadTag{}, "orientation": KitchenScreen{}, "purchases": Membership{}, "push": Notifications{},
 	"screenreader": OrderReady{}, "securestore": Session{}, "share": SplitBill{}, "signin": Welcome{},
 	"speech": ReadAloud{}, "speechrecognition": VoiceSearch{}, "splashscreen": FirstScreen{}, "statusbar": DarkHero{},
+	"barometer": Floors{}, "lightsensor": Ambient{}, "magnetometer": Detector{}, "pedometer": Steps{},
 	"storage": Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

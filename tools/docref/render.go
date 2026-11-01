@@ -90,7 +90,7 @@ func table(b *strings.Builder, head []string, rows [][]string) {
 func (p *plug) platforms() string {
 	one := func(name, key string, on bool) string {
 		switch {
-		case !on:
+		case !on, p.notes[key] == "none":
 			return `<span class="nd-plat off">Not on ` + name + `</span>`
 		case p.notes[key] != "":
 			return `<span class="nd-plat">` + name + ` <small>` + esc(p.notes[key]) + `</small></span>`
