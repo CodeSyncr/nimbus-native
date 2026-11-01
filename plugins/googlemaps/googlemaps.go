@@ -21,37 +21,37 @@ import (
 
 // LatLng is a place.
 type LatLng struct {
-	Latitude  float64 `json:"lat"`
-	Longitude float64 `json:"lng"`
+	Latitude  float64 `json:"lat"` // in degrees
+	Longitude float64 `json:"lng"` // in degrees
 }
 
 // Marker is a pin.
 type Marker struct {
-	ID    string `json:"id"`
-	At    LatLng `json:"at"`
-	Title string `json:"title,omitempty"`
+	ID    string `json:"id"`              // your name for it, sent to OnMarker
+	At    LatLng `json:"at"`              // where it stands
+	Title string `json:"title,omitempty"` // shown when tapped; optional
 }
 
 // Polyline is a line through places, such as a route.
 type Polyline struct {
-	Points []LatLng `json:"points"`
-	Color  ui.Color `json:"color"` // the theme's Primary when 0
-	Width  float32  `json:"width"` // points; 0 means 4
+	Points []LatLng `json:"points"` // the places it goes through
+	Color  ui.Color `json:"color"`  // the theme's Primary when 0
+	Width  float32  `json:"width"`  // points; 0 means 4
 }
 
 // Map is a map. Changing Center or Zoom moves it there; panning by hand
 // doesn't change them, and OnMove says where it stopped.
 type Map struct {
-	Center     LatLng
-	Zoom       float32 // 0 means 12
-	Markers    []Marker
-	Lines      []Polyline
-	MyLocation bool // the blue dot; needs the location permission
+	Center     LatLng     // where it looks
+	Zoom       float32    // 0 means 12
+	Markers    []Marker   // the pins
+	Lines      []Polyline // routes and other lines
+	MyLocation bool       // the blue dot; needs the location permission
 
 	OnTap    func(LatLng)          // the map itself
 	OnMarker func(id string)       // a pin
 	OnMove   func(LatLng, float32) // after a pan or zoom ends, with the zoom
-	Style    ui.Style
+	Style    ui.Style              // the map's size and place on the screen
 }
 
 type props struct {

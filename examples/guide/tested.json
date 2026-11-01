@@ -1,0 +1,618 @@
+{
+  "appinfo": [
+    {
+      "where": "Android emulator",
+      "result": "The example shows the real version, system and language."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example shows the real version, system and language."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "appreview": [
+    {
+      "where": "Android emulator",
+      "result": "The call returns. No prompt appeared: that's up to Google Play."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "appstate": [
+    {
+      "where": "Android emulator",
+      "result": "Reports active. This run didn't leave the app and come back."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Reports active. This run didn't leave the app and come back."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "audio": [
+    {
+      "where": "Android emulator",
+      "result": "The microphone opens and times out with nothing heard, because the emulator's microphone hears nothing. Playback worked in an earlier test."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "A real spoken turn worked in an earlier test, heard from the Mac's speaker."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "backgroundtasks": [
+    {
+      "where": "Android emulator",
+      "result": "In an earlier test, Go started with no screen and ran a task with the app dead."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "It builds, but the system hasn't run a task yet."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "badge": [
+    {
+      "where": "Android emulator",
+      "result": "The calls return. The number on the icon wasn't checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "barcode": [
+    {
+      "where": "Android emulator",
+      "result": "Fails with plugin.Unavailable here: Google's scanner module hadn't downloaded to this emulator. A real scan hasn't been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "biometrics": [
+    {
+      "where": "Android emulator",
+      "result": "Says none is set up, which is right for this emulator. A real confirm hasn't been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "bluetooth": [
+    {
+      "where": "Android emulator",
+      "result": "A scan ends with nothing found, because the emulator has no Bluetooth radio. Connecting, reading and writing have never been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Simulators have no Bluetooth, so it has never been run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "browser": [
+    {
+      "where": "Android emulator",
+      "result": "The page opens."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "calendar": [
+    {
+      "where": "Android emulator",
+      "result": "Google Calendar opens. Saving an event wasn't tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "camera": [
+    {
+      "where": "Android emulator",
+      "result": "Both screens open. No photo was taken or picked in this run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "clipboard": [
+    {
+      "where": "Android emulator",
+      "result": "Copy and paste both work."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "contacts": [
+    {
+      "where": "Android emulator",
+      "result": "The picker opens. This emulator has no contacts, so none was chosen."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "device": [
+    {
+      "where": "Android emulator",
+      "result": "The example shows the real model, system, memory and battery."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example shows the real model and system. Battery reads below zero, because a simulator has none."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "dialog": [
+    {
+      "where": "Android emulator",
+      "result": "The alert shows, and the answer comes back."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "filepicker": [
+    {
+      "where": "Android emulator",
+      "result": "The picker opens. No file was chosen in this run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "filesystem": [
+    {
+      "where": "Android emulator",
+      "result": "Saves a file and lists it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "geofencing": [
+    {
+      "where": "Android emulator",
+      "result": "The request reaches Settings, where background location must be turned on. It was left off, so no crossing was seen."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "geolocation": [
+    {
+      "where": "Android emulator",
+      "result": "Returns the location set on the emulator."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "googlemaps": [
+    {
+      "where": "Android emulator",
+      "result": "The map view shows, but its tiles were blank, so pins and tapping them aren't confirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's pin shows. Pins, routes and camera events worked in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "haptics": [
+    {
+      "where": "Android emulator",
+      "result": "The calls return. An emulator can't be felt, so the effects themselves are unconfirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "keepawake": [
+    {
+      "where": "Android emulator",
+      "result": "The call returns. Whether the screen dims wasn't watched."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. Whether it dims wasn't watched."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "keyboard": [
+    {
+      "where": "Android emulator",
+      "result": "The call returns. The keyboard wasn't open in this run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "linking": [
+    {
+      "where": "Android emulator",
+      "result": "The dialer opens with the number."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "localnotifications": [
+    {
+      "where": "Android emulator",
+      "result": "Permission is granted and the reminder is scheduled. Its delivery wasn't watched in this run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "motion": [
+    {
+      "where": "Android emulator",
+      "result": "The example runs: readings follow the emulator's accelerometer, and Stop and Start work. The gyroscope wasn't checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Fails with plugin.Unavailable, as it should: the simulator has no sensors, so real readings are untested on iOS."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "network": [
+    {
+      "where": "Android emulator",
+      "result": "Shows online over Wi-Fi. Going offline wasn't tried in this run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Shows online over Wi-Fi. Going offline wasn't tried in this run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "nfc": [
+    {
+      "where": "Android emulator",
+      "result": "Says the phone can't read tags, which is right for an emulator. Reading a tag has never been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Simulators have no NFC, so reading a tag has never been run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "orientation": [
+    {
+      "where": "Android emulator",
+      "result": "Locks to landscape, and unlocking returns to portrait."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Locks to landscape, and unlocking returns to portrait."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "purchases": [
+    {
+      "where": "Android emulator",
+      "result": "Says Google Play can't sell here, because this emulator has no billing. Buying has never been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The store finds no product, because none is set up. Buying has never been run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "push": [
+    {
+      "where": "Android emulator",
+      "result": "With no google-services.json it says so. Firebase delivery hasn't been tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. A real token and a simulated push worked in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "screenreader": [
+    {
+      "where": "Android emulator",
+      "result": "Says it's off, and the announcement call returns. It wasn't tried with TalkBack on."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "securestore": [
+    {
+      "where": "Android emulator",
+      "result": "Saves, reads back and deletes a value."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "share": [
+    {
+      "where": "Android emulator",
+      "result": "The share sheet opens for text and for a file."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "signin": [
+    {
+      "where": "Android emulator",
+      "result": "Reaches the account step and reports no Google account. A completed sign-in has never been run."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Apple's sheet opens and stops at signing in to an Apple Account. Google's consent prompt opens. A completed sign-in has never been run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "speech": [
+    {
+      "where": "Android emulator",
+      "result": "The call runs. Whether sound played wasn't checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "speechrecognition": [
+    {
+      "where": "Android emulator",
+      "result": "Permission and start run. No speech was heard."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Permission and start ran in an earlier test, but real speech hasn't been heard."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "splashscreen": [
+    {
+      "where": "Android emulator",
+      "result": "The screen shows, and the call returns."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "statusbar": [
+    {
+      "where": "Android emulator",
+      "result": "Icons turn light over the dark screen."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The dark screen shows. Icon color wasn't checked."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "storage": [
+    {
+      "where": "Android emulator",
+      "result": "The count is saved, and carries over between runs."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "trackingconsent": [
+    {
+      "where": "Android emulator",
+      "result": "Answers that no prompt is needed, which is right for Android."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The real prompt shows. Choosing Allow or Deny hasn't been tested."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "video": [
+    {
+      "where": "Android emulator",
+      "result": "Plays, and reports its length."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Plays, and reports its length."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "webview": [
+    {
+      "where": "Android emulator",
+      "result": "The page loads under the header."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The page's view shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ]
+}

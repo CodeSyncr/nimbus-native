@@ -12,7 +12,8 @@
 //	//nimbus:platforms ios
 //
 // With no names it does every plugin. It fails on a parameter with no
-// description, so that nothing goes out half-documented.
+// description or a plugin with no test results, so that nothing goes out
+// half-documented.
 package main
 
 import (
@@ -25,6 +26,8 @@ import (
 func main() {
 	root := flag.String("plugins", "plugins", "the plugins folder")
 	out := flag.String("out", "", "where the view files go")
+	examples := flag.String("examples", "examples/guide", "the guide's example programs")
+	tested := flag.String("tested", "examples/guide/tested.json", "what each plugin has been tried on")
 	flag.Parse()
 	if *out == "" {
 		fmt.Fprintln(os.Stderr, "docref: -out is required")
@@ -45,6 +48,10 @@ func main() {
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		fatal(err)
 	}
+	results, err := loadTested(*tested)
+	if err != nil {
+		fatal(err)
+	}
 	failed := false
 	for _, name := range names {
 		p, err := load(filepath.Join(*root, name), name)
@@ -56,11 +63,20 @@ func main() {
 			failed = true
 		}
 		head, body := p.render()
-		if err := os.WriteFile(filepath.Join(*out, name+"-head.nimbus"), []byte(head), 0o644); err != nil {
+		parts := map[string]string{"-head": head, "": body, "-tested": renderTested(results[name])}
+		if ex, err := example(*examples, name); err != nil {
 			fatal(err)
+		} else {
+			parts["-example"] = ex
 		}
-		if err := os.WriteFile(filepath.Join(*out, name+".nimbus"), []byte(body), 0o644); err != nil {
-			fatal(err)
+		for suffix, text := range parts {
+			if err := os.WriteFile(filepath.Join(*out, name+suffix+".nimbus"), []byte(text), 0o644); err != nil {
+				fatal(err)
+			}
+		}
+		if results[name] == nil {
+			fmt.Fprintf(os.Stderr, "docref: %s: no entry in tested.json\n", name)
+			failed = true
 		}
 	}
 	if failed {

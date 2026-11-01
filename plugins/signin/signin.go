@@ -37,9 +37,9 @@ type Options struct {
 type User struct {
 	Provider string `json:"provider"` // "apple" or "google"
 	ID       string `json:"id"`       // theirs for life at that provider
-	Email    string `json:"email"`
-	Name     string `json:"name"`
-	IDToken  string `json:"idToken"`
+	Email    string `json:"email"`    // their address; Apple may give a private relay
+	Name     string `json:"name"`     // their name, when known
+	IDToken  string `json:"idToken"`  // for your server to check with Verify
 	// Code is Apple's one-time authorization code, for a server that wants
 	// refresh tokens. Empty for Google.
 	Code string `json:"code"`
@@ -48,10 +48,14 @@ type User struct {
 // Apple shows Sign in with Apple. It's iOS only: on Android the error has
 // code plugin.Unavailable. Apple gives their name the first time only, and
 // their email may be a private relay address.
+//
+//nimbus:param o the nonce; the client IDs are for Google
 func Apple(ctx context.Context, o Options) (User, error) { return call(ctx, "apple", o) }
 
 // Google shows Google's sign-in. On iOS it's Google's page in a secure
 // browser sheet; on Android it's the phone's account sheet.
+//
+//nimbus:param o the client IDs and the nonce
 func Google(ctx context.Context, o Options) (User, error) { return call(ctx, "google", o) }
 
 func call(ctx context.Context, provider string, o Options) (User, error) {

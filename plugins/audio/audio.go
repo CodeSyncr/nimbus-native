@@ -117,6 +117,9 @@ func (l *Listener) Finish() { l.finish.Store(true) }
 // Play plays a clip (WAV, MP3 or M4A) through the speaker and returns when
 // it has finished. A cancelled ctx stops it, returning ctx's error. onLevel
 // (may be nil) gets how loud it is, 0…1.
+//
+//nimbus:param clip the sound, as WAV, MP3 or M4A
+//nimbus:param onLevel called with how loud it is, 0 to 1, a few dozen times a second; nil is fine
 func Play(ctx context.Context, clip []byte, onLevel func(level float32)) error {
 	args := map[string]string{"clip": base64.StdEncoding.EncodeToString(clip)}
 	if _, err := plugin.CallJSON(ctx, name, "play", args); err != nil {

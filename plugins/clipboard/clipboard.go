@@ -13,6 +13,8 @@ import (
 )
 
 // Set copies text.
+//
+//nimbus:param text what to copy
 func Set(ctx context.Context, text string) error {
 	_, err := plugin.CallJSON(ctx, "clipboard", "set", map[string]string{"text": text})
 	return err

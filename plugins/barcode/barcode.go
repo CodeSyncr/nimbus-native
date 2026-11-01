@@ -15,7 +15,7 @@ import (
 
 // Code is what was scanned.
 type Code struct {
-	Value  string `json:"value"`
+	Value  string `json:"value"`  // what it says
 	Format string `json:"format"` // "qr", "ean13", "code128", ...
 }
 

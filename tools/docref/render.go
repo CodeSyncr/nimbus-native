@@ -97,7 +97,7 @@ func (p *plug) platforms() string {
 		}
 		return `<span class="nd-plat">` + name + `</span>`
 	}
-	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", p.web) + "</p>\n"
+	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", false) + "</p>\n"
 }
 
 func (p *plug) writeFn(b *strings.Builder, f fn, level, id string) {
@@ -169,6 +169,8 @@ func (p *plug) permissions(b *strings.Builder) {
 	}
 	b.WriteString(`<h2 id="permissions">Permissions</h2>` + "\n")
 	switch {
+	case p.builtin:
+		b.WriteString("<p>It's built in, and needs nothing from you.</p>\n")
 	case len(rows) == 0:
 		b.WriteString("<p>It needs none, on either platform.</p>\n")
 	default:

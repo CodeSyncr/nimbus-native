@@ -19,6 +19,9 @@ type Options struct {
 }
 
 // Say reads text and returns when it's done. A cancelled ctx stops it.
+//
+//nimbus:param text what to read out
+//nimbus:param o the language and speed
 func Say(ctx context.Context, text string, o Options) error {
 	args := map[string]any{"text": text, "language": o.Language, "rate": o.Rate}
 	if _, err := plugin.CallJSON(ctx, "speech", "say", args); err != nil {

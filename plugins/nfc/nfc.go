@@ -33,6 +33,8 @@ func Available(ctx context.Context) bool {
 
 // Read waits for a tag. prompt shows on iPhone's scanning sheet. It fails
 // with plugin.Cancelled if they back out; a cancelled ctx stops it on Android.
+//
+//nimbus:param prompt what to do, shown while it waits on iOS
 func Read(ctx context.Context, prompt string) (Tag, error) {
 	return plugin.Call[Tag](ctx, "nfc", "read", map[string]string{"prompt": prompt})
 }

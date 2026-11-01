@@ -16,12 +16,12 @@ import (
 
 // Position is a place on Earth.
 type Position struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Accuracy  float64 `json:"accuracy"` // metres
-	Altitude  float64 `json:"altitude"` // metres
-	Speed     float64 `json:"speed"`    // metres a second; below 0 when unknown
-	Heading   float64 `json:"heading"`  // degrees from north; below 0 when unknown
+	Latitude  float64 `json:"latitude"`  // in degrees
+	Longitude float64 `json:"longitude"` // in degrees
+	Accuracy  float64 `json:"accuracy"`  // metres
+	Altitude  float64 `json:"altitude"`  // metres
+	Speed     float64 `json:"speed"`     // metres a second; below 0 when unknown
+	Heading   float64 `json:"heading"`   // degrees from north; below 0 when unknown
 }
 
 // Request asks to use the location while the app is open, once.
@@ -40,6 +40,8 @@ func Current(ctx context.Context) (Position, error) {
 
 // Watch calls f as the phone moves, until ctx ends. It blocks, so run it from
 // a goroutine in an effect.
+//
+//nimbus:param f called with each new position
 func Watch(ctx context.Context, f func(Position)) error {
 	if _, err := plugin.CallJSON(ctx, "geolocation", "start", nil); err != nil {
 		return err

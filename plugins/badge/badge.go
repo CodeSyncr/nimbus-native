@@ -15,6 +15,8 @@ import (
 )
 
 // Set puts n on the icon.
+//
+//nimbus:param n the number; 0 clears it
 func Set(ctx context.Context, n int) error {
 	_, err := plugin.CallJSON(ctx, "badge", "set", map[string]int{"count": n})
 	return err

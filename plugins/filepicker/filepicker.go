@@ -21,12 +21,14 @@ type Options struct {
 
 // File is what was chosen.
 type File struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Data []byte `json:"data"`
+	Name string `json:"name"` // its file name
+	Type string `json:"type"` // its media type
+	Data []byte `json:"data"` // its contents
 }
 
 // Pick opens the picker. It fails with plugin.Cancelled if they back out.
+//
+//nimbus:param o what they may choose
 func Pick(ctx context.Context, o Options) (File, error) {
 	return plugin.Call[File](ctx, "filepicker", "pick", o)
 }

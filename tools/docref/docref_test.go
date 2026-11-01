@@ -119,16 +119,37 @@ func TestNamesAreCode(t *testing.T) {
 	}
 }
 
-func TestPlainGoRunsEverywhere(t *testing.T) {
+func TestExample(t *testing.T) {
+	dir := write(t, map[string]string{"thing.go": "package guide\n\nvar x = map[string]int{}\n"})
+	got, err := example(dir, "thing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "package main") || strings.Contains(got, "package guide") || strings.Contains(got, "{}") {
+		t.Fatalf("example = %s", got)
+	}
+	if _, err := example(dir, "other"); err == nil {
+		t.Fatal("a missing example should fail")
+	}
+}
+
+func TestTested(t *testing.T) {
+	got := renderTested([]result{{"Android emulator", "fails with plugin.Unavailable"}})
+	if !strings.Contains(got, "<td>Android emulator</td>") || !strings.Contains(got, "<code>plugin.Unavailable</code>") {
+		t.Fatalf("tested = %s", got)
+	}
+}
+
+func TestBuiltIn(t *testing.T) {
 	p, err := load(write(t, map[string]string{"thing.go": "package thing\n"}), "thing")
 	if err != nil {
 		t.Fatal(err)
 	}
 	head, body := p.render()
-	if strings.Contains(head, "Not on") {
+	if strings.Contains(head, "Not on iOS") || strings.Contains(head, "Not on Android") || !strings.Contains(head, "Not on the web") {
 		t.Errorf("head = %s", head)
 	}
-	if !strings.Contains(body, "It needs none") {
+	if !strings.Contains(body, "built in") {
 		t.Errorf("body = %s", body)
 	}
 }

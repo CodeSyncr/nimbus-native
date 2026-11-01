@@ -17,7 +17,7 @@ type View struct {
 	URL    string           // changing it loads the new page
 	HTML   string           // or a page of your own, when URL is empty
 	OnLoad func(url string) // a page finished loading
-	Style  ui.Style
+	Style  ui.Style         // its size and place on the screen
 }
 
 // Render shows the page.

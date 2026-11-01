@@ -22,6 +22,8 @@ func Enabled(ctx context.Context) (bool, error) {
 }
 
 // Announce has the screen reader say text, if one is on.
+//
+//nimbus:param text what to say
 func Announce(ctx context.Context, text string) error {
 	_, err := plugin.CallJSON(ctx, "screenreader", "announce", map[string]string{"text": text})
 	return err

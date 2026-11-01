@@ -22,17 +22,17 @@ import (
 
 // Token is where your server sends to reach this phone.
 type Token struct {
-	Value   string `json:"value"`
+	Value   string `json:"value"`   // send this to your server
 	Service string `json:"service"` // "apns" or "fcm"
 }
 
 // Message is a notification that arrived while the app was open, or one
 // that was tapped.
 type Message struct {
-	Title  string            `json:"title"`
-	Body   string            `json:"body"`
-	Data   map[string]string `json:"data"`
-	Tapped bool              `json:"tapped"`
+	Title  string            `json:"title"`  // its heading
+	Body   string            `json:"body"`   // its text
+	Data   map[string]string `json:"data"`   // what your server sent with it
+	Tapped bool              `json:"tapped"` // whether they tapped it to get here
 }
 
 // Request asks to show notifications, once.
@@ -59,6 +59,8 @@ func Messages(ctx context.Context) ([]Message, error) {
 
 // Watch calls f with each message until ctx ends, including the tap that
 // opened the app. It blocks, so run it from a goroutine in an effect.
+//
+//nimbus:param f called with each message
 func Watch(ctx context.Context, f func(Message)) error {
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()

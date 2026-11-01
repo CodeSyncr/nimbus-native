@@ -16,9 +16,9 @@ import (
 
 // Contact is a person.
 type Contact struct {
-	Name   string   `json:"name"`
-	Phones []string `json:"phones"`
-	Emails []string `json:"emails"`
+	Name   string   `json:"name"`   // their full name
+	Phones []string `json:"phones"` // their phone numbers
+	Emails []string `json:"emails"` // their email addresses
 }
 
 // Pick opens the system's contact picker. It needs no permission, because

@@ -17,9 +17,9 @@ import (
 
 // Notification is a reminder.
 type Notification struct {
-	ID    string // a new one with the same ID replaces it
-	Title string
-	Body  string
+	ID    string        // a new one with the same ID replaces it
+	Title string        // its heading
+	Body  string        // its text
 	After time.Duration // how long from now; at least a second
 }
 
@@ -32,6 +32,8 @@ func Request(ctx context.Context) (bool, error) {
 }
 
 // Schedule sets a reminder.
+//
+//nimbus:param n what to say, and when
 func Schedule(ctx context.Context, n Notification) error {
 	_, err := plugin.CallJSON(ctx, "localnotifications", "schedule", map[string]any{
 		"id": n.ID, "title": n.Title, "body": n.Body, "seconds": max(n.After.Seconds(), 1)})
@@ -39,6 +41,8 @@ func Schedule(ctx context.Context, n Notification) error {
 }
 
 // Cancel takes one back.
+//
+//nimbus:param id the Notification's ID
 func Cancel(ctx context.Context, id string) error {
 	_, err := plugin.CallJSON(ctx, "localnotifications", "cancel", map[string]string{"id": id})
 	return err

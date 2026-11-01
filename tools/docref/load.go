@@ -22,7 +22,7 @@ type plug struct {
 	name    string
 	ios     bool
 	android bool
-	web     bool
+	builtin bool
 	notes   map[string]string // from plugin.json's "platforms", such as "device only"
 	man     manifest
 	funcs   []fn
@@ -83,9 +83,9 @@ func exists(path string) bool {
 
 func load(dir, name string) (*plug, error) {
 	p := &plug{name: name, ios: exists(filepath.Join(dir, "ios")), android: exists(filepath.Join(dir, "android")), local: map[string]bool{}}
-	// A plugin with no host code is plain Go, which runs everywhere.
+	// With no sources of its own, it ships in the kit: every app has it.
 	if !p.ios && !p.android {
-		p.ios, p.android, p.web = true, true, true
+		p.ios, p.android, p.builtin = true, true, true
 	}
 	if b, err := os.ReadFile(filepath.Join(dir, "plugin.json")); err == nil {
 		if err := json.Unmarshal(b, &p.man); err != nil {
@@ -226,7 +226,8 @@ func (p *plug) typeOf(fset *token.FileSet, t *doc.Type) typ {
 		out.consts = append(out.consts, values(fset, c)...)
 	}
 	for _, m := range t.Methods {
-		if ast.IsExported(m.Name) {
+		// Render is how a component works, not something to call.
+		if ast.IsExported(m.Name) && m.Name != "Render" {
 			out.methods = append(out.methods, p.function(fset, m, t.Name+"."))
 		}
 	}

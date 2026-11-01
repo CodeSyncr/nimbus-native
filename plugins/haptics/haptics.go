@@ -46,30 +46,35 @@ const (
 // lasts Duration, At its offset from the start. Intensity and Sharpness are
 // 0…1: how strong, and how crisp rather than round.
 type Event struct {
-	At, Duration         time.Duration
-	Intensity, Sharpness float32
+	At, Duration         time.Duration // when it starts, and how long it lasts; a Duration of 0 is a tap
+	Intensity, Sharpness float32       // each 0 to 1: how strong, and how crisp rather than round
 }
 
 // Curve changes a pattern's intensity or sharpness over time while it
 // plays (a hum that swells). Intensity values multiply (0…1); sharpness
 // values add (-1…1).
 type Curve struct {
-	Sharpness bool // false: the curve is for intensity
-	Points    []Point
+	Sharpness bool    // false: the curve is for intensity
+	Points    []Point // its values over time
 }
 
 // Point is a Curve's value At a moment.
 type Point struct {
-	At    time.Duration
-	Value float32
+	At    time.Duration // when, from the start
+	Value float32       // the value then
 }
 
 // Impact is a single tap of a style, at intensity (0…1).
+//
+//nimbus:param style how it feels
+//nimbus:param intensity how strong, 0 to 1
 func Impact(style Style, intensity float32) {
 	send("impact", map[string]any{"style": style, "intensity": intensity})
 }
 
 // Notify is the system's feedback for a success, warning or error.
+//
+//nimbus:param kind what happened
 func Notify(kind Kind) { send("notify", map[string]any{"kind": kind}) }
 
 // Selection is the light tick of a choice changing.
@@ -77,12 +82,15 @@ func Selection() { send("selection", nil) }
 
 // Play plays a pattern. Android plays its taps and buzzes with their
 // strength; it can't vary sharpness, and its curves are sampled.
+//
+//nimbus:param events the taps and buzzes
+//nimbus:param curves changes over time; optional
 func Play(events []Event, curves ...Curve) {
 	type ev struct {
 		T, D, I, S float64
 	}
 	type cv struct {
-		Sharp  bool        `json:"sharp"`
+		Sharp  bool         `json:"sharp"`
 		Points [][2]float64 `json:"points"`
 	}
 	var es []ev

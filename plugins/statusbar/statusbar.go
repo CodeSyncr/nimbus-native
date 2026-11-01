@@ -29,6 +29,8 @@ func set(ctx context.Context, args map[string]any) error {
 }
 
 // SetStyle sets the color of the clock and icons.
+//
+//nimbus:param s light or dark content
 func SetStyle(ctx context.Context, s Style) error { return set(ctx, map[string]any{"style": s}) }
 
 // Hide hides the status bar.
@@ -39,6 +41,8 @@ func Show(ctx context.Context) error { return set(ctx, map[string]any{"hidden": 
 
 // SetColor sets the bar's background. Android only: on iOS the bar is
 // transparent and your screen shows through it.
+//
+//nimbus:param c the strip's color
 func SetColor(ctx context.Context, c ui.Color) error {
 	return set(ctx, map[string]any{"color": uint32(c)})
 }

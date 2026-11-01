@@ -14,6 +14,8 @@ import (
 )
 
 // Open shows the page and returns once it's up.
+//
+//nimbus:param url the page, http or https
 func Open(ctx context.Context, url string) error {
 	_, err := plugin.CallJSON(ctx, "browser", "open", map[string]string{"url": url})
 	return err

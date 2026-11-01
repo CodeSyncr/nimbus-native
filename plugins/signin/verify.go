@@ -39,6 +39,9 @@ type Verification struct {
 // Verify is for your server. It checks an ID token's signature with Apple's
 // or Google's published keys, then who it was issued by and for, and that it
 // hasn't expired. Only trust the User it returns.
+//
+//nimbus:param token the IDToken the phone sent
+//nimbus:param v what the token must be
 func Verify(ctx context.Context, token string, v Verification) (User, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {

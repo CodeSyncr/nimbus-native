@@ -24,6 +24,8 @@ type setArgs struct {
 }
 
 // Get reads key: ok is false when nothing is stored under it.
+//
+//nimbus:param key the name
 func Get(ctx context.Context, key string) (value string, ok bool, err error) {
 	r, err := plugin.Call[struct {
 		Value *string `json:"value"`
@@ -36,12 +38,17 @@ func Get(ctx context.Context, key string) (value string, ok bool, err error) {
 }
 
 // Set stores value under key, replacing what was there.
+//
+//nimbus:param key the name
+//nimbus:param value the secret
 func Set(ctx context.Context, key, value string) error {
 	_, err := plugin.Call[any](ctx, name, "set", setArgs{key, value})
 	return err
 }
 
 // Delete removes key; deleting a missing key is not an error.
+//
+//nimbus:param key the name
 func Delete(ctx context.Context, key string) error {
 	_, err := plugin.Call[any](ctx, name, "delete", keyArgs{key})
 	return err

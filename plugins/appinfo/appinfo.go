@@ -11,14 +11,14 @@ import (
 
 // Info is the app and device.
 type Info struct {
-	Platform  string `json:"platform"` // "ios" or "android"
-	ID        string `json:"id"`       // bundle id / application id
-	Version   string `json:"version"`  // e.g. "1.2.0"
-	Build     string `json:"build"`    // e.g. "42"
-	OSVersion string `json:"osVersion"`
-	Locale    string `json:"locale"`   // BCP 47, e.g. "en-IN"
-	DataDir   string `json:"dataDir"`  // kept until the app is deleted
-	CacheDir  string `json:"cacheDir"` // the system may clear it
+	Platform  string `json:"platform"`  // "ios" or "android"
+	ID        string `json:"id"`        // bundle id / application id
+	Version   string `json:"version"`   // e.g. "1.2.0"
+	Build     string `json:"build"`     // e.g. "42"
+	OSVersion string `json:"osVersion"` // the system version
+	Locale    string `json:"locale"`    // BCP 47, e.g. "en-IN"
+	DataDir   string `json:"dataDir"`   // kept until the app is deleted
+	CacheDir  string `json:"cacheDir"`  // the system may clear it
 }
 
 var (

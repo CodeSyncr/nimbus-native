@@ -15,15 +15,18 @@ import (
 
 // Event is something in a calendar.
 type Event struct {
-	Title    string
-	Location string
-	Notes    string
-	Start    time.Time
+	Title    string    // its name
+	Location string    // where; optional
+	Notes    string    // more detail; optional
+	Start    time.Time // when it starts
 	End      time.Time // the Start plus an hour when zero
 }
 
-// Add opens the screen and returns when it closes: true if they saved it.
+// Add opens the screen and returns when it closes. It's true if they saved it
+// on iOS. Android can't tell, so there it's always true.
 // Android's calendar doesn't say, so there it's true once the screen closes.
+//
+//nimbus:param e what to fill in; they can change it before saving
 func Add(ctx context.Context, e Event) (bool, error) {
 	if e.End.IsZero() {
 		e.End = e.Start.Add(time.Hour)

@@ -17,15 +17,15 @@ type Info struct {
 	Platform     string `json:"platform"`     // "ios" or "android"
 	Model        string `json:"model"`        // e.g. "iPhone17,1", "Pixel 9"
 	Manufacturer string `json:"manufacturer"` // e.g. "Apple", "Google"
-	OSVersion    string `json:"osVersion"`
-	Memory       int64  `json:"memory"`  // bytes
-	Virtual      bool   `json:"virtual"` // a simulator or emulator
+	OSVersion    string `json:"osVersion"`    // the system version
+	Memory       int64  `json:"memory"`       // bytes
+	Virtual      bool   `json:"virtual"`      // a simulator or emulator
 }
 
 // Battery is how much charge is left.
 type Battery struct {
-	Level    float32 `json:"level"` // 0..1; below 0 when the phone can't say
-	Charging bool    `json:"charging"`
+	Level    float32 `json:"level"`    // 0..1; below 0 when the phone can't say
+	Charging bool    `json:"charging"` // whether it is plugged in
 }
 
 // Get returns the phone's Info.

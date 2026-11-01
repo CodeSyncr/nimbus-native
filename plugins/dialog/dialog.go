@@ -18,7 +18,7 @@ const name = "dialog"
 
 // Button is one choice in a dialog.
 type Button struct {
-	Label string `json:"label"`
+	Label string `json:"label"` // what it says
 	// Style is "default", "cancel" (placed apart, chosen by tapping outside
 	// or Back) or "destructive" (red on iOS).
 	Style string `json:"style,omitempty"`
@@ -26,9 +26,9 @@ type Button struct {
 
 // Options describe a dialog for Show.
 type Options struct {
-	Title   string   `json:"title"`
-	Message string   `json:"message,omitempty"`
-	Buttons []Button `json:"buttons"`
+	Title   string   `json:"title"`             // the heading
+	Message string   `json:"message,omitempty"` // the text under it
+	Buttons []Button `json:"buttons"`           // the choices; none means a plain OK
 	// Sheet shows the buttons as an action sheet (from the bottom on iOS, a
 	// list on Android) instead of an alert.
 	Sheet bool `json:"sheet,omitempty"`
@@ -36,6 +36,8 @@ type Options struct {
 
 // Show shows a dialog and returns the index of the button the user chose,
 // or -1 when they dismissed it without choosing.
+//
+//nimbus:param o what it says, and its buttons
 func Show(ctx context.Context, o Options) (int, error) {
 	if len(o.Buttons) == 0 {
 		o.Buttons = []Button{{Label: "OK"}}
@@ -48,6 +50,9 @@ func Show(ctx context.Context, o Options) (int, error) {
 }
 
 // Alert tells the user something, with one OK button.
+//
+//nimbus:param title the heading
+//nimbus:param message the text under it
 func Alert(ctx context.Context, title, message string) error {
 	_, err := Show(ctx, Options{Title: title, Message: message})
 	return err
@@ -55,6 +60,11 @@ func Alert(ctx context.Context, title, message string) error {
 
 // Confirm asks yes or no: it is true when the user chose confirm.
 // destructive marks confirm as dangerous (red on iOS).
+//
+//nimbus:param title the heading
+//nimbus:param message the text under it
+//nimbus:param confirm the yes button's label
+//nimbus:param destructive marks it as dangerous: red on iOS
 func Confirm(ctx context.Context, title, message, confirm string, destructive bool) (bool, error) {
 	style := "default"
 	if destructive {
@@ -67,6 +77,9 @@ func Confirm(ctx context.Context, title, message, confirm string, destructive bo
 
 // Choose shows options as an action sheet with a Cancel button, and returns
 // the index of the one chosen, or -1.
+//
+//nimbus:param title the heading
+//nimbus:param options the choices
 func Choose(ctx context.Context, title string, options ...string) (int, error) {
 	buttons := make([]Button, 0, len(options)+1)
 	for _, o := range options {
@@ -81,6 +94,8 @@ func Choose(ctx context.Context, title string, options ...string) (int, error) {
 }
 
 // Toast shows a short message that goes away by itself.
+//
+//nimbus:param message what it says
 func Toast(ctx context.Context, message string) error {
 	_, err := plugin.Call[any](ctx, name, "toast", map[string]string{"message": message})
 	return err
@@ -97,6 +112,9 @@ const (
 
 // PickDate shows the platform's date or time picker starting at initial,
 // in the device's time zone. ok is false when the user cancelled.
+//
+//nimbus:param mode a date, a time or both
+//nimbus:param initial where the picker starts
 func PickDate(ctx context.Context, mode Mode, initial time.Time) (t time.Time, ok bool, err error) {
 	if initial.IsZero() {
 		initial = time.Now()

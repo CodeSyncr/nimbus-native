@@ -76,6 +76,8 @@ func NewTurnDetector() *TurnDetector { return &TurnDetector{floor: -50} }
 
 // Feed takes the next frame and reports what it brought, with how loud it
 // was, 0…1. With TurnEnded comes the clip, a WAV.
+//
+//nimbus:param samples the next 16 kHz mono PCM
 func (d *TurnDetector) Feed(samples []int16) (turn Turn, level float32, clip []byte) {
 	if d.finished || len(samples) == 0 {
 		return Nothing, 0, nil
@@ -243,6 +245,8 @@ func loudness(samples []int16) float64 {
 }
 
 // WAV wraps 16 kHz mono samples in a RIFF header.
+//
+//nimbus:param samples 16 kHz mono PCM
 func WAV(samples []int16) []byte {
 	var b bytes.Buffer
 	le := binary.LittleEndian

@@ -37,6 +37,9 @@ func init() { plugin.OnBackground = run }
 
 // Handle says what a task does. Call it from init, so that it's there when
 // the system starts the app with no screen.
+//
+//nimbus:param name a name for the task
+//nimbus:param f what it does; its ctx ends when time is up
 func Handle(name string, f func(context.Context) error) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -67,6 +70,9 @@ func run(name string) {
 
 // Schedule asks for a task to run about every so often. Scheduling it again
 // replaces the interval.
+//
+//nimbus:param name the task, as given to Handle
+//nimbus:param every how often, as a hint to the system
 func Schedule(ctx context.Context, name string, every time.Duration) error {
 	_, err := plugin.CallJSON(ctx, "backgroundtasks", "schedule", map[string]any{"name": name, "seconds": every.Seconds()})
 	return err
@@ -74,12 +80,17 @@ func Schedule(ctx context.Context, name string, every time.Duration) error {
 
 // Once asks for a task to run one time, no sooner than after: to retry an
 // upload later, say.
+//
+//nimbus:param name the task, as given to Handle
+//nimbus:param after the soonest it may run
 func Once(ctx context.Context, name string, after time.Duration) error {
 	_, err := plugin.CallJSON(ctx, "backgroundtasks", "once", map[string]any{"name": name, "seconds": after.Seconds()})
 	return err
 }
 
 // Cancel stops a task.
+//
+//nimbus:param name the task, as given to Handle
 func Cancel(ctx context.Context, name string) error {
 	_, err := plugin.CallJSON(ctx, "backgroundtasks", "cancel", map[string]string{"name": name})
 	return err

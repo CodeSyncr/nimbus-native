@@ -27,6 +27,8 @@ func Active(ctx context.Context) (bool, error) {
 
 // Watch calls f when the app comes to the front or leaves it, until ctx ends.
 // It blocks, so run it from a goroutine in an effect.
+//
+//nimbus:param f called with each change
 func Watch(ctx context.Context, f func(active bool)) error {
 	last, err := Active(ctx)
 	if err != nil {

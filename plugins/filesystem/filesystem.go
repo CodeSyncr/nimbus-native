@@ -50,6 +50,9 @@ var dir = func(ctx context.Context, f Folder) (string, error) {
 }
 
 // Path is the file's full path, for what takes one: an upload, say.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
 func Path(ctx context.Context, f Folder, name string) (string, error) {
 	if filepath.IsAbs(name) {
 		return "", ErrOutside
@@ -67,6 +70,10 @@ func Path(ctx context.Context, f Folder, name string) (string, error) {
 
 // Write replaces a file, making its folders. A crash partway leaves the old
 // file whole.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
+//nimbus:param data the bytes to save
 func Write(ctx context.Context, f Folder, name string, data []byte) error {
 	p, err := Path(ctx, f, name)
 	if err != nil {
@@ -91,6 +98,10 @@ func Write(ctx context.Context, f Folder, name string, data []byte) error {
 }
 
 // Append adds to the end of a file, making it if needed.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
+//nimbus:param data the bytes to add
 func Append(ctx context.Context, f Folder, name string, data []byte) error {
 	p, err := Path(ctx, f, name)
 	if err != nil {
@@ -109,6 +120,9 @@ func Append(ctx context.Context, f Folder, name string, data []byte) error {
 }
 
 // Read returns a file. A missing one is fs.ErrNotExist.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
 func Read(ctx context.Context, f Folder, name string) ([]byte, error) {
 	p, err := Path(ctx, f, name)
 	if err != nil {
@@ -118,6 +132,9 @@ func Read(ctx context.Context, f Folder, name string) ([]byte, error) {
 }
 
 // Exists reports whether a file is there.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
 func Exists(ctx context.Context, f Folder, name string) (bool, error) {
 	p, err := Path(ctx, f, name)
 	if err != nil {
@@ -131,6 +148,9 @@ func Exists(ctx context.Context, f Folder, name string) (bool, error) {
 }
 
 // List returns the names in a folder, sorted. A missing folder is empty.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the folder inside it; "" is the top
 func List(ctx context.Context, f Folder, name string) ([]string, error) {
 	p, err := Path(ctx, f, name)
 	if err != nil {
@@ -154,6 +174,9 @@ func List(ctx context.Context, f Folder, name string) ([]string, error) {
 }
 
 // Delete removes a file or folder. A missing one is fine.
+//
+//nimbus:param f Data or Cache
+//nimbus:param name the path inside it
 func Delete(ctx context.Context, f Folder, name string) error {
 	p, err := Path(ctx, f, name)
 	if err != nil {

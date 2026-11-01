@@ -28,13 +28,15 @@ type Cashier struct {
 
 // Customer is what Cashier knows about someone.
 type Customer struct {
-	User         string    `json:"subject"`
-	Entitlements []string  `json:"active_entitlement_ids"`
-	Products     []string  `json:"active_product_ids"`
-	Expires      time.Time `json:"latest_expires_at"` // zero if nothing expires
+	User         string    `json:"subject"`                // your ID for them
+	Entitlements []string  `json:"active_entitlement_ids"` // what they have now
+	Products     []string  `json:"active_product_ids"`     // the products behind those
+	Expires      time.Time `json:"latest_expires_at"`      // zero if nothing expires
 }
 
 // Entitled reports whether they have an entitlement now.
+//
+//nimbus:param id the entitlement, as set up in Cashier
 func (c Customer) Entitled(id string) bool {
 	for _, e := range c.Entitlements {
 		if e == id {
@@ -47,9 +49,9 @@ func (c Customer) Entitled(id string) bool {
 // CashierError is Cashier turning a request down. Code is its reason, such as
 // "invalid_receipt".
 type CashierError struct {
-	Status  int
-	Code    string `json:"error"`
-	Message string `json:"message"`
+	Status  int    // the HTTP status
+	Code    string `json:"error"`   // its reason, such as "invalid_receipt"
+	Message string `json:"message"` // for you, not for showing to people
 }
 
 func (e *CashierError) Error() string {
@@ -59,6 +61,8 @@ func (e *CashierError) Error() string {
 // Deliver gives Cashier a receipt and finishes the purchase once it's
 // accepted. If Cashier can't be reached the purchase stays unfinished, and
 // Sync delivers it later.
+//
+//nimbus:param r the receipt from Buy or Owned
 func (c Cashier) Deliver(ctx context.Context, r Receipt) (Customer, error) {
 	var a struct {
 		Subscriber Customer `json:"subscriber"`
@@ -82,6 +86,8 @@ func (c Cashier) Deliver(ctx context.Context, r Receipt) (Customer, error) {
 // Sync tells Cashier everything this phone owns: call it when the app opens,
 // and from a "Restore purchases" button with the receipts from Restore. With
 // no receipts it uses Owned.
+//
+//nimbus:param receipts the receipts to send; none means Owned
 func (c Cashier) Sync(ctx context.Context, receipts ...Receipt) (Customer, error) {
 	if len(receipts) == 0 {
 		var err error

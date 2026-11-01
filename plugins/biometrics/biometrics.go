@@ -37,6 +37,8 @@ func Available(ctx context.Context) Kind {
 
 // Confirm asks them to prove it's them, saying reason. It's false if they
 // fail or back out.
+//
+//nimbus:param reason why, shown in the prompt
 func Confirm(ctx context.Context, reason string) (bool, error) {
 	r, err := plugin.Call[struct {
 		OK bool `json:"ok"`

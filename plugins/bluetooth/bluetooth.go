@@ -22,8 +22,8 @@ import (
 
 // Device is something nearby.
 type Device struct {
-	ID     string `json:"id"` // for Connect; it differs between phones
-	Name   string `json:"name"`
+	ID     string `json:"id"`     // for Connect; it differs between phones
+	Name   string `json:"name"`   // its name, if it gives one
 	Signal int    `json:"signal"` // RSSI, in dBm
 }
 
@@ -37,6 +37,9 @@ func Request(ctx context.Context) (bool, error) {
 
 // Scan calls f with each device it finds until ctx ends. services narrows it
 // to those UUIDs. It blocks, so run it from a goroutine in an effect.
+//
+//nimbus:param f called with each device found
+//nimbus:param services service UUIDs to look for; none means any
 func Scan(ctx context.Context, f func(Device), services ...string) error {
 	if _, err := plugin.CallJSON(ctx, "bluetooth", "scanStart", map[string]any{"services": services}); err != nil {
 		return err
@@ -73,18 +76,26 @@ func call(method string, args any) {
 }
 
 // Connect connects to a device, and finds its services.
+//
+//nimbus:param id the Device's ID
 func Connect(ctx context.Context, id string) error {
 	_, err := plugin.CallJSON(ctx, "bluetooth", "connect", map[string]string{"id": id})
 	return err
 }
 
 // Disconnect ends the connection.
+//
+//nimbus:param id the Device's ID
 func Disconnect(ctx context.Context, id string) error {
 	_, err := plugin.CallJSON(ctx, "bluetooth", "disconnect", map[string]string{"id": id})
 	return err
 }
 
 // Read reads a characteristic.
+//
+//nimbus:param id the Device's ID
+//nimbus:param service the service UUID
+//nimbus:param characteristic the characteristic UUID
 func Read(ctx context.Context, id, service, characteristic string) ([]byte, error) {
 	r, err := plugin.Call[struct {
 		Value string `json:"value"`
@@ -96,6 +107,11 @@ func Read(ctx context.Context, id, service, characteristic string) ([]byte, erro
 }
 
 // Write writes a characteristic, and waits for the device to confirm.
+//
+//nimbus:param id the Device's ID
+//nimbus:param service the service UUID
+//nimbus:param characteristic the characteristic UUID
+//nimbus:param value the bytes to write
 func Write(ctx context.Context, id, service, characteristic string, value []byte) error {
 	_, err := plugin.CallJSON(ctx, "bluetooth", "write", map[string]string{"id": id, "service": service, "characteristic": characteristic,
 		"value": base64.StdEncoding.EncodeToString(value)})

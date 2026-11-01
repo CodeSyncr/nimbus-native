@@ -14,15 +14,15 @@ import (
 
 // Player is a video.
 type Player struct {
-	URL      string
-	Paused   bool // setting it pauses and resumes from Go
-	Loop     bool
-	Muted    bool
-	Controls bool // the system's controls
+	URL      string // where the video is
+	Paused   bool   // setting it pauses and resumes from Go
+	Loop     bool   // starts again at the end
+	Muted    bool   // plays with no sound
+	Controls bool   // the system's controls
 
 	OnReady func(seconds float64) // it can play, and how long it is
-	OnEnd   func()
-	Style   ui.Style
+	OnEnd   func()                // called when it finishes
+	Style   ui.Style              // the player's size and place on the screen
 }
 
 // Render shows the player.

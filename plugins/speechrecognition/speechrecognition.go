@@ -32,6 +32,8 @@ func Request(ctx context.Context) (bool, error) {
 
 // Listen hears one phrase and returns its text. It ends when they stop
 // speaking; a cancelled ctx stops it. Nothing heard is "", not an error.
+//
+//nimbus:param o the language, and a callback for words so far
 func Listen(ctx context.Context, o Options) (string, error) {
 	if _, err := plugin.CallJSON(ctx, "speechrecognition", "start", map[string]string{"language": o.Language}); err != nil {
 		return "", err

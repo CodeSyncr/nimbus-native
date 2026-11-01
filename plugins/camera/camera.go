@@ -23,19 +23,23 @@ type Options struct {
 
 // Photo is a JPEG, turned the right way up.
 type Photo struct {
-	Data   []byte `json:"data"`
-	Width  int    `json:"width"`
-	Height int    `json:"height"`
+	Data   []byte `json:"data"`   // the image, as a JPEG
+	Width  int    `json:"width"`  // in pixels
+	Height int    `json:"height"` // in pixels
 }
 
 // Take opens the camera. It fails with plugin.Cancelled if they back out, and
 // plugin.Unavailable where there's no camera, as on the iOS simulator.
+//
+//nimbus:param o how big, and how good
 func Take(ctx context.Context, o Options) (Photo, error) {
 	return plugin.Call[Photo](ctx, "camera", "take", o)
 }
 
 // Pick opens the photo library. It asks for no permission: the system shows
 // the photos and the app only gets the one chosen.
+//
+//nimbus:param o how big, and how good
 func Pick(ctx context.Context, o Options) (Photo, error) {
 	return plugin.Call[Photo](ctx, "camera", "pick", o)
 }

@@ -15,7 +15,7 @@ import (
 
 // Status is the phone's connection.
 type Status struct {
-	Connected bool   `json:"connected"`
+	Connected bool   `json:"connected"` // whether it is online
 	Type      string `json:"type"`      // "wifi", "cellular", "wired", "other" or "none"
 	Expensive bool   `json:"expensive"` // metered, such as mobile data
 }
@@ -27,6 +27,8 @@ func Get(ctx context.Context) (Status, error) {
 
 // Watch calls f with the connection now and whenever it changes, until ctx
 // ends. It blocks, so run it from a goroutine in an effect.
+//
+//nimbus:param f called with each change
 func Watch(ctx context.Context, f func(Status)) error {
 	var last Status
 	first := true

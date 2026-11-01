@@ -18,18 +18,18 @@ import (
 
 // Region is a circle on the map. Below about 100 metres it's unreliable.
 type Region struct {
-	ID        string  `json:"id"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Radius    float64 `json:"radius"` // metres
+	ID        string  `json:"id"`        // your name for it
+	Latitude  float64 `json:"latitude"`  // of the middle, in degrees
+	Longitude float64 `json:"longitude"` // of the middle, in degrees
+	Radius    float64 `json:"radius"`    // metres
 }
 
 // Event is a crossing of a Region's edge.
 type Event struct {
-	ID    string    `json:"id"`
+	ID    string    `json:"id"`    // the Region's ID
 	Enter bool      `json:"enter"` // false: left
-	At    time.Time `json:"-"`
-	Time  float64   `json:"time"` // seconds since 1970
+	At    time.Time `json:"-"`     // when it happened
+	Time  float64   `json:"time"`  // seconds since 1970
 }
 
 // Request asks to watch the location in the background. Both platforms ask
@@ -42,12 +42,16 @@ func Request(ctx context.Context) (bool, error) {
 }
 
 // Add starts watching a region. iOS allows 20 at a time.
+//
+//nimbus:param r the place to watch
 func Add(ctx context.Context, r Region) error {
 	_, err := plugin.CallJSON(ctx, "geofencing", "add", r)
 	return err
 }
 
 // Remove stops watching a region.
+//
+//nimbus:param id the Region's ID
 func Remove(ctx context.Context, id string) error {
 	_, err := plugin.CallJSON(ctx, "geofencing", "remove", map[string]string{"id": id})
 	return err
@@ -66,6 +70,8 @@ func Events(ctx context.Context) ([]Event, error) {
 
 // Watch calls f with each event until ctx ends. It blocks, so run it from a
 // goroutine in an effect.
+//
+//nimbus:param f called with each event
 func Watch(ctx context.Context, f func(Event)) error {
 	tick := time.NewTicker(2 * time.Second)
 	defer tick.Stop()

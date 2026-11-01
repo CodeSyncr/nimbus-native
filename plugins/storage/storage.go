@@ -62,6 +62,9 @@ func load(ctx context.Context) error {
 }
 
 // Get decodes the value under key into dst; ok is false when there is none.
+//
+//nimbus:param key the name
+//nimbus:param dst a pointer to fill
 func Get(ctx context.Context, key string, dst any) (ok bool, err error) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -76,6 +79,9 @@ func Get(ctx context.Context, key string, dst any) (ok bool, err error) {
 }
 
 // Set stores value (anything JSON can encode) under key and saves.
+//
+//nimbus:param key the name
+//nimbus:param value anything JSON can encode
 func Set(ctx context.Context, key string, value any) error {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -91,6 +97,8 @@ func Set(ctx context.Context, key string, value any) error {
 }
 
 // Delete removes key and saves.
+//
+//nimbus:param key the name
 func Delete(ctx context.Context, key string) error {
 	mu.Lock()
 	defer mu.Unlock()
