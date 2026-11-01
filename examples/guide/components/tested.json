@@ -1,0 +1,578 @@
+{
+  "button": [
+    {
+      "where": "Android emulator",
+      "result": "Press works, with its spinner, and the result shows."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Press works, and the result shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "icon-button": [
+    {
+      "where": "Android emulator",
+      "result": "Pressing works."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Icons draw, and pressing works."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "floating-button": [
+    {
+      "where": "Android emulator",
+      "result": "Pressing adds a row."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Pressing adds a row."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "checkbox": [
+    {
+      "where": "Android emulator",
+      "result": "Tapping a row ticks it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The page reacts to a click, but the tick wasn't checked."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "radio-group": [
+    {
+      "where": "Android emulator",
+      "result": "Tapping an option selects it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Clicking an option selects it."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "segmented-control": [
+    {
+      "where": "Android emulator",
+      "result": "Tapping a segment switches the figure."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Clicking a segment switches the figure."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "stepper": [
+    {
+      "where": "Android emulator",
+      "result": "The buttons change the number and the price."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The buttons change the number and the price."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "select": [
+    {
+      "where": "Android emulator",
+      "result": "The system's list opens, and the choice comes back."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "There's no system list here, so it opens the app's own sheet instead, and the choice comes back."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "date-field": [
+    {
+      "where": "Android emulator",
+      "result": "The system's picker opens, and the date comes back."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Does nothing: the browser has no such picker yet. Avoid it on web pages for now."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "search-bar": [
+    {
+      "where": "Android emulator",
+      "result": "Typing filters the list."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The screen shows. Typing wasn't tried."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "otp-input": [
+    {
+      "where": "Android emulator",
+      "result": "Typed digits fill the boxes."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The screen shows. Typing wasn't tried."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "icon": [
+    {
+      "where": "Android emulator",
+      "result": "Every icon draws."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Every icon draws."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "avatar": [
+    {
+      "where": "Android emulator",
+      "result": "Initials draw. A picture over them wasn't checked here."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "badge": [
+    {
+      "where": "Android emulator",
+      "result": "Every tone draws."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "chip": [
+    {
+      "where": "Android emulator",
+      "result": "Toggling works, and the close button removes it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The screen shows. Its toggle reacted to a click, but the result wasn't checked."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "divider": [
+    {
+      "where": "Android emulator",
+      "result": "Draws."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "list-row": [
+    {
+      "where": "Android emulator",
+      "result": "Each kind of row draws."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "progress-bar": [
+    {
+      "where": "Android emulator",
+      "result": "The button moves the bar, and the busy bar runs."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The button moves the bar."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "skeleton": [
+    {
+      "where": "Android emulator",
+      "result": "Draws and pulses."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "empty-state": [
+    {
+      "where": "Android emulator",
+      "result": "The button works."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The button works."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "sheet": [
+    {
+      "where": "Android emulator",
+      "result": "Opens and closes, and the back button closes it without leaving the app."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Opens and closes."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "action-sheet": [
+    {
+      "where": "Android emulator",
+      "result": "Opens, a choice comes back, and the back button closes it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Opens, and a choice comes back."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "toast": [
+    {
+      "where": "Android emulator",
+      "result": "Shows, then goes by itself."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "banner": [
+    {
+      "where": "Android emulator",
+      "result": "Its action works."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Its action works."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "menu": [
+    {
+      "where": "Android emulator",
+      "result": "Opens beside the dots, a choice comes back, and the back button closes it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Opens, and a choice comes back."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "tooltip": [
+    {
+      "where": "Android emulator",
+      "result": "Shows above what was tapped."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "app-bar": [
+    {
+      "where": "Android emulator",
+      "result": "The back arrow works."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The back arrow works."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "grid": [
+    {
+      "where": "Android emulator",
+      "result": "Lays out in columns."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The example's screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "accordion": [
+    {
+      "where": "Android emulator",
+      "result": "Opening one closes the other."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "Opening one closes the other."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "carousel": [
+    {
+      "where": "Android emulator",
+      "result": "A swipe moves to the next page."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "A simulated drag moves to the next page."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "swipe-row": [
+    {
+      "where": "Android emulator",
+      "result": "A swipe reveals the action, and it works."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "The row shows, but a simulated drag didn't reveal the action, so this isn't confirmed here."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "gestures": [
+    {
+      "where": "Android emulator",
+      "result": "A flick is read correctly. Drag and pinch weren't confirmed in this example."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "The web",
+      "result": "A simulated drag moves the tile. Flick and pinch weren't confirmed."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ]
+}

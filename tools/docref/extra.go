@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
-// example is a plugin's complete program, as package main.
+var packageLine = regexp.MustCompile(`(?m)^package \w+$`)
+
+// example is a complete program from the guide, as package main.
 func example(dir, name string) (string, error) {
 	b, err := os.ReadFile(filepath.Join(dir, name+".go"))
 	if errors.Is(err, os.ErrNotExist) {
@@ -18,7 +21,7 @@ func example(dir, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	src := strings.Replace(strings.TrimSpace(string(b)), "package guide", "package main", 1)
+	src := packageLine.ReplaceAllString(strings.TrimSpace(string(b)), "package main")
 	return fmt.Sprintf(`<h2 id="example">A complete example</h2>`+"\n"+
 		`<pre data-file="%s.go"><code class="language-go">%s</code></pre>`+"\n", name, esc(src)), nil
 }

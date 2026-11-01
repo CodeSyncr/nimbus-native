@@ -15,9 +15,9 @@ const (
 type Size uint8
 
 const (
-	SizeMedium Size = iota
-	SizeSmall
-	SizeLarge
+	SizeMedium Size = iota // the default
+	SizeSmall              // for tight rows
+	SizeLarge              // for a screen's one big action
 )
 
 // fade gives a color an alpha, 0..1.
@@ -40,19 +40,19 @@ func (v Variant) colors(th Theme) (bg, fg, border Color) {
 
 // Button is a tappable action:
 //
-//	ui.C(ui.Button{Label: "Place order", Icon: "check", OnPress: place})
-//	ui.C(ui.Button{Label: "Cancel", Variant: ui.Outlined, OnPress: cancel})
+//	ui.Button{Label: "Place order", Icon: "check", OnPress: place}
+//	ui.Button{Label: "Cancel", Variant: ui.Outlined, OnPress: cancel}
 //
 // While Loading it shows a spinner and can't be tapped.
 type Button struct {
-	Label    string
-	Icon     string // an Icon name, before the label
-	OnPress  func()
-	Variant  Variant
-	Size     Size
-	Disabled bool
-	Loading  bool
-	Full     bool // as wide as its container
+	Label    string  // The words on it
+	Icon     string  // an Icon name, before the label
+	OnPress  func()  // Called on a tap
+	Variant  Variant // Filled, Tonal, Outlined, Plain or Destructive
+	Size     Size    // SizeSmall, SizeMedium or SizeLarge
+	Disabled bool    // Dimmed, can't be tapped
+	Loading  bool    // A spinner replaces the icon, can't be tapped
+	Full     bool    // as wide as its container
 }
 
 func (b Button) Render(c *Ctx) Component {
@@ -98,12 +98,12 @@ func (b Button) Render(c *Ctx) Component {
 // IconButton is a button that is only an icon. Label says what it does, for
 // screen readers.
 type IconButton struct {
-	Icon    string
-	Label   string
-	OnPress func()
+	Icon    string  // An Icon name
+	Label   string  // What it does, read aloud
+	OnPress func()  // Called on a tap
 	Variant Variant // Plain by default
-	Size    Size
-	Filled  bool // solid Primary, not the plain icon
+	Size    Size    // 34, 44 or 54 points across
+	Filled  bool    // solid Primary, not the plain icon
 }
 
 func (b IconButton) Render(c *Ctx) Component {
@@ -131,10 +131,10 @@ func (b IconButton) Render(c *Ctx) Component {
 // FloatingButton is a screen's main action, floating over its content at
 // the bottom right. Put it last among the screen's children.
 type FloatingButton struct {
-	Icon     string
+	Icon     string // An Icon name
 	Label    string // shown beside the icon when Extended, always read aloud
-	OnPress  func()
-	Extended bool
+	OnPress  func() // Called on a tap
+	Extended bool   // Shows the label beside the icon
 }
 
 func (b FloatingButton) Render(c *Ctx) Component {

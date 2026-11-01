@@ -213,6 +213,14 @@ func (p *plug) render() (head, body string) {
 	b.WriteString(`<div class="nd-ref">` + "\n")
 	b.WriteString(`<h2 id="api">API</h2>` + "\n")
 	fmt.Fprintf(&b, `<pre><code class="language-go">import "%s%s"</code></pre>`+"\n", importRoot, p.name)
+	p.reference(&b)
+	p.permissions(&b)
+	b.WriteString("</div>\n")
+	return p.platforms(), b.String()
+}
+
+// reference is the functions, types and values.
+func (p *plug) reference(b *strings.Builder) {
 	if len(p.funcs) > 0 {
 		b.WriteString(`<h2 id="functions">Functions</h2>` + "\n")
 		for _, f := range p.funcs {
@@ -222,16 +230,16 @@ func (p *plug) render() (head, body string) {
 			}
 		}
 		for _, f := range p.funcs {
-			p.writeFn(&b, f, "h3", "ref-"+strings.ToLower(f.name))
+			p.writeFn(b, f, "h3", "ref-"+strings.ToLower(f.name))
 		}
 	}
 	if len(p.types) > 0 {
 		b.WriteString(`<h2 id="types">Types</h2>` + "\n")
 		for _, t := range p.types {
 			id := "ref-" + strings.ToLower(t.name)
-			fmt.Fprintf(&b, `<h3 id="%s">%s</h3>`+"\n", id, esc(t.name))
+			fmt.Fprintf(b, `<h3 id="%s">%s</h3>`+"\n", id, esc(t.name))
 			if t.decl != "" {
-				fmt.Fprintf(&b, `<pre><code class="language-go">%s</code></pre>`+"\n", esc(t.decl))
+				fmt.Fprintf(b, `<pre><code class="language-go">%s</code></pre>`+"\n", esc(t.decl))
 			}
 			b.WriteString(p.prose(t.doc))
 			if len(t.fields) > 0 {
@@ -239,25 +247,22 @@ func (p *plug) render() (head, body string) {
 				for i, f := range t.fields {
 					rows[i] = []string{code(f.name), p.typeRef(f.typ), sentence(f.doc)}
 				}
-				table(&b, []string{"Field", "Type", "Description"}, rows)
+				table(b, []string{"Field", "Type", "Description"}, rows)
 			}
 			if len(t.consts) > 0 {
-				p.values(&b, t.consts)
+				p.values(b, t.consts)
 			}
 			for _, m := range t.methods {
-				p.writeFn(&b, m, "h4", id+"-"+strings.ToLower(m.name))
+				p.writeFn(b, m, "h4", id+"-"+strings.ToLower(m.name))
 			}
 		}
 	}
 	if len(p.consts) > 0 {
 		b.WriteString(`<h2 id="constants">Constants</h2>` + "\n")
-		p.values(&b, p.consts)
+		p.values(b, p.consts)
 	}
 	if len(p.vars) > 0 {
 		b.WriteString(`<h2 id="variables">Errors and variables</h2>` + "\n")
-		p.values(&b, p.vars)
+		p.values(b, p.vars)
 	}
-	p.permissions(&b)
-	b.WriteString("</div>\n")
-	return p.platforms(), b.String()
 }

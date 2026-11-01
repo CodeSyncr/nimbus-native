@@ -7,10 +7,10 @@ import (
 
 // AppBar is a screen's top bar when it has no navigation Stack of its own:
 //
-//	ui.C(ui.AppBar{Title: "Orders", Actions: []*ui.Element{ui.C(ui.IconButton{Icon: "search", Label: "Search"})}})
+//	ui.AppBar{Title: "Orders", Actions: []*ui.Element{ui.C(ui.IconButton{Icon: "search", Label: "Search"})}}
 type AppBar struct {
-	Title    string
-	Subtitle string
+	Title    string      // The screen's name
+	Subtitle string      // Under it
 	OnBack   func()      // adds a back arrow
 	Leading  Component   // or anything else at the start
 	Actions  []Component // at the end
@@ -47,11 +47,11 @@ func (b AppBar) Render(c *Ctx) Component {
 
 // Grid lays its items out in equal columns:
 //
-//	ui.C(ui.Grid{Columns: 2, Gap: 12, Items: tiles})
+//	ui.Grid{Columns: 2, Gap: 12, Items: tiles}
 type Grid struct {
-	Columns int // 0 means 2
-	Gap     float32
-	Items   []Component
+	Columns int         // 0 means 2
+	Gap     float32     // Space between items
+	Items   []Component // What goes in it
 }
 
 func (g Grid) Render(c *Ctx) Component {
@@ -76,16 +76,16 @@ func (g Grid) Render(c *Ctx) Component {
 
 // AccordionItem is a heading and what it opens.
 type AccordionItem struct {
-	Title   string
-	Content Component
+	Title   string    // Its heading
+	Content Component // What opens under it
 }
 
 // Accordion is a list of headings that open in place. With Single, opening
 // one closes the rest.
 type Accordion struct {
-	Items  []AccordionItem
-	Single bool
-	Open   int // the one open at the start; 0 for the first, -1 for none
+	Items  []AccordionItem // Each a Title and Content
+	Single bool            // Opening one closes the rest
+	Open   int             // the one open at the start; 0 for the first, -1 for none
 }
 
 func (a Accordion) Render(c *Ctx) Component {
@@ -122,10 +122,10 @@ func (a Accordion) Render(c *Ctx) Component {
 // Carousel shows one page at a time; swipe sideways for the next, with dots
 // to show where you are.
 type Carousel struct {
-	Pages    []Component
-	Height   float32
-	Width    float32 // 0 means the screen's width
-	OnChange func(int)
+	Pages    []Component // What it shows
+	Height   float32     // Its height
+	Width    float32     // 0 means the screen's width
+	OnChange func(int)   // Called with the new page
 }
 
 func (r Carousel) Render(c *Ctx) Component {
@@ -179,17 +179,17 @@ func (r Carousel) Render(c *Ctx) Component {
 
 // SwipeAction is a button a SwipeRow reveals.
 type SwipeAction struct {
-	Label   string
-	Icon    string
-	Tone    Tone // Bad for a delete
-	OnPress func()
+	Label   string // What it says
+	Icon    string // An Icon name
+	Tone    Tone   // Bad for a delete
+	OnPress func() // Called on a tap
 }
 
 // SwipeRow reveals actions when its content is swiped to the left. It works
 // inside a list: an up or down drag still scrolls.
 type SwipeRow struct {
-	Content Component
-	Actions []SwipeAction
+	Content Component     // The row
+	Actions []SwipeAction // What it reveals: Label, Icon, Tone, OnPress
 }
 
 func (r SwipeRow) Render(c *Ctx) Component {

@@ -173,8 +173,9 @@ func (p *plug) function(fset *token.FileSet, f *doc.Func, owner string) fn {
 	for _, list := range f.Decl.Type.Params.List {
 		t := source(fset, list.Type)
 		for _, n := range list.Names {
-			// Every call takes a ctx, and the page explains it once.
-			if t == "context.Context" {
+			// Every call takes a ctx, and the page explains it once. A
+			// component's c is just what it was given.
+			if t == "context.Context" || t == "*Ctx" {
 				continue
 			}
 			out.params = append(out.params, param{n.Name, t, descs[n.Name]})

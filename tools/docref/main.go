@@ -28,6 +28,9 @@ func main() {
 	out := flag.String("out", "", "where the view files go")
 	examples := flag.String("examples", "examples/guide", "the guide's example programs")
 	tested := flag.String("tested", "examples/guide/tested.json", "what each plugin has been tried on")
+	ui := flag.String("ui", "ui", "package ui, for the component pages; empty leaves them out")
+	pages := flag.String("components", "tools/docref/components.json", "what each component page covers")
+	componentExamples := flag.String("component-examples", "examples/guide/components", "the component pages' example programs")
 	flag.Parse()
 	if *out == "" {
 		fmt.Fprintln(os.Stderr, "docref: -out is required")
@@ -78,6 +81,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "docref: %s: no entry in tested.json\n", name)
 			failed = true
 		}
+	}
+	if *ui != "" {
+		bad, err := components(*ui, *pages, *componentExamples, filepath.Join(*componentExamples, "tested.json"), *out)
+		if err != nil {
+			fatal(err)
+		}
+		failed = failed || bad
 	}
 	if failed {
 		os.Exit(1)

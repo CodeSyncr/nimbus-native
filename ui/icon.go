@@ -12,6 +12,10 @@ import (
 //
 // IconNames lists them. An unknown name draws nothing. For an icon of your
 // own, draw it with Canvas.
+//
+//nimbus:param name one of the 59 names; see IconNames
+//nimbus:param size its width and height, in points
+//nimbus:param color its color; 0 uses the theme's text color
 func Icon(name string, size float32, color Color) *Element {
 	return C(iconView{name, size, color})
 }

@@ -1,0 +1,124 @@
+{
+  "button": [
+    "Button",
+    "Variant",
+    "Size"
+  ],
+  "icon-button": [
+    "IconButton",
+    "Variant",
+    "Size"
+  ],
+  "floating-button": [
+    "FloatingButton"
+  ],
+  "checkbox": [
+    "Checkbox"
+  ],
+  "radio-group": [
+    "RadioGroup"
+  ],
+  "segmented-control": [
+    "SegmentedControl"
+  ],
+  "stepper": [
+    "Stepper"
+  ],
+  "select": [
+    "Select"
+  ],
+  "date-field": [
+    "DateField"
+  ],
+  "search-bar": [
+    "SearchBar"
+  ],
+  "otp-input": [
+    "OTPInput"
+  ],
+  "icon": [
+    "Icon",
+    "IconNames"
+  ],
+  "avatar": [
+    "Avatar"
+  ],
+  "badge": [
+    "Badge",
+    "Tone"
+  ],
+  "chip": [
+    "Chip"
+  ],
+  "divider": [
+    "Divider"
+  ],
+  "list-row": [
+    "ListRow"
+  ],
+  "progress-bar": [
+    "ProgressBar"
+  ],
+  "skeleton": [
+    "Skeleton"
+  ],
+  "empty-state": [
+    "EmptyState"
+  ],
+  "sheet": [
+    "Overlays",
+    "OverlayNav.Sheet",
+    "OverlayNav.Dismiss",
+    "Sheet"
+  ],
+  "action-sheet": [
+    "Overlays",
+    "OverlayNav.ActionSheet",
+    "MenuAction"
+  ],
+  "toast": [
+    "Overlays",
+    "OverlayNav.Toast",
+    "Tone"
+  ],
+  "banner": [
+    "Banner",
+    "Tone"
+  ],
+  "menu": [
+    "Menu",
+    "MenuAction"
+  ],
+  "tooltip": [
+    "Tooltip"
+  ],
+  "app-bar": [
+    "AppBar"
+  ],
+  "grid": [
+    "Grid"
+  ],
+  "accordion": [
+    "Accordion",
+    "AccordionItem"
+  ],
+  "carousel": [
+    "Carousel"
+  ],
+  "swipe-row": [
+    "SwipeRow",
+    "SwipeAction",
+    "Tone"
+  ],
+  "gestures": [
+    "Element.OnPan",
+    "Element.OnPanX",
+    "Element.OnPanY",
+    "Element.OnSwipe",
+    "Element.OnPinch",
+    "Pan",
+    "Pinch",
+    "Swipe",
+    "Phase"
+  ]
+}
