@@ -1,0 +1,1 @@
+{ "description": "Print HTML or a PDF with the system's dialog", "handler": "PrintingPlugin" }

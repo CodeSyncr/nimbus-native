@@ -1,0 +1,1 @@
+{ "description": "Write a text message on the system's screen", "handler": "SmsPlugin" }

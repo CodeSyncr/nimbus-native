@@ -1,0 +1,2 @@
+{ "description": "Start other Android screens", "handler": "IntentLauncherPlugin",
+  "platforms": { "ios": "none" } }

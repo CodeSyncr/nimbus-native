@@ -335,6 +335,20 @@
       "result": "Not tried yet."
     }
   ],
+  "intentlauncher": [
+    {
+      "where": "Android emulator",
+      "result": "Wi-Fi settings open, and the result comes back when they return."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Fails with plugin.Unavailable, as it should: iOS has no intents."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "keepawake": [
     {
       "where": "Android emulator",
@@ -419,6 +433,20 @@
       "result": "Not tried yet."
     }
   ],
+  "mailcomposer": [
+    {
+      "where": "Android emulator",
+      "result": "With an attachment, the system's chooser offers the file to Gmail and other apps. Without one, Gmail opens. It stopped at its setup screen, so the filled-in fields are unconfirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. It builds, but the mail sheet needs a mail account, so it hasn't been opened."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "motion": [
     {
       "where": "Android emulator",
@@ -497,6 +525,20 @@
     {
       "where": "iOS simulator",
       "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. Counting needs a real phone."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "printing": [
+    {
+      "where": "Android emulator",
+      "result": "The print dialog opens with a correct preview of the HTML. A PDF and a real printer haven't been tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. It wasn't tapped: this run can't tap the simulator."
     },
     {
       "where": "Real phones",
@@ -595,6 +637,20 @@
     {
       "where": "iOS simulator",
       "result": "Apple's sheet opens and stops at signing in to an Apple Account. Google's consent prompt opens. A completed sign-in has never been run."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "sms": [
+    {
+      "where": "Android emulator",
+      "result": "Messages opens with the number and text filled in, and the app carries on when they return."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. It builds, but the simulator can't send texts, so the message sheet hasn't been opened."
     },
     {
       "where": "Real phones",
