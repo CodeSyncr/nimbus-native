@@ -18,6 +18,18 @@ enum MotionPlugin {
             let a = manager.accelerometerData?.acceleration ?? CMAcceleration()
             let g = manager.gyroData?.rotationRate ?? CMRotationRate()
             call.resolve(["accel": ["x": a.x, "y": a.y, "z": a.z], "gyro": ["x": g.x, "y": g.y, "z": g.z]])
+        case "orientation-start":
+            guard manager.isDeviceMotionAvailable else { return call.reject(Plugins.unavailable, "this phone has no motion sensors") }
+            manager.deviceMotionUpdateInterval = 1 / Double(call.args["hz"] as? Int ?? 30)
+            manager.startDeviceMotionUpdates()
+            call.resolve()
+        case "orientation-read":
+            let a = manager.deviceMotion?.attitude
+            let degrees = { (r: Double?) in (r ?? 0) * 180 / .pi }
+            call.resolve(["pitch": degrees(a?.pitch), "roll": degrees(a?.roll), "yaw": degrees(a?.yaw)])
+        case "orientation-stop":
+            manager.stopDeviceMotionUpdates()
+            call.resolve()
         case "stop":
             manager.stopAccelerometerUpdates()
             manager.stopGyroUpdates()

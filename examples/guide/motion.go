@@ -14,12 +14,14 @@ type Level struct{}
 
 func (Level) Render(c *ui.Ctx) ui.Component {
 	r, setReading := ui.State(c, motion.Reading{})
+	turn, setTurn := ui.State(c, motion.Orientation{})
 	on, setOn := ui.State(c, true)
 	none, setNone := ui.State(c, false)
 
 	ui.Effect(c, func(ctx context.Context) func() {
 		if on {
 			go func() {
+				go motion.WatchOrientation(ctx, 30, setTurn)
 				err := motion.Watch(ctx, 30, setReading)
 				if plugin.IsCode(err, plugin.Unavailable) {
 					setNone(true)
@@ -41,6 +43,7 @@ func (Level) Render(c *ui.Ctx) ui.Component {
 		ui.Text(fmt.Sprintf("x %.2f g", r.Accel.X), ui.Style{FontSize: 28}),
 		ui.Text(fmt.Sprintf("y %.2f g", r.Accel.Y), ui.Style{FontSize: 28}),
 		ui.Text(fmt.Sprintf("z %.2f g", r.Accel.Z), ui.Style{FontSize: 28}),
+		ui.Text(fmt.Sprintf("Pitch %.0f°, roll %.0f°", turn.Pitch, turn.Roll), ui.Style{FontSize: 20}),
 		ui.Button{Label: label, OnPress: func() { setOn(!on) }},
 	)
 }

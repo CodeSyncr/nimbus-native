@@ -562,11 +562,11 @@
   "motion": [
     {
       "where": "Android emulator",
-      "result": "The example runs: readings follow the emulator's accelerometer, and Stop and Start work. The gyroscope wasn't checked."
+      "result": "The example runs: readings follow the emulator's accelerometer, and Stop and Start work. WatchOrientation gave the right angles for flat, upright, tilted and on each side, using its accelerometer and compass path. Its rotation sensor doesn't move on an emulator, so that path and the gyroscope are unconfirmed."
     },
     {
       "where": "iOS simulator",
-      "result": "Fails with plugin.Unavailable, as it should: the simulator has no sensors, so real readings are untested on iOS."
+      "result": "Fails with plugin.Unavailable, as it should: the simulator has no sensors, so real readings and WatchOrientation are untested on iOS."
     },
     {
       "where": "Real phones",
