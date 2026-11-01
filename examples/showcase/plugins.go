@@ -186,6 +186,8 @@ var shots = map[string]shot{
 		facts: [][2]string{{"Format", "AAC"}, {"Size so far", "112 KB"}}, button: "Stop", quiet: "Pause"},
 	"calendar-events": {title: "Your week", line: "From their calendar, in your app.", icon: "calendar", lead: "Saturday, 7:30 pm", text: "Table for two, added to your Monsoon calendar.",
 		rows: []ui.ListRow{{Title: "Team tasting", Subtitle: "Mon 3 Nov, 10:00 am", Icon: "calendar"}, {Title: "Table for two", Subtitle: "Sat 8 Nov, 7:30 pm", Icon: "calendar"}}, button: "Book a table"},
+	"background-location": {title: "Your delivery", line: "Followed with the app closed.", icon: "map-pin", lead: "Trip running", text: "24 minutes, 6.2 km. The notification shows it's on.",
+		facts: [][2]string{{"Points", "412"}, {"Last seen", "A moment ago"}}, button: "End the trip"},
 	"purchases": {title: "Monsoon Club", line: "Free coffee, every Friday.", icon: "star", lead: "₹499 a month", text: "Cancel any time from the store.",
 		facts: [][2]string{{"Plan", "Monthly"}, {"Renews", "Dec 1"}}, button: "Join for ₹499", quiet: "Restore purchases"},
 	"sign-in": {title: "Welcome back", line: "One tap, no passwords.", icon: "user", lead: "Keep your stamps", text: "Sign in and they follow you to any phone.",

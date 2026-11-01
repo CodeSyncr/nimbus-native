@@ -83,6 +83,20 @@
       "result": "Not tried yet."
     }
   ],
+  "backgroundlocation": [
+    {
+      "where": "Android emulator",
+      "result": "With the app on the home screen, the service stayed up, its notification showed, and all 5 moves came through. The example's Start and End work, and Stop ends the service. How long it lasts, and its battery use, haven't been measured."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "With Safari in front and the app reporting itself inactive, the location arrow stayed on and all 4 moves came through. Stop works. The permission was granted from outside the app, so the prompt wasn't answered."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet. In these tests Go ran on the Mac, as it does under nimbus native dev, so a store build's Go in the background is untested."
+    }
+  ],
   "backgroundtasks": [
     {
       "where": "Android emulator",

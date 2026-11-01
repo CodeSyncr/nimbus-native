@@ -1,0 +1,8 @@
+{ "description": "Keep following the location with the app in the background", "handler": "BackgroundLocationPlugin",
+  "ios": {
+    "info": { "NSLocationWhenInUseUsageDescription": "This app follows your location while a trip is running." },
+    "arrays": { "UIBackgroundModes": ["location"] } },
+  "android": {
+    "permissions": ["android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.FOREGROUND_SERVICE", "android.permission.FOREGROUND_SERVICE_LOCATION", "android.permission.POST_NOTIFICATIONS"],
+    "application": ["<service android:name=\"space.nimbusgo.nativekit.BackgroundLocationService\" android:exported=\"false\" android:foregroundServiceType=\"location\" />"] } }
