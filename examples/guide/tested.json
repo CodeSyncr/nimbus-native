@@ -195,6 +195,20 @@
       "result": "Not tried yet."
     }
   ],
+  "cellular": [
+    {
+      "where": "Android emulator",
+      "result": "Shows the emulator's network, SIM, country and codes. Roaming wasn't tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Runs, and says there's no SIM, which is right for a simulator. Generation and a real SIM are untested."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "clipboard": [
     {
       "where": "Android emulator",
@@ -335,6 +349,20 @@
       "result": "Not tried yet."
     }
   ],
+  "imagemanipulator": [
+    {
+      "where": "Android emulator",
+      "result": "The example makes a 225×400 thumbnail. Resizing, cropping, rotating and flipping are covered by Go tests."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows, and it encoded a JPEG in a test run. It's the same Go code everywhere."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "intentlauncher": [
     {
       "where": "Android emulator",
@@ -405,6 +433,20 @@
       "result": "Not tried yet."
     }
   ],
+  "localization": [
+    {
+      "where": "Android emulator",
+      "result": "Every field reads correctly for US English. Other languages and right-to-left weren't tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Every field reads correctly, including rupees for India. Other languages and right-to-left weren't tried."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "localnotifications": [
     {
       "where": "Android emulator",
@@ -441,6 +483,20 @@
     {
       "where": "iOS simulator",
       "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. It builds, but the mail sheet needs a mail account, so it hasn't been opened."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "medialibrary": [
+    {
+      "where": "Android emulator",
+      "result": "Save adds the picture to the phone's photos. The permission prompt, List and Read all work. A video hasn't been tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Save adds the picture to the library, which its permission prompt showed. List and Read haven't been run: that prompt can't be answered here."
     },
     {
       "where": "Real phones",

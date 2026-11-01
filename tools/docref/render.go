@@ -86,6 +86,9 @@ func table(b *strings.Builder, head []string, rows [][]string) {
 	b.WriteString("</tbody></table></div>\n")
 }
 
+// plainGo are the plugins with no host code at all, so they run in a browser too.
+var plainGo = map[string]bool{"imagemanipulator": true}
+
 // platforms is the line under a page's title.
 func (p *plug) platforms() string {
 	one := func(name, key string, on bool) string {
@@ -97,7 +100,7 @@ func (p *plug) platforms() string {
 		}
 		return `<span class="nd-plat">` + name + `</span>`
 	}
-	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", false) + "</p>\n"
+	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", plainGo[p.name]) + "</p>\n"
 }
 
 func (p *plug) writeFn(b *strings.Builder, f fn, level, id string) {
