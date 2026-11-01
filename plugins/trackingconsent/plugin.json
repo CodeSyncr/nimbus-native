@@ -1,0 +1,2 @@
+{ "description": "Ask before tracking across apps", "handler": "TrackingConsentPlugin",
+  "ios": { "info": { "NSUserTrackingUsageDescription": "This lets us show you more relevant ads." } } }
