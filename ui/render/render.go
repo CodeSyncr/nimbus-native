@@ -131,6 +131,9 @@ type Box struct {
 	Pan uint8
 	// Pinch makes the view report two-finger pinches.
 	Pinch bool
+	// Back makes a pressable take the system's back button: the host presses
+	// the newest one before anything else goes back.
+	Back bool
 }
 
 // Which drags a view reports (Box.Pan).

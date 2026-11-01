@@ -107,7 +107,12 @@ func (t *translator) op(op render.Op) []instr {
 	case *render.Draw:
 		// The commands as an attribute (it survives server rendering);
 		// host.js paints any canvas that has one.
-		b, _ := json.Marshal(map[string]any{"w": o.W, "h": o.H, "k": o.Cmds, "n": o.Nums, "c": colorsCSS(o.Colors)})
+		// Cmds go as numbers: JSON would turn a byte slice into base64.
+		cmds := make([]int, len(o.Cmds))
+		for i, k := range o.Cmds {
+			cmds[i] = int(k)
+		}
+		b, _ := json.Marshal(map[string]any{"w": o.W, "h": o.H, "k": cmds, "n": o.Nums, "c": colorsCSS(o.Colors)})
 		return []instr{{"a": []any{o.Tag, "data-draw", string(b)}}}
 	case *render.Text:
 		x := fontCSS(o.Font, o.Color) + "text-align:" + [...]string{"left", "center", "right"}[o.Align%3] + ";"

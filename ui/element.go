@@ -35,6 +35,7 @@ type Element struct {
 	refreshing  bool
 	href        string
 	onLongPress func()
+	takesBack   bool // the system's back button presses it
 	onPan       func(Pan)
 	panAxis     uint8
 	onPinch     func(Pinch)
@@ -261,34 +262,35 @@ func (e *Element) OnLongPress(f func()) *Element { e.onLongPress = f; return e }
 type Phase uint8
 
 const (
-	Began     = Phase(render.GestureBegan)
-	Changed   = Phase(render.GestureChanged)
-	Ended     = Phase(render.GestureEnded)
-	Cancelled = Phase(render.GestureCancelled)
+	Began     = Phase(render.GestureBegan)     // a finger came down and started moving
+	Changed   = Phase(render.GestureChanged)   // it moved
+	Ended     = Phase(render.GestureEnded)     // it lifted
+	Cancelled = Phase(render.GestureCancelled) // the system took it away
 )
 
 // Pan is a drag: how far it has come from where it began (X, Y) and how fast
 // it's going (VX, VY, per second), in points.
 type Pan struct {
-	Phase        Phase
-	X, Y, VX, VY float32
+	Phase  Phase   // Where it is in the gesture
+	X, Y   float32 // How far it has come, in points
+	VX, VY float32 // How fast it's going, in points a second
 }
 
 // Pinch is a two-finger pinch: Scale is 1 at the start, more as the fingers
 // spread.
 type Pinch struct {
-	Phase Phase
-	Scale float32
+	Phase Phase   // Where it is in the gesture
+	Scale float32 // How far apart the fingers are; 1 is where they began
 }
 
 // Swipe is the way a swipe went.
 type Swipe uint8
 
 const (
-	SwipeLeft Swipe = iota + 1
-	SwipeRight
-	SwipeUp
-	SwipeDown
+	SwipeLeft  Swipe = iota + 1 // a flick to the left
+	SwipeRight                  // a flick to the right
+	SwipeUp                     // a flick up
+	SwipeDown                   // a flick down
 )
 
 // OnPan reports drags in any direction on this view. Inside a Scroll, use
@@ -297,6 +299,8 @@ const (
 //	ui.View(ui.Style{Left: ui.Pt(x)}, card).OnPanX(func(p ui.Pan) {
 //		setX(start + p.X)
 //	})
+//
+//nimbus:param f called as they drag
 func (e *Element) OnPan(f func(Pan)) *Element {
 	e.onPan, e.panAxis = f, render.PanAny
 	return e
@@ -304,21 +308,29 @@ func (e *Element) OnPan(f func(Pan)) *Element {
 
 // OnPanX reports sideways drags only; a drag that starts up or down is left
 // to whatever scrolls around this view.
+//
+//nimbus:param f called as they drag sideways
 func (e *Element) OnPanX(f func(Pan)) *Element {
 	e.onPan, e.panAxis = f, render.PanX
 	return e
 }
 
 // OnPanY reports up and down drags only.
+//
+//nimbus:param f called as they drag up or down
 func (e *Element) OnPanY(f func(Pan)) *Element {
 	e.onPan, e.panAxis = f, render.PanY
 	return e
 }
 
 // OnPinch reports two-finger pinches on this view.
+//
+//nimbus:param f called as they pinch
 func (e *Element) OnPinch(f func(Pinch)) *Element { e.onPinch = f; return e }
 
 // OnSwipe reports a quick flick or a long drag that ends in one direction.
+//
+//nimbus:param f called with the direction of a flick
 func (e *Element) OnSwipe(f func(Swipe)) *Element {
 	e.onSwipe = f
 	if e.panAxis == 0 {

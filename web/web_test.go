@@ -15,6 +15,7 @@ import (
 
 	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
+	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
 type ordersPage struct{}
@@ -84,6 +85,17 @@ func get(t *testing.T, url string) (*http.Response, string) {
 	defer r.Body.Close()
 	b, _ := io.ReadAll(r.Body)
 	return r, string(b)
+}
+
+func TestCanvasCommandsAreNumbers(t *testing.T) {
+	out := newTranslator().op(&render.Draw{Tag: 1, W: 24, H: 24, Cmds: []uint8{render.DrawMoveTo, render.DrawLineTo}, Nums: []float32{1, 2, 3, 4}})
+	b, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `\"k\":[0,1]`) {
+		t.Fatalf("draw = %s", b)
+	}
 }
 
 func TestServerRendering(t *testing.T) {

@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xa3dce0b5384f4ba0
+    public static let schemaHash: UInt64 = 0x01160879cc849524
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -247,8 +247,9 @@ public enum Render {
         public var rotate: Float
         public var pan: UInt8
         public var pinch: Bool
+        public var back: Bool
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0, pan: UInt8 = 0, pinch: Bool = false) {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0, pan: UInt8 = 0, pinch: Bool = false, back: Bool = false) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -279,6 +280,7 @@ public enum Render {
             self.rotate = rotate
             self.pan = pan
             self.pinch = pinch
+            self.back = back
         }
 
         public func write(to w: inout WireWriter) {
@@ -318,6 +320,7 @@ public enum Render {
             w.float32(self.rotate)
             w.uint(UInt64(self.pan))
             w.bool(self.pinch)
+            w.bool(self.back)
         }
 
         public static func read(from r: inout WireReader) throws -> Box {
@@ -352,6 +355,7 @@ public enum Render {
             m.rotate = try r.float32()
             m.pan = UInt8(try r.uint(max: 255))
             m.pinch = try r.bool()
+            m.back = try r.bool()
             return m
         }
     }

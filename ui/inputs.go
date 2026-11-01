@@ -6,18 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/plugins/dialog"
 	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
 // Checkbox is a tick box with a label:
 //
-//	ui.C(ui.Checkbox{Label: "Send receipts", Checked: on, OnChange: setOn})
+//	ui.Checkbox{Label: "Send receipts", Checked: on, OnChange: setOn}
 type Checkbox struct {
-	Label    string
-	Checked  bool
-	OnChange func(bool)
-	Disabled bool
+	Label    string     // Beside the box
+	Checked  bool       // Whether it's ticked
+	OnChange func(bool) // Called with the new state
+	Disabled bool       // Dimmed, can't be changed
 }
 
 func (b Checkbox) Render(c *Ctx) Component {
@@ -42,12 +43,12 @@ func pickRow(th Theme, label string, disabled bool, onPress func(), mark *Elemen
 
 // RadioGroup picks one of its options:
 //
-//	ui.C(ui.RadioGroup{Options: []string{"Card", "UPI", "Cash"}, Selected: pay, OnChange: setPay})
+//	ui.RadioGroup{Options: []string{"Card", "UPI", "Cash"}, Selected: pay, OnChange: setPay}
 type RadioGroup struct {
-	Options  []string
-	Selected int
-	OnChange func(int)
-	Disabled bool
+	Options  []string  // The choices
+	Selected int       // The index of the chosen one
+	OnChange func(int) // Called with the new index
+	Disabled bool      // Dimmed, can't be changed
 }
 
 func (r RadioGroup) Render(c *Ctx) Component {
@@ -67,11 +68,11 @@ func (r RadioGroup) Render(c *Ctx) Component {
 // SegmentedControl picks one of a few views of the same thing, with a thumb
 // that slides to the selection:
 //
-//	ui.C(ui.SegmentedControl{Options: []string{"Day", "Week", "Month"}, Selected: at, OnChange: setAt})
+//	ui.SegmentedControl{Options: []string{"Day", "Week", "Month"}, Selected: at, OnChange: setAt}
 type SegmentedControl struct {
-	Options  []string
-	Selected int
-	OnChange func(int)
+	Options  []string  // The segments; two to four fit best
+	Selected int       // The index of the chosen one
+	OnChange func(int) // Called with the new index
 }
 
 func (g SegmentedControl) Render(c *Ctx) Component {
@@ -98,11 +99,13 @@ func (g SegmentedControl) Render(c *Ctx) Component {
 
 // Stepper changes a number a step at a time:
 //
-//	ui.C(ui.Stepper{Value: qty, Min: 1, Max: 9, OnChange: setQty})
+//	ui.Stepper{Value: qty, Min: 1, Max: 9, OnChange: setQty}
 type Stepper struct {
-	Value, Min, Max int // Max 0 has no limit
-	Step            int // 0 means 1
-	OnChange        func(int)
+	Value    int       // The number
+	Min      int       // The lowest it goes
+	Max      int       // The highest it goes; 0 has no limit
+	Step     int       // How much each tap changes it; 0 means 1
+	OnChange func(int) // Called with the new value
 }
 
 func (s Stepper) Render(c *Ctx) Component {
@@ -133,12 +136,12 @@ func fieldBox(th Theme) Style {
 
 // SearchBar is a one-line search box with a clear button:
 //
-//	ui.C(ui.SearchBar{Value: q, OnChange: setQ, OnSubmit: search})
+//	ui.SearchBar{Value: q, OnChange: setQ, OnSubmit: search}
 type SearchBar struct {
-	Value       string
-	Placeholder string // "Search" when empty
-	OnChange    func(string)
-	OnSubmit    func()
+	Value       string       // What's typed
+	Placeholder string       // "Search" when empty
+	OnChange    func(string) // Called as it changes
+	OnSubmit    func()       // Called on the keyboard's search key
 }
 
 func (b SearchBar) Render(c *Ctx) Component {
@@ -162,11 +165,11 @@ func (b SearchBar) Render(c *Ctx) Component {
 
 // OTPInput takes a short code, a box for each digit:
 //
-//	ui.C(ui.OTPInput{Length: 6, Value: code, OnChange: setCode})
+//	ui.OTPInput{Length: 6, Value: code, OnChange: setCode}
 type OTPInput struct {
-	Length   int // 0 means 6
-	Value    string
-	OnChange func(string)
+	Length   int          // 0 means 6
+	Value    string       // The digits so far
+	OnChange func(string) // Called as it changes
 }
 
 func (o OTPInput) Render(c *Ctx) Component {
@@ -203,13 +206,13 @@ func (o OTPInput) Render(c *Ctx) Component {
 // Select is a field that picks one of its options from a list the platform
 // shows:
 //
-//	ui.C(ui.Select{Label: "City", Options: cities, Selected: city, OnChange: setCity})
+//	ui.Select{Label: "City", Options: cities, Selected: city, OnChange: setCity}
 type Select struct {
-	Label       string
-	Placeholder string
-	Options     []string
-	Selected    int // -1 for none
-	OnChange    func(int)
+	Label       string    // Above the field, and the list's title
+	Placeholder string    // Shown when nothing is chosen
+	Options     []string  // The choices
+	Selected    int       // -1 for none
+	OnChange    func(int) // Called with the new index
 }
 
 func (p Select) Render(c *Ctx) Component {
@@ -220,7 +223,10 @@ func (p Select) Render(c *Ctx) Component {
 	}
 	field := Pressable(func() {
 		go func() {
-			if i, err := dialog.Choose(context.Background(), p.Label, p.Options...); err == nil && i >= 0 {
+			i, err := dialog.Choose(context.Background(), p.Label, p.Options...)
+			if plugin.IsCode(err, plugin.Unavailable) { // the web has no such list: our own
+				c.rt.do(func() { p.openSheet(c) })
+			} else if err == nil && i >= 0 {
 				c.rt.do(func() { p.OnChange(i) })
 			}
 		}()
@@ -228,16 +234,25 @@ func (p Select) Render(c *Ctx) Component {
 	return labelled(th, p.Label, field)
 }
 
+// openSheet shows the options as an ActionSheet.
+func (p Select) openSheet(c *Ctx) {
+	items := make([]MenuAction, len(p.Options))
+	for i, o := range p.Options {
+		items[i] = MenuAction{Label: o, OnPress: func() { p.OnChange(i) }}
+	}
+	Overlays(c).ActionSheet(p.Label, items...)
+}
+
 // DateField is a field that picks a date or time with the platform's picker:
 //
-//	ui.C(ui.DateField{Label: "Delivery", Value: at, OnChange: setAt})
+//	ui.DateField{Label: "Delivery", Value: at, OnChange: setAt}
 type DateField struct {
-	Label       string
-	Placeholder string
-	Value       time.Time // zero for none
-	Mode        dialog.Mode
-	Layout      string // how the value shows; "2 Jan 2006" by default
-	OnChange    func(time.Time)
+	Label       string          // Above the field
+	Placeholder string          // Shown when there's no value
+	Value       time.Time       // zero for none
+	Mode        dialog.Mode     // dialog.Date, dialog.Time or dialog.DateTime
+	Layout      string          // how the value shows; "2 Jan 2006" by default
+	OnChange    func(time.Time) // Called with the new value
 }
 
 func (d DateField) Render(c *Ctx) Component {

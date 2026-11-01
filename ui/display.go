@@ -10,9 +10,9 @@ import (
 // Avatar is a person: their picture, or their initials on a color of their
 // own:
 //
-//	ui.C(ui.Avatar{Name: "Asha Rao", Size: 44})
+//	ui.Avatar{Name: "Asha Rao", Size: 44}
 type Avatar struct {
-	Name  string
+	Name  string  // Gives the initials and the color, and is read aloud
 	Image string  // a picture's URL
 	Size  float32 // 0 means 40
 }
@@ -26,9 +26,6 @@ func (a Avatar) Render(c *Ctx) Component {
 		size = 40
 	}
 	s := Style{Width: Pt(size), Height: Pt(size), Radius: size / 2, Clip: true, Justify: JustifyCenter, AlignItems: AlignCenter}
-	if a.Image != "" {
-		return Image(a.Image, s).Label(a.Name)
-	}
 	h := fnv.New32a()
 	h.Write([]byte(a.Name))
 	s.Background = avatarColors[h.Sum32()%uint32(len(avatarColors))]
@@ -38,18 +35,23 @@ func (a Avatar) Render(c *Ctx) Component {
 			initials += strings.ToUpper(string([]rune(w)[:1]))
 		}
 	}
-	return View(s, Text(initials, Style{Color: Hex("#ffffff"), FontSize: size * 0.38, FontWeight: 600})).Label(a.Name)
+	label := Text(initials, Style{Color: Hex("#ffffff"), FontSize: size * 0.38, FontWeight: 600})
+	if a.Image == "" {
+		return View(s, label).Label(a.Name)
+	}
+	// Over the initials, which still show while it loads or if it can't.
+	return View(s, label, Image(a.Image, Style{Absolute: true, Left: Pt(0), Top: Pt(0), Width: Pt(size), Height: Pt(size)})).Label(a.Name)
 }
 
 // Tone is what a Badge or Banner means.
 type Tone uint8
 
 const (
-	Neutral Tone = iota
-	Accent
-	Good
-	Caution
-	Bad
+	Neutral Tone = iota // gray: nothing special
+	Accent              // the theme's Primary
+	Good                // it worked
+	Caution             // take care
+	Bad                 // it went wrong
 )
 
 func (t Tone) color(th Theme) Color {
@@ -68,11 +70,11 @@ func (t Tone) color(th Theme) Color {
 
 // Badge is a small status label:
 //
-//	ui.C(ui.Badge{Label: "Paid", Tone: ui.Good})
+//	ui.Badge{Label: "Paid", Tone: ui.Good}
 type Badge struct {
-	Label string
-	Tone  Tone
-	Solid bool // white on the tone's color, for a count on an icon
+	Label string // The words
+	Tone  Tone   // Neutral, Accent, Good, Caution or Bad
+	Solid bool   // white on the tone's color, for a count on an icon
 }
 
 func (b Badge) Render(c *Ctx) Component {
@@ -90,15 +92,15 @@ func (b Badge) Render(c *Ctx) Component {
 
 // Chip is a compact choice, filter or tag:
 //
-//	ui.C(ui.Chip{Label: "Vegetarian", Selected: veg, OnPress: toggle})
+//	ui.Chip{Label: "Vegetarian", Selected: veg, OnPress: toggle}
 //
 // OnRemove adds a close button.
 type Chip struct {
-	Label    string
-	Icon     string
-	Selected bool
-	OnPress  func()
-	OnRemove func()
+	Label    string // The words
+	Icon     string // An Icon name
+	Selected bool   // Tinted with Primary
+	OnPress  func() // Called on a tap
+	OnRemove func() // Adds a close button
 }
 
 func (p Chip) Render(c *Ctx) Component {
@@ -130,10 +132,10 @@ func (d Divider) Render(c *Ctx) Component {
 
 // ListRow is one row of a list or settings screen:
 //
-//	ui.C(ui.ListRow{Title: "Notifications", Subtitle: "On", Icon: "bell", OnPress: open})
+//	ui.ListRow{Title: "Notifications", Subtitle: "On", Icon: "bell", OnPress: open}
 type ListRow struct {
-	Title    string
-	Subtitle string
+	Title    string    // The main line
+	Subtitle string    // Under it, up to two lines
 	Icon     string    // an Icon name, in a tinted square
 	Leading  Component // anything else at the start: an Avatar, say
 	Trailing Component // at the end: a Switch, a Badge, a price
@@ -171,8 +173,8 @@ func (r ListRow) Render(c *Ctx) Component {
 // ProgressBar shows how far something has got. Value is 0..1, and a bar
 // with Busy runs back and forth when you can't tell.
 type ProgressBar struct {
-	Value  float64
-	Busy   bool
+	Value  float64 // 0 to 1
+	Busy   bool    // Runs back and forth
 	Height float32 // 0 means 6
 	Tone   Tone    // Accent when Neutral
 }
@@ -216,10 +218,10 @@ func tick(c *Ctx, every time.Duration, f func(), state any) {
 
 // Skeleton is a placeholder that pulses where content will load.
 type Skeleton struct {
-	Width  Value
+	Width  Value   // Fills the space when unset
 	Height float32 // 0 means 16
 	Radius float32 // 0 means 6
-	Circle bool
+	Circle bool    // A circle Height across
 }
 
 func (k Skeleton) Render(c *Ctx) Component {
@@ -245,12 +247,14 @@ func (k Skeleton) Render(c *Ctx) Component {
 
 // EmptyState is what a screen shows when it has nothing yet:
 //
-//	ui.C(ui.EmptyState{Icon: "cart", Title: "No orders yet", Message: "New orders show up here.",
-//		Action: "Open POS", OnAction: open})
+//	ui.EmptyState{Icon: "cart", Title: "No orders yet", Message: "New orders show up here.",
+//		Action: "Open POS", OnAction: open}
 type EmptyState struct {
-	Icon, Title, Message string
-	Action               string
-	OnAction             func()
+	Icon     string // An Icon name
+	Title    string // What's missing
+	Message  string // What to do about it
+	Action   string // A button's label
+	OnAction func() // Called on a tap
 }
 
 func (e EmptyState) Render(c *Ctx) Component {

@@ -51,6 +51,7 @@ class Renderer internal constructor(private val root: NimbusView) {
     private val ctx: Context = root.context
     private val density = ctx.resources.displayMetrics.density
     private val views = HashMap<Int, View>()
+    private val backTags = LinkedHashSet<Int>() // pressables the back button presses, newest last
     private val frames = HashMap<Int, IntArray>() // l, t, w, h in px
     private val pendingTitles = HashMap<View, String>() // titles for screens not in a stack yet
     private var rootTag = 0
@@ -151,7 +152,9 @@ class Renderer internal constructor(private val root: NimbusView) {
      * nowhere to go back to, so the Activity can finish.
      */
     fun back(): Boolean {
-        // The top modal first: pop its stack, else close it.
+        // What Go has open over everything comes first: a sheet or a menu.
+        backTags.lastOrNull()?.let { press(it); return true }
+        // The top modal next: pop its stack, else close it.
         root.topModal?.let { m ->
             val inModal = views.values.filterIsInstance<NNStack>().firstOrNull { it.depth > 1 && isInside(it, m) }
             if (inModal != null) return inModal.goBack()
@@ -310,6 +313,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         for (tag in o.tags) {
             val v = views.remove(tag.toInt())
             frames.remove(tag.toInt())
+            backTags.remove(tag.toInt())
             (v?.background as? BoxDrawable)?.detach()
             hidden.remove(tag.toInt())
             if (v is NNModal) {
@@ -357,6 +361,7 @@ class Renderer internal constructor(private val root: NimbusView) {
         val ms = o.transition
         if (ms > 0) transitions[o.tag.toInt()] = ms else transitions.remove(o.tag.toInt())
         if (v is NNPressable) v.reportLongPress(o.longPress, o.tag.toInt())
+        if (o.back) backTags.add(o.tag.toInt()) else backTags.remove(o.tag.toInt())
         (v as? NNGroup)?.setGestures(o.pan, o.pinch, o.tag.toInt())
         (v.background as? BoxDrawable)?.detach()
         val drawn = o.background != 0L || o.radius != 0f || o.borderWidth != 0f || o.gradientColors.size >= 2 ||

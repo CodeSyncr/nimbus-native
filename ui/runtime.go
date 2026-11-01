@@ -653,7 +653,7 @@ func (rt *runtime) props(in *instance, first bool) {
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
 		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
-		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden, Rotate: s.Rotate, Pan: el.panAxis, Pinch: el.onPinch != nil}
+		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden, Rotate: s.Rotate, Pan: el.panAxis, Pinch: el.onPinch != nil, Back: el.takesBack}
 	if s.Scale != 0 && s.Scale != 1 {
 		box.Scale = s.Scale
 	}

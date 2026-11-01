@@ -29,9 +29,19 @@ type overlayRoot struct{ app Component }
 
 func (o overlayRoot) Render(c *Ctx) Component {
 	kids := []Component{C(o.app).Key("app")}
+	top := int64(0)
 	for _, e := range overlayList.Use(c) {
 		id := e.id
 		kids = append(kids, e.show(func() { removeOverlay(c, id) }).Key(fmt.Sprint(id)))
+		if e.kind != "toast" {
+			top = id
+		}
+	}
+	// While something is open, Android's back button closes it, not the app.
+	if top != 0 {
+		back := Pressable(func() { removeOverlay(c, top) }, Style{Absolute: true, Width: Pt(0), Height: Pt(0)})
+		back.takesBack = true
+		kids = append(kids, back.Key("back"))
 	}
 	return View(Style{Grow: 1}, kids...)
 }
@@ -75,6 +85,9 @@ func (o OverlayNav) Dismiss() {
 // Toast shows a short message for a moment, without stopping anything:
 //
 //	ui.Overlays(c).Toast("Order placed", ui.Good)
+//
+//nimbus:param message what it says
+//nimbus:param tone its color; optional
 func (o OverlayNav) Toast(message string, tone ...Tone) {
 	t := Neutral
 	if len(tone) > 0 {
@@ -126,14 +139,16 @@ func (t toastView) Render(c *Ctx) Component {
 // Sheet is a panel that rises from the bottom. Drag it down, or tap outside
 // it, to close.
 type Sheet struct {
-	Title   string
-	Content Component
-	Height  float32 // a share of the screen; 0 means 0.5
+	Title   string    // At the top of the panel
+	Content Component // What's inside
+	Height  float32   // a share of the screen; 0 means 0.5
 }
 
 // Sheet opens a sheet over the app:
 //
 //	ui.Overlays(c).Sheet(ui.Sheet{Title: "Filters", Content: Filters{}})
+//
+//nimbus:param s what it shows
 func (o OverlayNav) Sheet(s Sheet) {
 	o.show("", func(close func()) *Element { return C(sheetView{s, close}) })
 }
@@ -208,10 +223,10 @@ func (s sheetView) Render(c *Ctx) Component {
 
 // MenuAction is a choice in an ActionSheet or Menu.
 type MenuAction struct {
-	Label       string
-	Icon        string
-	Destructive bool
-	OnPress     func()
+	Label       string // A choice's words
+	Icon        string // An Icon name
+	Destructive bool   // In the theme's Danger color
+	OnPress     func() // Called after the sheet closes
 }
 
 // ActionSheet asks what to do, from a sheet of choices:
@@ -219,6 +234,9 @@ type MenuAction struct {
 //	ui.Overlays(c).ActionSheet("Order 1042",
 //		ui.MenuAction{Label: "Mark ready", Icon: "check", OnPress: ready},
 //		ui.MenuAction{Label: "Cancel order", Icon: "trash", Destructive: true, OnPress: cancel})
+//
+//nimbus:param title the heading
+//nimbus:param actions the choices
 func (o OverlayNav) ActionSheet(title string, actions ...MenuAction) {
 	h := float32(len(actions)*54 + 90)
 	if title != "" {
@@ -302,15 +320,15 @@ func anchored(c *Ctx, f func(x, y, w, h float32)) {
 
 // Menu opens a small list of actions beside whatever is tapped:
 //
-//	ui.C(ui.Menu{Trigger: ui.Icon("more", 24, 0), Items: []ui.MenuAction{
+//	ui.Menu{Trigger: ui.Icon("more", 24, 0), Items: []ui.MenuAction{
 //		{Label: "Edit", Icon: "edit", OnPress: edit},
 //		{Label: "Delete", Icon: "trash", Destructive: true, OnPress: remove},
-//	}})
+//	}}
 type Menu struct {
-	Trigger Component
-	Items   []MenuAction
-	Label   string // what the trigger does, for screen readers
-	Open    bool   // opens by itself when it first appears
+	Trigger Component    // What's tapped
+	Items   []MenuAction // The choices
+	Label   string       // what the trigger does, for screen readers
+	Open    bool         // opens by itself when it first appears
 }
 
 func (m Menu) Render(c *Ctx) Component {
@@ -386,9 +404,9 @@ func (m menuView) Render(c *Ctx) Component {
 
 // Tooltip explains what its child is: tap it for a short note above it.
 type Tooltip struct {
-	Text  string
-	Child Component
-	Open  bool // shows by itself when it first appears, to point something out
+	Text  string    // The note
+	Child Component // What's tapped
+	Open  bool      // shows by itself when it first appears, to point something out
 }
 
 func (t Tooltip) Render(c *Ctx) Component {
@@ -428,13 +446,14 @@ func (t tipView) Render(c *Ctx) Component {
 
 // Banner is a message in the page that stays until it's dealt with:
 //
-//	ui.C(ui.Banner{Tone: ui.Caution, Title: "You're offline", Message: "Orders will send when you're back."})
+//	ui.Banner{Tone: ui.Caution, Title: "You're offline", Message: "Orders will send when you're back."}
 type Banner struct {
-	Title, Message string
-	Tone           Tone
-	Action         string
-	OnAction       func()
-	OnClose        func()
+	Title    string // What happened
+	Message  string // More about it
+	Tone     Tone   // Sets its color and mark
+	Action   string // A link's label
+	OnAction func() // Called on a tap
+	OnClose  func() // Adds a close button
 }
 
 func (b Banner) Render(c *Ctx) Component {
