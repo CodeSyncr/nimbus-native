@@ -209,6 +209,20 @@
       "result": "Not tried yet."
     }
   ],
+  "calendarevents": [
+    {
+      "where": "Android emulator",
+      "result": "A test screen ran it with no tapping: a new calendar, then an event created, read back, updated and deleted, then the calendar removed. On a phone with no calendar, Create says to make one. Repeating events weren't tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The same test passes, with the permission granted from outside the app. The prompt itself wasn't answered, and repeating events weren't tried."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "camera": [
     {
       "where": "Android emulator",
@@ -268,11 +282,11 @@
   "contacts": [
     {
       "where": "Android emulator",
-      "result": "The picker opens. This emulator has no contacts, so none was chosen."
+      "result": "A test screen created, read back, updated and deleted a contact, with its phones and emails. Add opens the system's screen filled in, and the picker opens. Android merged contacts with the same name."
     },
     {
       "where": "iOS simulator",
-      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+      "result": "The same test passes, with the permission granted from outside the app. The prompt, the picker and the Add screen haven't been opened, and limited access wasn't tried."
     },
     {
       "where": "Real phones",

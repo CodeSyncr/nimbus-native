@@ -23,5 +23,6 @@ var Screens = map[string]ui.Component{
 	"cellular": PhoneNetwork{}, "imagemanipulator": Thumbnail{}, "localization": Prices{}, "medialibrary": SaveToPhotos{},
 	"cameraview":  Viewfinder{},
 	"audioplayer": Podcast{}, "audiorecorder": VoiceMemo{},
-	"storage": Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
+	"calendarevents": Agenda{},
+	"storage":        Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

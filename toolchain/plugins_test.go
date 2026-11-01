@@ -117,6 +117,30 @@ func TestAddAndRemoveInAProject(t *testing.T) {
 	}
 }
 
+func TestRequiringAgainCatchesUp(t *testing.T) {
+	root := t.TempDir()
+	for p, body := range map[string]string{
+		projectPlist:    "<plist>\n<dict>\n</dict>\n</plist>\n",
+		projectManifest: "<manifest>\n    <uses-permission android:name=\"android.permission.READ_CONTACTS\" />\n</manifest>\n",
+	} {
+		os.MkdirAll(filepath.Join(root, filepath.Dir(p)), 0o755)
+		os.WriteFile(filepath.Join(root, p), []byte(body), 0o644)
+	}
+	e := &Env{Repo: ".."}
+	m, err := e.pluginManifest("contacts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// As a project from before the plugin could write.
+	if err := requirePlugin(root, m); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(filepath.Join(root, projectManifest))
+	if n := strings.Count(string(b), "READ_CONTACTS"); n != 1 || !strings.Contains(string(b), "WRITE_CONTACTS") {
+		t.Fatalf("manifest:\n%s", b)
+	}
+}
+
 func TestAndroidApplicationAndGradle(t *testing.T) {
 	man := "<manifest>\n    <application>\n        <activity />\n    </application>\n</manifest>\n"
 	x := `<receiver android:name="a.B" />`

@@ -211,7 +211,15 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 			return err
 		}
 		if slices.Contains(on, n) {
-			Infof(out, "%s is already in this project", n)
+			// A newer version may need more, so adding it again catches up.
+			// What it needs from the project stays as it was given.
+			if len(m.Needs) > 0 {
+				Infof(out, "%s is already in this project", n)
+			} else if err := requirePlugin(a.Root, m); err != nil {
+				return err
+			} else {
+				Infof(out, "%s is already in this project, and is up to date", n)
+			}
 			continue
 		}
 		for _, need := range m.Needs {

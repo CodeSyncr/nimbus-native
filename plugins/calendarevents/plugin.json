@@ -1,0 +1,5 @@
+{ "description": "Read and write their calendars", "handler": "CalendarEventsPlugin",
+  "ios": { "info": {
+    "NSCalendarsFullAccessUsageDescription": "This app shows and updates your calendar.",
+    "NSCalendarsUsageDescription": "This app shows and updates your calendar." } },
+  "android": { "permissions": ["android.permission.READ_CALENDAR", "android.permission.WRITE_CALENDAR"] } }
