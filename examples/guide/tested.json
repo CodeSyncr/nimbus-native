@@ -184,11 +184,11 @@
   "camera": [
     {
       "where": "Android emulator",
-      "result": "Both screens open. No photo was taken or picked in this run."
+      "result": "The camera and the photo library open. PickMany opens the system's photo picker in multi-select and returned 2 chosen photos, with no permission prompt. PickVideo returned a 3 second clip with its type and size. Taking a photo and MaxBytes weren't tried."
     },
     {
       "where": "iOS simulator",
-      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+      "result": "It builds and the screen shows. It wasn't tapped: this run can't tap the simulator, so PickMany and PickVideo have never run on iOS."
     },
     {
       "where": "Real phones",

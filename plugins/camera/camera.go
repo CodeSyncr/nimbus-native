@@ -28,6 +28,18 @@ type Photo struct {
 	Height int    `json:"height"` // in pixels
 }
 
+// Video is a video from the library, as it was recorded.
+type Video struct {
+	Data    []byte  `json:"data"`    // the file
+	Type    string  `json:"type"`    // its MIME type, such as "video/mp4"
+	Seconds float64 `json:"seconds"` // how long it runs
+}
+
+// VideoOptions limits a video.
+type VideoOptions struct {
+	MaxBytes int64 `json:"maxBytes"` // larger files fail; 0 means 50 MB
+}
+
 // Take opens the camera. It fails with plugin.Cancelled if they back out, and
 // plugin.Unavailable where there's no camera, as on the iOS simulator.
 //
@@ -42,4 +54,29 @@ func Take(ctx context.Context, o Options) (Photo, error) {
 //nimbus:param o how big, and how good
 func Pick(ctx context.Context, o Options) (Photo, error) {
 	return plugin.Call[Photo](ctx, "camera", "pick", o)
+}
+
+// PickMany opens the photo library to choose several. Like Pick, it asks for
+// no permission. Photos come back in the order they were chosen.
+//
+//nimbus:param o how big, and how good
+//nimbus:param limit the most they can choose, from 2 up; 0 or less is as many as the system allows
+//nimbus:returns the photos
+func PickMany(ctx context.Context, o Options, limit int) ([]Photo, error) {
+	return plugin.Call[[]Photo](ctx, "camera", "pickMany", struct {
+		Options
+		Limit int `json:"limit"`
+	}{o, max(limit, 0)})
+}
+
+// PickVideo opens the library to choose a video. It comes back whole, through
+// memory, so keep MaxBytes modest, and use a server upload for anything long.
+//
+//nimbus:param o the largest file to accept
+//nimbus:returns the video
+func PickVideo(ctx context.Context, o VideoOptions) (Video, error) {
+	if o.MaxBytes <= 0 {
+		o.MaxBytes = 50 << 20
+	}
+	return plugin.Call[Video](ctx, "camera", "pickVideo", o)
 }

@@ -11,7 +11,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
+import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import android.util.Base64
@@ -60,6 +62,8 @@ internal object CameraPlugin {
                     respond(call) { r.openInputStream(uri)!! to r.openInputStream(uri)!! }
                 }
             }
+            "pickMany" -> pickMany(call, a)
+            "pickVideo" -> pickVideo(call, a)
             else -> Plugins.unknownMethod(call)
         }
     }
@@ -81,26 +85,87 @@ internal object CameraPlugin {
     private fun respond(call: PluginCall, open: () -> Pair<InputStream, InputStream>) {
         thread {
             try {
-                val (forTurn, forImage) = open()
-                val turn = forTurn.use {
-                    when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
-                        ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-                        ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-                        ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-                        else -> 0f
-                    }
-                }
-                val source = forImage.use { BitmapFactory.decodeStream(it) } ?: return@thread call.reject(Plugins.FAILED, "that isn't a picture")
-                val limit = call.args.optInt("maxSize", 0).let { if (it > 0) it else 2000 }
-                val scale = minOf(1f, limit.toFloat() / maxOf(source.width, source.height))
-                val m = Matrix().apply { postScale(scale, scale); postRotate(turn) }
-                val out = Bitmap.createBitmap(source, 0, 0, source.width, source.height, m, true)
-                val q = call.args.optDouble("quality", 0.0).let { if (it > 0) it else 0.85 }
-                val b = ByteArrayOutputStream()
-                out.compress(Bitmap.CompressFormat.JPEG, (q * 100).toInt(), b)
-                call.resolve(mapOf("data" to Base64.encodeToString(b.toByteArray(), Base64.NO_WRAP), "width" to out.width, "height" to out.height))
+                call.resolve(photo(call, open))
             } catch (e: Exception) {
                 call.reject(Plugins.FAILED, e.toString())
+            }
+        }
+    }
+
+    private fun photo(call: PluginCall, open: () -> Pair<InputStream, InputStream>): Map<String, Any> {
+        val (forTurn, forImage) = open()
+        val turn = forTurn.use {
+            when (ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                else -> 0f
+            }
+        }
+        val source = forImage.use { BitmapFactory.decodeStream(it) } ?: throw java.io.IOException("the photo couldn't be read")
+        val limit = call.args.optInt("maxSize", 0).let { if (it > 0) it else 2000 }
+        val scale = minOf(1f, limit.toFloat() / maxOf(source.width, source.height))
+        val m = Matrix().apply { postScale(scale, scale); postRotate(turn) }
+        val out = Bitmap.createBitmap(source, 0, 0, source.width, source.height, m, true)
+        val q = call.args.optDouble("quality", 0.0).let { if (it > 0) it else 0.85 }
+        val b = ByteArrayOutputStream()
+        out.compress(Bitmap.CompressFormat.JPEG, (q * 100).toInt(), b)
+        return mapOf("data" to Base64.encodeToString(b.toByteArray(), Base64.NO_WRAP), "width" to out.width, "height" to out.height)
+    }
+
+    /** The system's photo picker from Android 13, and the file picker before it. */
+    private fun library(type: String, limit: Int): Intent {
+        if (Build.VERSION.SDK_INT >= 33) {
+            val i = Intent(MediaStore.ACTION_PICK_IMAGES).setType(type)
+            if (limit != 1) i.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, if (limit > 1) minOf(limit, MediaStore.getPickImagesMaxLimit()) else MediaStore.getPickImagesMaxLimit())
+            return i
+        }
+        return Intent(Intent.ACTION_GET_CONTENT).setType(type).addCategory(Intent.CATEGORY_OPENABLE)
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, limit != 1)
+    }
+
+    private fun pickMany(call: PluginCall, a: Activity) {
+        val limit = call.args.optInt("limit", 0)
+        ResultAsker.start(a, library("image/*", limit)) { result, data ->
+            val clip = data?.clipData
+            val uris = if (clip != null) List(clip.itemCount) { clip.getItemAt(it).uri } else listOfNotNull(data?.data)
+            if (result != Activity.RESULT_OK || uris.isEmpty()) return@start call.reject(Plugins.CANCELLED, "no photos")
+            val r = a.contentResolver
+            thread {
+                try {
+                    // The older picker can't be told a limit, so it's applied here.
+                    val keep = if (limit > 0) uris.take(limit) else uris
+                    call.resolve(keep.map { u -> photo(call) { r.openInputStream(u)!! to r.openInputStream(u)!! } })
+                } catch (e: Exception) {
+                    call.reject(Plugins.FAILED, e.toString())
+                }
+            }
+        }
+    }
+
+    private fun pickVideo(call: PluginCall, a: Activity) {
+        ResultAsker.start(a, library("video/*", 1)) { result, data ->
+            val uri = data?.data ?: data?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            if (result != Activity.RESULT_OK || uri == null) return@start call.reject(Plugins.CANCELLED, "no video")
+            thread {
+                try {
+                    val r = a.contentResolver
+                    val limit = call.args.optLong("maxBytes", 50L shl 20)
+                    val size = r.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1
+                    if (size > limit) return@thread call.reject(Plugins.FAILED, "the video is larger than MaxBytes")
+                    val bytes = r.openInputStream(uri)!!.use { it.readBytes() }
+                    if (bytes.size > limit) return@thread call.reject(Plugins.FAILED, "the video is larger than MaxBytes")
+                    val m = MediaMetadataRetriever()
+                    val ms = try {
+                        m.setDataSource(a, uri)
+                        m.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toDoubleOrNull() ?: 0.0
+                    } finally {
+                        m.release()
+                    }
+                    call.resolve(mapOf("data" to Base64.encodeToString(bytes, Base64.NO_WRAP), "type" to (r.getType(uri) ?: "video/mp4"), "seconds" to ms / 1000))
+                } catch (e: Exception) {
+                    call.reject(Plugins.FAILED, e.toString())
+                }
             }
         }
     }
