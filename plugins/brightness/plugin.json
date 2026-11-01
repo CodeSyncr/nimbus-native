@@ -1,0 +1,1 @@
+{ "description": "Read and set the screen's brightness", "handler": "BrightnessPlugin" }

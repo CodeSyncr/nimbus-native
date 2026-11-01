@@ -1,0 +1,2 @@
+{ "description": "Keep a screen out of screenshots and recordings", "handler": "ScreenCapturePlugin",
+  "android": { "permissions": ["android.permission.DETECT_SCREEN_CAPTURE"] } }

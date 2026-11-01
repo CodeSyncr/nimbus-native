@@ -1,0 +1,2 @@
+{ "description": "Android's navigation bar: its look, or hide it", "handler": "NavigationBarPlugin",
+  "platforms": { "ios": "none" } }

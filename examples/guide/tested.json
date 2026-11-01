@@ -139,6 +139,20 @@
       "result": "Not tried yet."
     }
   ],
+  "brightness": [
+    {
+      "where": "Android emulator",
+      "result": "Set raises the window to full, Get reports it, and leaving the screen resets it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "browser": [
     {
       "where": "Android emulator",
@@ -419,6 +433,20 @@
       "result": "Not tried yet."
     }
   ],
+  "navigationbar": [
+    {
+      "where": "Android emulator",
+      "result": "The calls return, but this emulator shows no navigation bar in any mode, so the bar's color and hiding are unconfirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Does nothing, as it should: iOS has no such bar."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "network": [
     {
       "where": "Android emulator",
@@ -497,6 +525,20 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. A real token and a simulated push worked in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "screencapture": [
+    {
+      "where": "Android emulator",
+      "result": "Prevent works: a capture of the protected screen came back empty, and captures worked again after leaving it. Reporting a real screenshot hasn't been tried."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The screen shows. Covering a recording and reporting a screenshot haven't been tried."
     },
     {
       "where": "Real phones",

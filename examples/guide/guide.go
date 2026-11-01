@@ -18,5 +18,6 @@ var Screens = map[string]ui.Component{
 	"screenreader": OrderReady{}, "securestore": Session{}, "share": SplitBill{}, "signin": Welcome{},
 	"speech": ReadAloud{}, "speechrecognition": VoiceSearch{}, "splashscreen": FirstScreen{}, "statusbar": DarkHero{},
 	"barometer": Floors{}, "lightsensor": Ambient{}, "magnetometer": Detector{}, "pedometer": Steps{},
+	"brightness": BoardingPass{}, "navigationbar": Kiosk{}, "screencapture": CardNumber{},
 	"storage": Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }
