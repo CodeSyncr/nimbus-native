@@ -1,0 +1,1 @@
+{ "description": "Play audio with pause, seek and speed", "handler": "AudioPlayerPlugin" }

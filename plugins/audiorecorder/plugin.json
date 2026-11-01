@@ -1,0 +1,3 @@
+{ "description": "Record audio to a file", "handler": "AudioRecorderPlugin",
+  "ios": { "info": { "NSMicrophoneUsageDescription": "This app records when you ask it to." } },
+  "android": { "permissions": ["android.permission.RECORD_AUDIO"] } }

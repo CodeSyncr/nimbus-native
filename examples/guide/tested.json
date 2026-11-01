@@ -55,6 +55,34 @@
       "result": "Not tried yet."
     }
   ],
+  "audioplayer": [
+    {
+      "where": "Android emulator",
+      "result": "A test screen ran it with no tapping: Open from a URL and from bytes, Play, Pause, Seek, double speed and reaching the end all work. A bad address fails after 30 seconds. Looping, volume and hearing the sound weren't checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The same test passes, and a bad address fails at once. Looping, volume and hearing the sound weren't checked. Stopping for a call wasn't tried on either."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "audiorecorder": [
+    {
+      "where": "Android emulator",
+      "result": "A test screen ran it with no tapping: Start, Pause, Resume and Stop work, and the file opens in the player at the right length. The emulator's microphone is silent, so the level reads 0 and real sound is unconfirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "The same test passes, with the permission granted from outside the app. The prompt itself wasn't answered, and hearing the recording wasn't checked."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "backgroundtasks": [
     {
       "where": "Android emulator",
