@@ -925,6 +925,24 @@
       "result": "Not tried yet."
     }
   ],
+  "symbols": [
+    {
+      "where": "Go tests",
+      "result": "Its defaults are checked. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet, so the Material Symbols font drawing its icons isn't confirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "trackingconsent": [
     {
       "where": "Android emulator",

@@ -29,5 +29,6 @@ var Screens = map[string]ui.Component{
 	"applemaps":          Directions{},
 	"receiveshare":       Inbox{},
 	"sqlite":             Orders{},
+	"symbols":            MenuIcons{},
 	"storage":            Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }
