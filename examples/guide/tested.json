@@ -591,6 +591,24 @@
       "result": "Not tried yet."
     }
   ],
+  "meshgradient": [
+    {
+      "where": "Go tests",
+      "result": "The blend passes through every point with its color, keeps even points even, follows bent ones and stays in range. A 3×3 gradient drawn from Go's grid, blended as the GPU does, came out smooth with no banding. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Metal view hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "motion": [
     {
       "where": "Android emulator",

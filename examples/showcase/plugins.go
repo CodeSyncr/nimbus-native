@@ -204,6 +204,8 @@ var shots = map[string]shot{
 		rows: []ui.ListRow{{Title: "Coffee", Subtitle: "cup.and.saucer.fill · local_cafe"}, {Title: "Takeaway", Subtitle: "bag · shopping_bag"}}, button: "See the menu"},
 	"scene": {title: "Showroom", line: "3D, drawn by the phone's GPU.", icon: "eye", lead: "Turn the cup", text: "Metal on iOS and Vulkan on Android, with the spin animated on the phone.",
 		facts: [][2]string{{"Objects", "3"}, {"Frame rate", "60 fps"}}, button: "Tap to pick"},
+	"mesh-gradient": {title: "Welcome", line: "Colors that bend.", icon: "sun", lead: "Monsoon Coffee", text: "A mesh gradient behind your first screen, the same on both phones.",
+		button: "Get started"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }

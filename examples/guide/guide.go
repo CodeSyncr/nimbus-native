@@ -31,5 +31,6 @@ var Screens = map[string]ui.Component{
 	"sqlite":             Orders{},
 	"symbols":            MenuIcons{},
 	"scene":              Showroom{},
+	"meshgradient":       Sunset{},
 	"storage":            Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

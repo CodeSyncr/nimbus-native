@@ -1,0 +1,1 @@
+{ "description": "Mesh gradients: colors blended smoothly across a grid of points", "handler": "MeshGradientPlugin", "boot": true }
