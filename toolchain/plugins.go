@@ -52,6 +52,9 @@ type pluginManifest struct {
 		Application []string `json:"application"`
 		// Dependencies are Gradle coordinates for the kit.
 		Dependencies []string `json:"dependencies"`
+		// Native are C libraries the plugin's Kotlin loads, built with the
+		// NDK next to libnimbusapp.so (nativelib.go).
+		Native []nativeLib `json:"native"`
 	} `json:"android"`
 }
 

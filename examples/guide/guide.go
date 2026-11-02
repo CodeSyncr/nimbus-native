@@ -30,5 +30,6 @@ var Screens = map[string]ui.Component{
 	"receiveshare":       Inbox{},
 	"sqlite":             Orders{},
 	"symbols":            MenuIcons{},
+	"scene":              Showroom{},
 	"storage":            Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

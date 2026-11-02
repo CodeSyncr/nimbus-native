@@ -753,6 +753,28 @@
       "result": "Not tried yet."
     }
   ],
+  "scene": [
+    {
+      "where": "Go tests",
+      "result": "Matrices, the shapes' faces, flattening children, the wire format and tap hit-testing (children, the nearest node, a spinning node) are checked."
+    },
+    {
+      "where": "Vulkan, offscreen",
+      "result": "The Android renderer's drawing code ran on lavapipe (Mesa's software Vulkan) with a scene from this package: a lit box, an unlit sphere, and a plane that only shows if faces are culled the right way round. All three drew as expected. The swapchain on a real Surface hasn't run."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Metal renderer hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "screencapture": [
     {
       "where": "Android emulator",

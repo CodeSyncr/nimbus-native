@@ -202,6 +202,8 @@ var shots = map[string]shot{
 		rows: []ui.ListRow{{Title: "#1042 Latte", Subtitle: "₹180, 9:41 am", Icon: "cart"}, {Title: "#1041 Masala chai", Subtitle: "₹60, 9:38 am", Icon: "cart"}}, button: "New order"},
 	"symbols": {title: "Menu", line: "Each phone's own icons.", icon: "star", lead: "SF Symbols and Material Symbols", text: "The icons people already know, at any size and weight.",
 		rows: []ui.ListRow{{Title: "Coffee", Subtitle: "cup.and.saucer.fill · local_cafe"}, {Title: "Takeaway", Subtitle: "bag · shopping_bag"}}, button: "See the menu"},
+	"scene": {title: "Showroom", line: "3D, drawn by the phone's GPU.", icon: "eye", lead: "Turn the cup", text: "Metal on iOS and Vulkan on Android, with the spin animated on the phone.",
+		facts: [][2]string{{"Objects", "3"}, {"Frame rate", "60 fps"}}, button: "Tap to pick"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }

@@ -148,6 +148,9 @@ func (e *Env) LibAndroid(a *App, o AndroidLib) error {
 			return err
 		}
 		os.Remove(filepath.Join(o.JNI, abi.Name, strings.TrimSuffix(androidLib, ".so")+".h"))
+		if _, err := e.pluginNativeLibs(a.Root, abi, filepath.Join(o.JNI, abi.Name)); err != nil {
+			return err
+		}
 	}
 	if kitChanged {
 		return ErrKitUpdated
