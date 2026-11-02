@@ -1,0 +1,2 @@
+{ "description": "3D scenes Go describes, drawn with Metal on iOS and Vulkan on Android", "handler": "ScenePlugin", "boot": true,
+  "android": { "native": [{ "name": "nimbusscene", "sources": ["android/scene_vk.c"], "ldflags": ["-lvulkan", "-landroid", "-llog", "-lm"] }] } }

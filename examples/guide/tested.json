@@ -13,6 +13,24 @@
       "result": "Not tried yet."
     }
   ],
+  "applemaps": [
+    {
+      "where": "Go tests",
+      "result": "What Go sends the map, and the tap, pin and move events it gets back, are checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. There it shows Fallback."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "appreview": [
     {
       "where": "Android emulator",
@@ -419,6 +437,24 @@
       "result": "Not tried yet."
     }
   ],
+  "hinge": [
+    {
+      "where": "Go tests",
+      "result": "What the Android probe sends decodes as a Fold. The Android side compiles against stand-ins for Jetpack WindowManager's classes, since its library couldn't be downloaded here, so its exact names are unconfirmed."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. The emulator's foldable devices are the way to test it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. iOS has no folds, so it always reports none."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "imagemanipulator": [
     {
       "where": "Android emulator",
@@ -503,6 +539,24 @@
       "result": "Not tried yet."
     }
   ],
+  "livephoto": [
+    {
+      "where": "Go tests",
+      "result": "Only the size helper is checked: everything else is the phone's. The Android side, which only says Live Photos are for iOS, compiles."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled, and the simulator's library has no Live Photos unless you add some."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. There it shows Fallback."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "localization": [
     {
       "where": "Android emulator",
@@ -573,6 +627,24 @@
       "result": "Not tried yet."
     }
   ],
+  "meshgradient": [
+    {
+      "where": "Go tests",
+      "result": "The blend passes through every point with its color, keeps even points even, follows bent ones and stays in range. A 3×3 gradient drawn from Go's grid, blended as the GPU does, came out smooth with no banding. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Metal view hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "motion": [
     {
       "where": "Android emulator",
@@ -627,6 +699,24 @@
     {
       "where": "Real phones",
       "result": "Not tried yet."
+    }
+  ],
+  "oauth": [
+    {
+      "where": "Go tests",
+      "result": "PKCE, state, the code exchange, refresh, a provider's refusal and a forged answer are checked against a stand-in provider. A secret-free exchange and GitHub's exchange on a server both pass."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet. No sign-in with a real provider has been run."
     }
   ],
   "orientation": [
@@ -693,6 +783,46 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. A real token and a simulated push worked in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "receiveshare": [
+    {
+      "where": "Toolchain tests",
+      "result": "Adding the plugin puts a Share Extension target and its App Group in a copy of the Xcode project, and removing it leaves the project as it was. The project has not been opened in Xcode."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "scene": [
+    {
+      "where": "Go tests",
+      "result": "Matrices, shapes, children, Matrix, the wire format, tap hit-testing, the shadow's view holding the whole scene, Bounds and Fit, sending meshes and pictures when asked, and a .glb built in the test (interleaved buffers, a quaternion, an embedded PNG, materials) are checked. glTF files that need Draco or meshopt are refused."
+    },
+    {
+      "where": "Vulkan, offscreen",
+      "result": "The Android renderer ran on lavapipe (Mesa's software Vulkan) with scenes from this package: a textured box and a shiny ball casting soft shadows on a floor, the same without shadows, and two of Khronos's sample models, Duck and BoxTextured, loaded with LoadGLTF and fitted. All drew as expected, textures the right way up. The swapchain on a real Surface, and the orbit gestures, haven't run."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Metal renderer hasn't been compiled."
     },
     {
       "where": "Real phones",
@@ -825,6 +955,42 @@
       "result": "Not tried yet."
     }
   ],
+  "splitview": [
+    {
+      "where": "Go tests",
+      "result": "Which layout a phone, a tablet, a half-open foldable and a dual-screen phone get is checked, and that opening pushes on a phone and doesn't on a tablet."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. An iPad simulator is the way to see it side by side."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "sqlite": [
+    {
+      "where": "Go tests",
+      "result": "The driver ran against a real SQLite standing in for the phone: integers past 2^53, reals, text, blobs and NULL come back as they went in, a rolled-back transaction leaves nothing, and a UNIQUE constraint's refusal comes back as an *sqlite.Error. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "statusbar": [
     {
       "where": "Android emulator",
@@ -847,6 +1013,24 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "symbols": [
+    {
+      "where": "Go tests",
+      "result": "Its defaults are checked. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet, so the Material Symbols font drawing its icons isn't confirmed."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled."
     },
     {
       "where": "Real phones",

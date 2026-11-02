@@ -1,0 +1,1 @@
+{ "description": "The system's own icon sets: SF Symbols on iOS, Material Symbols on Android", "handler": "SymbolsPlugin", "boot": true }

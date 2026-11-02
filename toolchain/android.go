@@ -69,6 +69,13 @@ func (e *Env) BuildAndroid(a *App, abis []string) (string, error) {
 			return "", err
 		}
 		libs["lib/"+abi.Name+"/"+androidLib] = lib
+		native, err := e.pluginNativeLibs(a.Root, abi, filepath.Dir(lib))
+		if err != nil {
+			return "", err
+		}
+		for file, p := range native {
+			libs["lib/"+abi.Name+"/"+file] = p
+		}
 	}
 
 	// 2. Kotlin host + app code (and any Java) → classes.dex, with the Kotlin

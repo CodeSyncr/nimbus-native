@@ -1,0 +1,2 @@
+{ "description": "Pick and play Live Photos, on iOS", "handler": "LivePhotoPlugin", "boot": true,
+  "platforms": { "android": "none" } }
