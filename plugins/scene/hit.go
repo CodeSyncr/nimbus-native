@@ -25,40 +25,27 @@ func (v View) Hit(x, y, aspect float32) string {
 	t := float32(math.Tan(rad(cam.FOV) / 2))
 	dir := normalize(add(f, add(times(s, (2*x-1)*t*aspect), times(u, (1-2*y)*t))))
 	best, id := float32(math.MaxFloat32), ""
-	var walk func(n Node, parent [16]float32)
-	walk = func(n Node, parent [16]float32) {
-		base := mul(parent, translate(n.Position))
-		scale := n.Scale
-		if scale == (Vec3{}) {
-			scale = V(1, 1, 1)
+	walk(v.Nodes, identity(), func(n Node, base, local Mat4) {
+		if n.Mesh == nil {
+			return
 		}
-		local := mul(rotateXYZ(n.Rotation), scaling(scale))
-		world := mul(base, local)
-		if n.Mesh != nil {
-			if d, ok := n.hit(cam.Position, dir, base, world); ok && d < best {
-				best, id = d, n.ID
-			}
+		if d, ok := n.hit(cam.Position, dir, base, mul(base, local), local); ok && d < best {
+			best, id = d, n.ID
 		}
-		for _, k := range n.Children {
-			walk(k, world)
-		}
-	}
-	for _, n := range v.Nodes {
-		walk(n, identity())
-	}
+	})
 	return id
 }
 
-func (n Node) hit(o, dir Vec3, base, world [16]float32) (float32, bool) {
+func (n Node) hit(o, dir Vec3, base, world, local Mat4) (float32, bool) {
 	m := n.Mesh
 	if n.Spin.Speed != 0 {
 		c := apply(base, Vec3{})
 		var r float32
-		for _, p := range m.positions {
-			if d := length(sub(apply(world, p), c)); d > r {
-				r = d
-			}
+		lo, hi := bounds(m.positions)
+		for _, p := range corners(lo, hi) {
+			r = max(r, length(apply(local, p)))
 		}
+		r *= maxScale(base)
 		oc := sub(o, c)
 		b := dot(oc, dir)
 		disc := b*b - (dot(oc, oc) - r*r)

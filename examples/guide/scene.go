@@ -1,24 +1,51 @@
 package guide
 
 import (
+	"bytes"
+	"image"
+	"image/color"
+	"image/png"
+
 	"github.com/CodeSyncr/nimbus-native/plugins/scene"
 	"github.com/CodeSyncr/nimbus-native/ui"
 )
 
-// Showroom turns a cup on a table, and says what was tapped.
+// Showroom shows a gift box on a table, in shadow, to turn with a finger.
+// For a model from Blender or a store, scene.LoadGLTF reads its .glb.
 type Showroom struct{}
 
+// wrapping is the gift paper: stripes, made here so the example needs no file.
+var wrapping = func() *scene.Texture {
+	img := image.NewRGBA(image.Rect(0, 0, 128, 128))
+	for y := 0; y < 128; y++ {
+		for x := 0; x < 128; x++ {
+			c := color.RGBA{13, 115, 119, 255}
+			if (x+y)/16%2 == 0 {
+				c = color.RGBA{244, 225, 193, 255}
+			}
+			img.Set(x, y, c)
+		}
+	}
+	var b bytes.Buffer
+	png.Encode(&b, img)
+	t, _ := scene.NewTexture(b.Bytes()) // a PNG made here is always valid
+	return t
+}()
+
 func (Showroom) Render(c *ui.Ctx) ui.Component {
-	picked, setPicked := ui.State(c, "Tap the cup")
+	picked, setPicked := ui.State(c, "Drag to turn it, pinch to zoom")
 	return ui.SafeArea(ui.Style{Grow: 1},
 		scene.View{
-			Camera: scene.Camera{Position: scene.V(0, 1.6, 4), Target: scene.V(0, 0.4, 0)},
-			Lights: []scene.Light{{Direction: scene.V(-0.4, -1, -0.5)}},
+			Camera:  scene.Camera{Position: scene.V(0, 1.8, 4), Target: scene.V(0, 0.3, 0)},
+			Orbit:   true,
+			Shadows: true,
+			Lights:  []scene.Light{{Direction: scene.V(-0.4, -1, -0.5), Intensity: 0.9}},
 			Nodes: []scene.Node{
 				{ID: "table", Mesh: scene.Box(3, 0.1, 2), Color: ui.Hex("#8a5a3b")},
-				{ID: "cup", Mesh: scene.Box(0.7, 0.8, 0.7), Color: ui.Hex("#0d7377"), Shine: 0.6,
-					Position: scene.V(0, 0.45, 0), Spin: scene.Spin{Speed: 40},
-					Children: []scene.Node{{ID: "coffee", Mesh: scene.Sphere(0.25), Color: ui.Hex("#4b2e1e"), Position: scene.V(0, 0.45, 0)}}},
+				{ID: "gift", Mesh: scene.Box(0.8, 0.8, 0.8), Texture: wrapping, Shine: 0.3,
+					Position: scene.V(-0.5, 0.45, 0), Spin: scene.Spin{Speed: 20},
+					Children: []scene.Node{{ID: "ribbon", Mesh: scene.Box(0.82, 0.1, 0.82), Color: ui.Hex("#c0392b"), Position: scene.V(0, 0.15, 0)}}},
+				{ID: "cup", Mesh: scene.Sphere(0.3), Color: ui.Hex("#f4f1ea"), Shine: 0.8, Position: scene.V(0.8, 0.35, 0.2)},
 			},
 			OnTap: func(id string) {
 				if id == "" {

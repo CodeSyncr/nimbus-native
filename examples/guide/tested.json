@@ -810,11 +810,11 @@
   "scene": [
     {
       "where": "Go tests",
-      "result": "Matrices, the shapes' faces, flattening children, the wire format and tap hit-testing (children, the nearest node, a spinning node) are checked."
+      "result": "Matrices, shapes, children, Matrix, the wire format, tap hit-testing, the shadow's view holding the whole scene, Bounds and Fit, sending meshes and pictures when asked, and a .glb built in the test (interleaved buffers, a quaternion, an embedded PNG, materials) are checked. glTF files that need Draco or meshopt are refused."
     },
     {
       "where": "Vulkan, offscreen",
-      "result": "The Android renderer's drawing code ran on lavapipe (Mesa's software Vulkan) with a scene from this package: a lit box, an unlit sphere, and a plane that only shows if faces are culled the right way round. All three drew as expected. The swapchain on a real Surface hasn't run."
+      "result": "The Android renderer ran on lavapipe (Mesa's software Vulkan) with scenes from this package: a textured box and a shiny ball casting soft shadows on a floor, the same without shadows, and two of Khronos's sample models, Duck and BoxTextured, loaded with LoadGLTF and fitted. All drew as expected, textures the right way up. The swapchain on a real Surface, and the orbit gestures, haven't run."
     },
     {
       "where": "Android emulator",

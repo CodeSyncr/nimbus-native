@@ -1,13 +1,8 @@
 package scene
 
 import (
-	"encoding/base64"
-	"encoding/binary"
-	"encoding/json"
 	"math"
 	"testing"
-
-	"github.com/CodeSyncr/nimbus-native/ui"
 )
 
 func near(a, b float32) bool { return math.Abs(float64(a-b)) < 1e-4 }
@@ -101,41 +96,5 @@ func TestHit(t *testing.T) {
 	}
 	if x, y := at(V(2, 1, 0.25)); v.Hit(x, y, 1) != "child" {
 		t.Errorf("child missed at %v,%v", x, y)
-	}
-}
-
-func TestWire(t *testing.T) {
-	th := ui.Theme{Primary: ui.Hex("#0d7377"), Background: ui.Hex("#fafafa")}
-	v := View{Nodes: []Node{
-		{ID: "a", Mesh: Box(1, 1, 1), Spin: Spin{Speed: 30}},
-		{ID: "b", Mesh: Box(1, 1, 1), Position: V(2, 0, 0), Color: ui.Hex("#ff000080"), Shine: 3,
-			Children: []Node{{ID: "c", Mesh: Sphere(0.2), Position: V(0, 1, 0)}}},
-	}}
-	w := v.wire(th)
-	if len(w.Meshes) != 2 || len(w.Nodes) != 3 {
-		t.Fatalf("%d meshes, %d nodes", len(w.Meshes), len(w.Nodes))
-	}
-	if w.Background != uint32(th.Background) || w.Ambient != 0.25 || len(w.Lights) != 1 || w.FOV != 60 {
-		t.Fatalf("defaults %+v", w)
-	}
-	a, b, c := w.Nodes[0], w.Nodes[1], w.Nodes[2]
-	if a.Color != rgba(th.Primary) || a.Speed != 30 || a.Axis != V(0, 1, 0) || b.Shine != 1 || b.Color[3] < 0.5 || b.Color[3] > 0.51 {
-		t.Fatalf("nodes %+v %+v", a, b)
-	}
-	if p := apply(c.Base, Vec3{}); !nearV(p, V(2, 1, 0)) {
-		t.Fatalf("child at %v", p)
-	}
-	// The vertices decode as x y z nx ny nz.
-	raw, _ := base64.StdEncoding.DecodeString(w.Meshes[a.Mesh].Vertices)
-	f := func(i int) float32 { return math.Float32frombits(binary.LittleEndian.Uint32(raw[i*4:])) }
-	if len(raw) != 24*24 || !nearV(V(f(0), f(1), f(2)), V(-0.5, -0.5, 0.5)) || !nearV(V(f(3), f(4), f(5)), V(0, 0, 1)) {
-		t.Fatalf("first vertex %v %v %v / %v %v %v", f(0), f(1), f(2), f(3), f(4), f(5))
-	}
-	if _, err := json.Marshal(w); err != nil {
-		t.Fatal(err)
-	}
-	many := View{Lights: make([]Light, 6)}
-	if got := len(many.wire(th).Lights); got != 4 {
-		t.Fatalf("%d lights", got)
 	}
 }

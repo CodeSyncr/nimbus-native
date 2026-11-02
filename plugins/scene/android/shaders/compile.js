@@ -4,10 +4,10 @@ const factory = require('@webgpu/glslang/dist/node-devel/glslang.js');
 // Emscripten's module is a thenable that resolves to itself: take it once.
 const glslang = new Promise(r => factory().then(m => { delete m.then; r(m); }));
 const dir = process.argv[2];
-let out = '// Code generated from shaders/scene.vert and shaders/scene.frag by glslang; DO NOT EDIT.\n\n#include <stdint.h>\n\n';
+let out = '// Code generated from shaders/*.vert and *.frag by glslang (node shaders/compile.js .); DO NOT EDIT.\n\n#include <stdint.h>\n\n';
 (async () => {
   const g = await glslang;
-  for (const [file, stage, name] of [['scene.vert', 'vertex', 'scene_vert'], ['scene.frag', 'fragment', 'scene_frag']]) {
+  for (const [file, stage, name] of [['scene.vert', 'vertex', 'scene_vert'], ['scene.frag', 'fragment', 'scene_frag'], ['shadow.vert', 'vertex', 'shadow_vert']]) {
     const src = fs.readFileSync(path.join(dir, 'shaders', file), 'utf8');
     const words = g.compileGLSL(src, stage, false);
     out += `static const uint32_t ${name}[] = {\n`;
