@@ -13,6 +13,24 @@
       "result": "Not tried yet."
     }
   ],
+  "applemaps": [
+    {
+      "where": "Go tests",
+      "result": "What Go sends the map, and the tap, pin and move events it gets back, are checked."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. There it shows Fallback."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "appreview": [
     {
       "where": "Android emulator",
@@ -629,6 +647,24 @@
       "result": "Not tried yet."
     }
   ],
+  "oauth": [
+    {
+      "where": "Go tests",
+      "result": "PKCE, state, the code exchange, refresh, a provider's refusal and a forged answer are checked against a stand-in provider. A secret-free exchange and GitHub's exchange on a server both pass."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet. No sign-in with a real provider has been run."
+    }
+  ],
   "orientation": [
     {
       "where": "Android emulator",
@@ -693,6 +729,24 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. A real token and a simulated push worked in an earlier test."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "receiveshare": [
+    {
+      "where": "Toolchain tests",
+      "result": "Adding the plugin puts a Share Extension target and its App Group in a copy of the Xcode project, and removing it leaves the project as it was. The project has not been opened in Xcode."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet."
     },
     {
       "where": "Real phones",

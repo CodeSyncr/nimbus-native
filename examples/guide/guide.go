@@ -25,5 +25,8 @@ var Screens = map[string]ui.Component{
 	"audioplayer": Podcast{}, "audiorecorder": VoiceMemo{},
 	"calendarevents":     Agenda{},
 	"backgroundlocation": Trip{},
+	"oauth":              WorkAccount{},
+	"applemaps":          Directions{},
+	"receiveshare":       Inbox{},
 	"storage":            Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

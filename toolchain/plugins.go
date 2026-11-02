@@ -41,6 +41,9 @@ type pluginManifest struct {
 		EntitlementArrays map[string][]string `json:"entitlementArrays"`
 		// Packages are Swift packages for the kit.
 		Packages []swiftPackage `json:"packages"`
+		// ShareExtension adds a Share Extension target, from the plugin's
+		// extension/ folder (shareext.go).
+		ShareExtension bool `json:"shareExtension"`
 	} `json:"ios"`
 	Android struct {
 		Permissions []string `json:"permissions"`
@@ -217,6 +220,8 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 				Infof(out, "%s is already in this project", n)
 			} else if err := requirePlugin(a.Root, m); err != nil {
 				return err
+			} else if err := e.pluginExtras(a.Root, n, m); err != nil {
+				return err
 			} else {
 				Infof(out, "%s is already in this project, and is up to date", n)
 			}
@@ -228,6 +233,9 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 			}
 		}
 		if err := requirePlugin(a.Root, fill(m, values)); err != nil {
+			return err
+		}
+		if err := e.pluginExtras(a.Root, n, m); err != nil {
 			return err
 		}
 		on = append(on, n)
@@ -284,6 +292,11 @@ func (e *Env) RemovePlugins(a *App, names []string, out io.Writer) error {
 		if err := dropPlugin(a.Root, m, keepInfo, keepPerm); err != nil {
 			return err
 		}
+		if m.IOS.ShareExtension {
+			if err := dropShareExtension(a.Root); err != nil {
+				return err
+			}
+		}
 		Successf(out, "Removed %s", n)
 	}
 	if err := writePluginList(a.Root, on); err != nil {
@@ -338,6 +351,14 @@ func fill(m *pluginManifest, values map[string]string) *pluginManifest {
 		c.Android.Application[i] = put(x)
 	}
 	return &c
+}
+
+// pluginExtras is what a plugin needs beyond manifest entries.
+func (e *Env) pluginExtras(root, name string, m *pluginManifest) error {
+	if m.IOS.ShareExtension {
+		return e.addShareExtension(root, name)
+	}
+	return nil
 }
 
 func requirePlugin(root string, m *pluginManifest) error {

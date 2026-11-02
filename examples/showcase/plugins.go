@@ -192,6 +192,12 @@ var shots = map[string]shot{
 		facts: [][2]string{{"Plan", "Monthly"}, {"Renews", "Dec 1"}}, button: "Join for ₹499", quiet: "Restore purchases"},
 	"sign-in": {title: "Welcome back", line: "One tap, no passwords.", icon: "user", lead: "Keep your stamps", text: "Sign in and they follow you to any phone.",
 		button: "Continue with Apple", quiet: "Continue with Google"},
+	"oauth": {title: "Staff sign-in", line: "With the account you already use at work.", icon: "lock", lead: "Monsoon Coffee team", text: "Sign in with your Microsoft or GitHub account to see shifts and stock.",
+		button: "Sign in with Microsoft", quiet: "Sign in with GitHub"},
+	"apple-maps": {title: "Find us", line: "No key, no billing account.", icon: "map-pin", lead: "Monsoon Coffee", text: "Lane 6, Koregaon Park. Open till 11 pm.",
+		facts: [][2]string{{"Walk", "6 min"}, {"Drive", "3 min"}}, button: "Directions"},
+	"receive-share": {title: "Read later", line: "Shared from any app.", icon: "share", lead: "3 new from the share sheet", text: "A link from Safari and two receipts from Photos.",
+		rows: []ui.ListRow{{Title: "The best cold brew in Pune", Subtitle: "Today, 9:41 am", Icon: "link"}, {Title: "receipt-1042.jpg", Subtitle: "Today, 9:40 am", Icon: "image"}}, button: "Open the latest"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }

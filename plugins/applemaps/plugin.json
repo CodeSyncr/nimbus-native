@@ -1,0 +1,2 @@
+{ "description": "Apple Maps inside your screen, on iOS", "handler": "AppleMapsPlugin", "boot": true,
+  "platforms": { "android": "none" } }

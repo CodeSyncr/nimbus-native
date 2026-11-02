@@ -1,0 +1,5 @@
+{ "description": "Sign in with any OAuth provider: GitHub, Microsoft and the rest", "handler": "OAuthPlugin",
+  "needs": ["scheme"],
+  "android": {
+    "dependencies": ["androidx.browser:browser:1.8.0"],
+    "application": ["<activity android:name=\"space.nimbusgo.nativekit.OAuthRedirectActivity\" android:exported=\"true\" android:theme=\"@android:style/Theme.NoDisplay\"><intent-filter><action android:name=\"android.intent.action.VIEW\" /><category android:name=\"android.intent.category.DEFAULT\" /><category android:name=\"android.intent.category.BROWSABLE\" /><data android:scheme=\"{{scheme}}\" /></intent-filter></activity>"] } }
