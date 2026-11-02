@@ -198,6 +198,8 @@ var shots = map[string]shot{
 		facts: [][2]string{{"Walk", "6 min"}, {"Drive", "3 min"}}, button: "Directions"},
 	"receive-share": {title: "Read later", line: "Shared from any app.", icon: "share", lead: "3 new from the share sheet", text: "A link from Safari and two receipts from Photos.",
 		rows: []ui.ListRow{{Title: "The best cold brew in Pune", Subtitle: "Today, 9:41 am", Icon: "link"}, {Title: "receipt-1042.jpg", Subtitle: "Today, 9:40 am", Icon: "image"}}, button: "Open the latest"},
+	"sqlite": {title: "Today's orders", line: "Kept on the phone, even offline.", icon: "file", lead: "42 orders", text: "Saved in SQLite as they come in, and sent when the network's back.",
+		rows: []ui.ListRow{{Title: "#1042 Latte", Subtitle: "₹180, 9:41 am", Icon: "cart"}, {Title: "#1041 Masala chai", Subtitle: "₹60, 9:38 am", Icon: "cart"}}, button: "New order"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }

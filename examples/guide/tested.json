@@ -879,6 +879,24 @@
       "result": "Not tried yet."
     }
   ],
+  "sqlite": [
+    {
+      "where": "Go tests",
+      "result": "The driver ran against a real SQLite standing in for the phone: integers past 2^53, reals, text, blobs and NULL come back as they went in, a rolled-back transaction leaves nothing, and a UNIQUE constraint's refusal comes back as an *sqlite.Error. The Android side compiles against Android 14."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "statusbar": [
     {
       "where": "Android emulator",

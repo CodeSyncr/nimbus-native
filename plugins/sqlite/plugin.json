@@ -1,0 +1,1 @@
+{ "description": "A SQLite database on the phone, through database/sql", "handler": "SQLitePlugin" }
