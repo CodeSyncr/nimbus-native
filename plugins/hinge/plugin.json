@@ -1,0 +1,2 @@
+{ "description": "A foldable's fold: where it is, and whether it's half open", "handler": "HingePlugin", "boot": true,
+  "android": { "dependencies": ["androidx.window:window:1.3.0", "androidx.window:window-java:1.3.0"] } }

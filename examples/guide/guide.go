@@ -33,5 +33,7 @@ var Screens = map[string]ui.Component{
 	"scene":              Showroom{},
 	"meshgradient":       Sunset{},
 	"livephoto":          Moment{},
+	"hinge":              Recipe{},
+	"splitview":          OrdersSplit{},
 	"storage":            Counter{}, "trackingconsent": Consent{}, "video": Tour{}, "webview": Reservations{},
 }

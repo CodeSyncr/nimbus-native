@@ -437,6 +437,24 @@
       "result": "Not tried yet."
     }
   ],
+  "hinge": [
+    {
+      "where": "Go tests",
+      "result": "What the Android probe sends decodes as a Fold. The Android side compiles against stand-ins for Jetpack WindowManager's classes, since its library couldn't be downloaded here, so its exact names are unconfirmed."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. The emulator's foldable devices are the way to test it."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. iOS has no folds, so it always reports none."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "imagemanipulator": [
     {
       "where": "Android emulator",
@@ -931,6 +949,24 @@
     {
       "where": "iOS simulator",
       "result": "The screen shows."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
+  "splitview": [
+    {
+      "where": "Go tests",
+      "result": "Which layout a phone, a tablet, a half-open foldable and a dual-screen phone get is checked, and that opening pushes on a phone and doesn't on a tablet."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. An iPad simulator is the way to see it side by side."
     },
     {
       "where": "Real phones",

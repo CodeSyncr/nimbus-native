@@ -208,6 +208,10 @@ var shots = map[string]shot{
 		button: "Get started"},
 	"live-photo": {title: "Latte art", line: "Share the moment, not just the photo.", icon: "camera", lead: "Hold to play", text: "Live Photos from their library, playing in your screen.",
 		button: "Choose a Live Photo", quiet: "Play it"},
+	"hinge": {title: "Recipe", line: "Stand it up, and it fits the fold.", icon: "play", lead: "Tabletop mode", text: "The video above the fold, the steps below it.",
+		facts: [][2]string{{"Fold", "Half open"}, {"Runs", "Across"}}, button: "Start the video"},
+	"split-view": {title: "Orders", line: "Side by side on a tablet.", icon: "menu", lead: "Order 1042", text: "The list on the left, the open order on the right; one at a time on a phone.",
+		rows: []ui.ListRow{{Title: "Order 1042", Subtitle: "Latte, oat milk"}, {Title: "Order 1041", Subtitle: "Masala chai"}}, button: "Open"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }
