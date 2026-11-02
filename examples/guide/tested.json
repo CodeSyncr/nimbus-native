@@ -521,6 +521,24 @@
       "result": "Not tried yet."
     }
   ],
+  "livephoto": [
+    {
+      "where": "Go tests",
+      "result": "Only the size helper is checked: everything else is the phone's. The Android side, which only says Live Photos are for iOS, compiles."
+    },
+    {
+      "where": "iOS simulator",
+      "result": "Not tried yet. The Swift hasn't been compiled, and the simulator's library has no Live Photos unless you add some."
+    },
+    {
+      "where": "Android emulator",
+      "result": "Not tried yet. There it shows Fallback."
+    },
+    {
+      "where": "Real phones",
+      "result": "Not tried yet."
+    }
+  ],
   "localization": [
     {
       "where": "Android emulator",

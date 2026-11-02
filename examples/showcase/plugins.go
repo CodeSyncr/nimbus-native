@@ -206,6 +206,8 @@ var shots = map[string]shot{
 		facts: [][2]string{{"Objects", "3"}, {"Frame rate", "60 fps"}}, button: "Tap to pick"},
 	"mesh-gradient": {title: "Welcome", line: "Colors that bend.", icon: "sun", lead: "Monsoon Coffee", text: "A mesh gradient behind your first screen, the same on both phones.",
 		button: "Get started"},
+	"live-photo": {title: "Latte art", line: "Share the moment, not just the photo.", icon: "camera", lead: "Hold to play", text: "Live Photos from their library, playing in your screen.",
+		button: "Choose a Live Photo", quiet: "Play it"},
 	"tracking-consent": {title: "Your choice", line: "We ask before anything else.", icon: "eye", lead: "Better offers?", text: "Allow tracking and we'll show offers you might like. Say no and everything still works.",
 		facts: [][2]string{{"Status", "Not asked"}}, button: "Continue"},
 }
