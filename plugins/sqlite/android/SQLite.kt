@@ -72,7 +72,7 @@ internal object SQLitePlugin {
             bind(q, args)
             SQLiteCursor(driver, table, q)
         }
-        db.rawQueryWithFactory(factory, call.string("sql") ?: "", null, null).use { c ->
+        db.rawQueryWithFactory(factory, call.string("sql") ?: "", null, "").use { c -> // the edit table is unused; Android 15 takes no null
             val rows = JSONArray()
             while (c.moveToNext()) {
                 val row = JSONArray()
