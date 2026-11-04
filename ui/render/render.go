@@ -217,6 +217,8 @@ type Text struct {
 	// Spans, when there are any, are the text in runs of their own look
 	// (Text is then all of them, joined).
 	Spans []Span
+	// Style.Padding: the text is drawn this far inside its frame.
+	PadLeft, PadTop, PadRight, PadBottom float32
 }
 
 // Span is a run of a text with its own font and color.

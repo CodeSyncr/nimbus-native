@@ -486,6 +486,7 @@ public final class Renderer {
         // Shrink to fit (Style.MinScale): one line, smaller rather than cut.
         l.adjustsFontSizeToFitWidth = o.minScale > 0
         l.minimumScaleFactor = o.minScale > 0 ? CGFloat(o.minScale) : 0
+        (l as? NNLabel)?.inset = UIEdgeInsets(top: CGFloat(o.padTop), left: CGFloat(o.padLeft), bottom: CGFloat(o.padBottom), right: CGFloat(o.padRight))
     }
 
     /// Adds or removes a view's drag and pinch recognizers to match Style.
@@ -945,9 +946,17 @@ final class NNPinch: UIPinchGestureRecognizer {
 }
 
 final class NNLabel: UILabel {
+    /// Style.Padding: the text keeps this far inside the frame.
+    var inset: UIEdgeInsets = .zero { didSet { if inset != oldValue { setNeedsDisplay() } } }
+
+    override func textRect(forBounds bounds: CGRect, limitedToNumberOfLines n: Int) -> CGRect {
+        super.textRect(forBounds: bounds.inset(by: inset), limitedToNumberOfLines: n)
+    }
+
     override func drawText(in rect: CGRect) {
-        let fit = textRect(forBounds: rect, limitedToNumberOfLines: numberOfLines)
-        super.drawText(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: min(fit.height, rect.height)))
+        let r = rect.inset(by: inset)
+        let fit = super.textRect(forBounds: r, limitedToNumberOfLines: numberOfLines)
+        super.drawText(in: CGRect(x: r.minX, y: r.minY, width: r.width, height: min(fit.height, r.height)))
     }
 }
 

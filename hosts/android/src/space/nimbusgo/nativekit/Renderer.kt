@@ -411,6 +411,9 @@ class Renderer internal constructor(private val root: NimbusView) {
             else -> Gravity.START
         }
         t.gravity = g or Gravity.TOP
+        // Style.Padding: the text keeps this far inside the frame.
+        t.setPadding((o.padLeft * density).roundToInt(), (o.padTop * density).roundToInt(),
+            (o.padRight * density).roundToInt(), (o.padBottom * density).roundToInt())
         if (o.lines > 0) {
             t.maxLines = o.lines.toInt()
             t.ellipsize = TextUtils.TruncateAt.END

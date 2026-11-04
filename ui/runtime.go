@@ -682,7 +682,8 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 	switch el.kind {
 	case render.KindText:
-		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines, MinScale: s.MinScale}
+		t := render.Text{Tag: in.tag, Text: el.text, Font: font, Color: uint32(textColor), Align: textAlign(s.TextAlign), Lines: s.Lines, MinScale: s.MinScale,
+			PadLeft: s.Padding.Left, PadTop: s.Padding.Top, PadRight: s.Padding.Right, PadBottom: s.Padding.Bottom}
 		for _, sp := range el.spans {
 			t.Spans = append(t.Spans, spanOf(sp, font, textColor))
 		}

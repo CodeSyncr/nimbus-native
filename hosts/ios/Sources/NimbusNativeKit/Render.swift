@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x01160879cc849524
+    public static let schemaHash: UInt64 = 0xe925a1d209de7e03
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -409,8 +409,12 @@ public enum Render {
         public var lines: UInt32
         public var minScale: Float
         public var spans: [Span]
+        public var padLeft: Float
+        public var padTop: Float
+        public var padRight: Float
+        public var padBottom: Float
 
-        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0, minScale: Float = 0, spans: [Span] = []) {
+        public init(tag: UInt32 = 0, text: String = "", font: Font = Font(), color: UInt32 = 0, align: Align = Align(rawValue: 0), lines: UInt32 = 0, minScale: Float = 0, spans: [Span] = [], padLeft: Float = 0, padTop: Float = 0, padRight: Float = 0, padBottom: Float = 0) {
             self.tag = tag
             self.text = text
             self.font = font
@@ -419,6 +423,10 @@ public enum Render {
             self.lines = lines
             self.minScale = minScale
             self.spans = spans
+            self.padLeft = padLeft
+            self.padTop = padTop
+            self.padRight = padRight
+            self.padBottom = padBottom
         }
 
         public func write(to w: inout WireWriter) {
@@ -433,6 +441,10 @@ public enum Render {
             for v0 in self.spans {
                 v0.write(to: &w)
             }
+            w.float32(self.padLeft)
+            w.float32(self.padTop)
+            w.float32(self.padRight)
+            w.float32(self.padBottom)
         }
 
         public static func read(from r: inout WireReader) throws -> Text {
@@ -445,6 +457,10 @@ public enum Render {
             m.lines = UInt32(try r.uint(max: 4294967295))
             m.minScale = try r.float32()
             m.spans = try r.list { r in try Span.read(from: &r) }
+            m.padLeft = try r.float32()
+            m.padTop = try r.float32()
+            m.padRight = try r.float32()
+            m.padBottom = try r.float32()
             return m
         }
     }

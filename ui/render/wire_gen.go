@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0x01160879cc849524
+const SchemaHash uint64 = 0xe925a1d209de7e03
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -246,6 +246,10 @@ func (m *Text) AppendWire(b []byte) []byte {
 	for _, v0 := range m.Spans {
 		b = v0.AppendWire(b)
 	}
+	b = wire.AppendFloat32(b, m.PadLeft)
+	b = wire.AppendFloat32(b, m.PadTop)
+	b = wire.AppendFloat32(b, m.PadRight)
+	b = wire.AppendFloat32(b, m.PadBottom)
 	return b
 }
 
@@ -266,6 +270,10 @@ func (m *Text) ReadWire(r *wire.Reader) {
 			m.Spans = append(m.Spans, v0)
 		}
 	}
+	m.PadLeft = r.Float32()
+	m.PadTop = r.Float32()
+	m.PadRight = r.Float32()
+	m.PadBottom = r.Float32()
 }
 
 // AppendWire appends m's wire encoding to b.
