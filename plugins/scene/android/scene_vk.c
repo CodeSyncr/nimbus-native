@@ -43,6 +43,8 @@ typedef struct {
     float base[16], local[16];
     float color[4];
     float axis[3], speed, shine, unlit, twosided, cast;
+    int parent;        // 1 + the index of the spinning node it turns with, or 0
+    float world[16];   // where it is this frame, from sc_place
     double started;    // when it began to spin
     char id[64];
 } sc_node;
@@ -631,7 +633,8 @@ static void sc_camera(sc *s, const float *eye, const float *target) {
 }
 
 // Each node is SC_NODE_FLOATS floats: base 16, local 16, color 4, axis 3,
-// speed, shine, unlit, two-sided, casts a shadow.
+// speed, shine, unlit, two-sided, casts a shadow, and 1 + the index of the
+// spinning node it turns with (0 for none).
 #define SC_NODE_FLOATS 46
 
 // sc_nodes replaces the nodes. A node that was spinning keeps its turn.
@@ -648,6 +651,7 @@ static void sc_nodes(sc *s, int n, const char *const *ids, const char *const *me
         memcpy(d->color, f + 32, 4 * sizeof(float));
         memcpy(d->axis, f + 36, 3 * sizeof(float));
         d->speed = f[39]; d->shine = f[40]; d->unlit = f[41]; d->twosided = f[42]; d->cast = f[43];
+        d->parent = (int)f[44];
         d->started = now;
         for (int j = 0; j < s->nnodes; j++)
             if (d->id[0] && strcmp(s->nodes[j].id, d->id) == 0) d->started = s->nodes[j].started;
@@ -663,11 +667,17 @@ static int sc_spinning(sc *s) {
     return 0;
 }
 
-static void sc_model(sc_node *n, double now, float *model) {
-    float spin[16];
-    mat_axis_angle(spin, n->axis, (float)((now - n->started) * n->speed * M_PI / 180));
-    mat_mul(model, n->base, spin);
-    mat_mul(model, model, n->local);
+// sc_place works out where every node is at time now. Parents come first,
+// so a node turning with a spinning one starts from where that one is.
+static void sc_place(sc *s, double now) {
+    for (int i = 0; i < s->nnodes; i++) {
+        sc_node *n = &s->nodes[i];
+        float spin[16];
+        mat_axis_angle(spin, n->axis, (float)((now - n->started) * n->speed * M_PI / 180));
+        mat_mul(n->world, n->base, spin);
+        mat_mul(n->world, n->world, n->local);
+        if (n->parent > 0 && n->parent <= i) mat_mul(n->world, s->nodes[n->parent - 1].world, n->world);
+    }
 }
 
 static void sc_bind_mesh(VkCommandBuffer cb, sc_mesh *m) {
@@ -683,6 +693,7 @@ static VkResult sc_draw(sc *s, uint32_t image, double now, VkSemaphore wait, VkS
     s->frame = (s->frame + 1) % SC_FRAMES;
     vkWaitForFences(s->dev, 1, &s->fences[f], VK_TRUE, UINT64_MAX);
     vkResetFences(s->dev, 1, &s->fences[f]);
+    sc_place(s, now);
 
     sc_ubo u = {0};
     float proj[16], view[16];
@@ -722,7 +733,7 @@ static VkResult sc_draw(sc *s, uint32_t image, double now, VkSemaphore wait, VkS
             sc_node *n = &s->nodes[i];
             if (!n->cast || n->mesh < 0 || n->mesh >= s->nmeshes) continue;
             sc_push p = {0};
-            sc_model(n, now, p.model);
+            memcpy(p.model, n->world, sizeof p.model);
             vkCmdPushConstants(cb, s->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof p, &p);
             sc_bind_mesh(cb, &s->meshes[n->mesh]);
             vkCmdDrawIndexed(cb, s->meshes[n->mesh].count, 1, 0, 0, 0);
@@ -750,7 +761,7 @@ static VkResult sc_draw(sc *s, uint32_t image, double now, VkSemaphore wait, VkS
         sc_texture *t = n->texture >= 0 && n->texture < s->ntextures ? &s->textures[n->texture] : &s->white;
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, s->layout, 1, 1, &t->set, 0, NULL);
         sc_push p;
-        sc_model(n, now, p.model);
+        memcpy(p.model, n->world, sizeof p.model);
         memcpy(p.color, n->color, sizeof p.color);
         p.params[0] = n->shine; p.params[1] = n->unlit; p.params[2] = p.params[3] = 0;
         vkCmdPushConstants(cb, s->layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof p, &p);

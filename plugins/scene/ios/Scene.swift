@@ -132,6 +132,7 @@ private struct SceneU {
 private struct Node {
     var id: String, mesh: String, texture: String, color: SIMD4<Float>, unlit: Bool, shine: Float, double: Bool, cast: Bool
     var base: simd_float4x4, local: simd_float4x4, axis: SIMD3<Float>, speed: Float
+    var parent: Int // 1 + the index of the spinning node it turns with, or 0
 }
 
 private func floats(_ o: Any?) -> [Float] { (o as? [Any] ?? []).map { ($0 as? NSNumber)?.floatValue ?? 0 } }
@@ -329,7 +330,7 @@ private final class SceneHost: NSObject, NimbusNativeView, MTKViewDelegate {
                         unlit: n["unlit"] as? Bool ?? false, shine: (n["shine"] as? NSNumber)?.floatValue ?? 0,
                         double: n["double"] as? Bool ?? false, cast: n["cast"] as? Bool ?? false,
                         base: matrix(n["base"]), local: matrix(n["local"]), axis: vec3(n["axis"]),
-                        speed: (n["speed"] as? NSNumber)?.floatValue ?? 0)
+                        speed: (n["speed"] as? NSNumber)?.floatValue ?? 0, parent: (n["parent"] as? NSNumber)?.intValue ?? 0)
         }
         // A node keeps turning from where it was across updates.
         let ids = Set(nodes.map(\.id))
@@ -364,12 +365,20 @@ private final class SceneHost: NSObject, NimbusNativeView, MTKViewDelegate {
         return simd_float4x4(SIMD4(xs, 0, 0, 0), SIMD4(0, ys, 0, 0), SIMD4(0, 0, zs, -1), SIMD4(0, 0, zs * near, 0))
     }
 
-    private func model(_ n: Node, _ now: CFTimeInterval) -> simd_float4x4 {
-        var spin = matrix_identity_float4x4
-        if n.speed != 0, let t0 = started[n.id], simd_length(n.axis) > 0 {
-            spin = simd_float4x4(simd_quatf(angle: Float(now - t0) * n.speed * .pi / 180, axis: simd_normalize(n.axis)))
+    /// Where each node is now: parents come first, so a node turning with a
+    /// spinning one starts from where that one has turned to.
+    private func models(_ now: CFTimeInterval) -> [simd_float4x4] {
+        var out: [simd_float4x4] = []
+        out.reserveCapacity(nodes.count)
+        for n in nodes {
+            var spin = matrix_identity_float4x4
+            if n.speed != 0, let t0 = started[n.id], simd_length(n.axis) > 0 {
+                spin = simd_float4x4(simd_quatf(angle: Float(now - t0) * n.speed * .pi / 180, axis: simd_normalize(n.axis)))
+            }
+            let parent = n.parent > 0 && n.parent <= out.count ? out[n.parent - 1] : matrix_identity_float4x4
+            out.append(parent * n.base * spin * n.local)
         }
-        return n.base * spin * n.local
+        return out
     }
 
     func draw(in v: MTKView) {
@@ -382,7 +391,7 @@ private final class SceneHost: NSObject, NimbusNativeView, MTKViewDelegate {
                        dirs: (.zero, .zero, .zero, .zero), colors: (.zero, .zero, .zero, .zero), count: SIMD4(Int32(lights.count), 0, 0, 0))
         withUnsafeMutableBytes(of: &s.dirs) { b in for (i, l) in lights.enumerated() { b.storeBytes(of: SIMD4(l.0, 0), toByteOffset: i * 16, as: SIMD4<Float>.self) } }
         withUnsafeMutableBytes(of: &s.colors) { b in for (i, l) in lights.enumerated() { b.storeBytes(of: SIMD4(l.1, 0), toByteOffset: i * 16, as: SIMD4<Float>.self) } }
-        let now = CACurrentMediaTime()
+        let placed = models(CACurrentMediaTime())
 
         var map = noShadow
         if shadows, let shadowMap {
@@ -397,9 +406,9 @@ private final class SceneHost: NSObject, NimbusNativeView, MTKViewDelegate {
                 enc.setCullMode(.none)
                 enc.setDepthBias(0.0005, slopeScale: 1.75, clamp: 0.01)
                 enc.setVertexBytes(&s, length: MemoryLayout<SceneU>.stride, index: 2)
-                for n in nodes where n.cast {
+                for (i, n) in nodes.enumerated() where n.cast {
                     guard let m = store.meshes[n.mesh] else { continue }
-                    var u = NodeU(model: model(n, now), normal: matrix_identity_float4x4, color: .zero, params: .zero)
+                    var u = NodeU(model: placed[i], normal: matrix_identity_float4x4, color: .zero, params: .zero)
                     enc.setVertexBuffer(m.vertices, offset: 0, index: 0)
                     enc.setVertexBytes(&u, length: MemoryLayout<NodeU>.stride, index: 1)
                     enc.drawIndexedPrimitives(type: .triangle, indexCount: m.count, indexType: .uint32, indexBuffer: m.indices, indexBufferOffset: 0)
@@ -418,9 +427,9 @@ private final class SceneHost: NSObject, NimbusNativeView, MTKViewDelegate {
         enc.setFragmentSamplerState(sampler, index: 0)
         enc.setFragmentSamplerState(compare, index: 1)
         enc.setFragmentTexture(map, index: 1)
-        for n in nodes {
+        for (i, n) in nodes.enumerated() {
             guard let m = store.meshes[n.mesh] else { continue }
-            let mm = model(n, now)
+            let mm = placed[i]
             var u = NodeU(model: mm, normal: mm.inverse.transpose, color: n.color, params: SIMD4(n.shine, n.unlit ? 1 : 0, 0, 0))
             enc.setCullMode(n.double ? .none : .back)
             enc.setFragmentTexture(n.texture.isEmpty ? white : (store.textures[n.texture] ?? white), index: 0)

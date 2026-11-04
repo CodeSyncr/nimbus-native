@@ -4,8 +4,8 @@ import "math"
 
 // Hit says which node is under a point of the view: x and y from 0 to 1,
 // from the top left, and the view's width over its height. OnTap uses it.
-// A spinning node is tested by the sphere around it, since only the phone
-// knows how far it has turned.
+// A spinning node, and anything turning with it, is tested by the sphere it
+// sweeps, since only the phone knows how far it has turned.
 //
 //nimbus:param x across, 0 to 1
 //nimbus:param y down, 0 to 1
@@ -25,30 +25,24 @@ func (v View) Hit(x, y, aspect float32) string {
 	t := float32(math.Tan(rad(cam.FOV) / 2))
 	dir := normalize(add(f, add(times(s, (2*x-1)*t*aspect), times(u, (1-2*y)*t))))
 	best, id := float32(math.MaxFloat32), ""
-	walk(v.Nodes, identity(), func(n Node, base, local Mat4) {
+	walk(v.Nodes, identity(), nil, func(n Node, base, local Mat4, pivot *Vec3) {
 		if n.Mesh == nil {
 			return
 		}
-		if d, ok := n.hit(cam.Position, dir, base, mul(base, local), local); ok && d < best {
+		if d, ok := n.hit(cam.Position, dir, mul(base, local), pivot); ok && d < best {
 			best, id = d, n.ID
 		}
 	})
 	return id
 }
 
-func (n Node) hit(o, dir Vec3, base, world, local Mat4) (float32, bool) {
+func (n Node) hit(o, dir Vec3, world Mat4, pivot *Vec3) (float32, bool) {
 	m := n.Mesh
-	if n.Spin.Speed != 0 {
-		c := apply(base, Vec3{})
-		var r float32
-		lo, hi := bounds(m.positions)
-		for _, p := range corners(lo, hi) {
-			r = max(r, length(apply(local, p)))
-		}
-		r *= maxScale(base)
-		oc := sub(o, c)
+	if pivot != nil {
+		s := sweep(n, world, *pivot)
+		oc := sub(o, s.c)
 		b := dot(oc, dir)
-		disc := b*b - (dot(oc, oc) - r*r)
+		disc := b*b - (dot(oc, oc) - s.r*s.r)
 		if disc < 0 {
 			return 0, false
 		}

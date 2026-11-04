@@ -75,6 +75,41 @@ func TestWire(t *testing.T) {
 	}
 }
 
+func TestChildrenTurnWithSpin(t *testing.T) {
+	v := View{Camera: Camera{Position: V(0, 0, 5)}, Nodes: []Node{
+		{ID: "gift", Mesh: Box(1, 1, 1), Position: V(1, 0, 0), Spin: Spin{Speed: 20},
+			Children: []Node{{ID: "ribbon", Mesh: Box(1.1, 0.1, 1.1), Position: V(0, 0.2, 0)}}},
+		{ID: "turntable", Position: V(-2, 0, 0), Spin: Spin{Speed: -10}, Children: []Node{
+			{ID: "cup", Mesh: Sphere(0.3), Position: V(0.5, 0, 0)}}},
+		{ID: "table", Mesh: Box(3, 0.1, 2), Position: V(0, -1, 0)},
+	}}
+	w := v.wire(ui.Theme{})
+	if len(w.Nodes) != 5 {
+		t.Fatalf("%d nodes", len(w.Nodes))
+	}
+	gift, ribbon, turntable, cup, table := w.Nodes[0], w.Nodes[1], w.Nodes[2], w.Nodes[3], w.Nodes[4]
+	if gift.Parent != 0 || ribbon.Parent != 1 || turntable.Parent != 0 || cup.Parent != 3 || table.Parent != 0 {
+		t.Fatalf("parents %d %d %d %d %d", gift.Parent, ribbon.Parent, turntable.Parent, cup.Parent, table.Parent)
+	}
+	// Within the node it turns with, a child's place is its own.
+	if p := apply(ribbon.Base, Vec3{}); !nearV(p, V(0, 0.2, 0)) {
+		t.Fatalf("ribbon at %v within the gift", p)
+	}
+	// A group that spins goes without a mesh, drawing and casting nothing.
+	if turntable.Mesh != "" || turntable.Cast || turntable.Speed != -10 || cup.Mesh == "" {
+		t.Fatalf("turntable %+v, cup %+v", turntable, cup)
+	}
+	// A tap meets what turns by the ball it sweeps around the spin's center.
+	// x is where a point at depth 0 shows, across the view (60° FOV, 5 away).
+	x := func(at float32) float32 { return 0.5 + at/(2*5*float32(math.Tan(math.Pi/6))) }
+	if id := v.Hit(x(1.73), 0.5, 1); id != "gift" && id != "ribbon" { // past the box, inside its sweep
+		t.Fatalf("tap beside the turning gift hit %q", id)
+	}
+	if id := v.Hit(x(-2.45), 0.5, 1); id != "cup" { // where the cup comes round to
+		t.Fatalf("tap on the cup's circle hit %q", id)
+	}
+}
+
 func TestTextureChecks(t *testing.T) {
 	if _, err := NewTexture([]byte("not a picture")); err == nil {
 		t.Error("junk passed")
@@ -230,7 +265,7 @@ func TestLoadGLB(t *testing.T) {
 		t.Fatal(err)
 	}
 	var quad *Node
-	walk([]Node{model}, identity(), func(n Node, base, local Mat4) {
+	walk([]Node{model}, identity(), nil, func(n Node, base, local Mat4, _ *Vec3) {
 		if n.Mesh != nil {
 			quad = &n
 		}

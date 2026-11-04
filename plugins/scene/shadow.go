@@ -11,20 +11,16 @@ type sphere struct {
 // spheres are the balls around every mesh in nodes, where they stand.
 func spheres(nodes []Node) []sphere {
 	var out []sphere
-	walk(nodes, identity(), func(n Node, base, local Mat4) {
+	walk(nodes, identity(), nil, func(n Node, base, local Mat4, pivot *Vec3) {
 		if n.Mesh == nil || len(n.Mesh.positions) == 0 {
 			return
 		}
-		lo, hi := bounds(n.Mesh.positions)
-		if n.Spin.Speed != 0 { // it turns around its own place
-			var r float32
-			for _, p := range corners(lo, hi) {
-				r = max(r, length(apply(local, p)))
-			}
-			out = append(out, sphere{apply(base, Vec3{}), r * maxScale(base)})
+		world := mul(base, local)
+		if pivot != nil { // it turns around the spin's center
+			out = append(out, sweep(n, world, *pivot))
 			return
 		}
-		world := mul(base, local)
+		lo, hi := bounds(n.Mesh.positions)
 		mid := times(add(lo, hi), 0.5)
 		out = append(out, sphere{apply(world, mid), length(sub(hi, mid)) * maxScale(world)})
 	})
@@ -78,7 +74,7 @@ func (v View) shadowView(dir Vec3) (Mat4, bool) {
 //nimbus:returns its lowest and highest corners; both zero for no meshes
 func Bounds(n Node) (lo, hi Vec3) {
 	first := true
-	walk([]Node{n}, identity(), func(m Node, base, local Mat4) {
+	walk([]Node{n}, identity(), nil, func(m Node, base, local Mat4, _ *Vec3) {
 		if m.Mesh == nil || len(m.Mesh.positions) == 0 {
 			return
 		}

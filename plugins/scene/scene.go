@@ -68,7 +68,8 @@ type Light struct {
 	Intensity float32  // 0 means 1
 }
 
-// Spin turns a node around its own center, forever, drawn by the phone.
+// Spin turns a node around its own center, forever, drawn by the phone. Its
+// children turn with it.
 type Spin struct {
 	Axis  Vec3    // what it turns around; zero means up (0, 1, 0)
 	Speed float32 // degrees a second; negative turns the other way
@@ -90,7 +91,7 @@ type Node struct {
 	// Matrix, when set, places it instead of Position, Rotation and Scale.
 	Matrix   *Mat4
 	Spin     Spin   // a turn the phone animates
-	Children []Node // placed relative to this node; they don't share its Spin
+	Children []Node // placed relative to this node, turning with its Spin
 }
 
 // View is a 3D scene inside your screen.
@@ -177,6 +178,9 @@ type wireNode struct {
 	Local   Mat4       `json:"local"` // its rotation and scale, after Spin
 	Axis    Vec3       `json:"axis"`
 	Speed   float32    `json:"speed"` // degrees a second
+	// Parent is 1 + the index of the spinning node it turns with, 0 for
+	// none; Base is then relative to that node.
+	Parent int `json:"parent"`
 }
 
 func (c Camera) defaults() Camera {
@@ -212,13 +216,30 @@ func (n Node) place(parent Mat4) (base, local Mat4) {
 	return mul(parent, translate(n.Position)), mul(rotateXYZ(n.Rotation), scaling(scale))
 }
 
-// walk calls f for every node with its place, parents first.
-func walk(nodes []Node, parent Mat4, f func(n Node, base, local Mat4)) {
+// walk calls f for every node with its place, parents first. pivot is
+// the center of the nearest Spin at or above it, nil when nothing turns it.
+func walk(nodes []Node, parent Mat4, pivot *Vec3, f func(n Node, base, local Mat4, pivot *Vec3)) {
 	for _, n := range nodes {
 		base, local := n.place(parent)
-		f(n, base, local)
-		walk(n.Children, mul(base, local), f)
+		p := pivot
+		if n.Spin.Speed != 0 {
+			c := apply(base, Vec3{})
+			p = &c
+		}
+		f(n, base, local, p)
+		walk(n.Children, mul(base, local), p, f)
 	}
+}
+
+// sweep is the ball a node fills as it turns around pivot: its corners keep
+// their distance from the center of a turn.
+func sweep(n Node, world Mat4, pivot Vec3) sphere {
+	lo, hi := bounds(n.Mesh.positions)
+	var r float32
+	for _, p := range corners(lo, hi) {
+		r = max(r, length(sub(apply(world, p), pivot)))
+	}
+	return sphere{pivot, r}
 }
 
 func (v View) wire(th ui.Theme) wire {
@@ -251,9 +272,25 @@ func (v View) wire(th ui.Theme) wire {
 		c := rgba(col)
 		w.Lights = append(w.Lights, wireLight{normalize(l.Direction), [3]float32{c[0] * in, c[1] * in, c[2] * in}})
 	}
-	walk(v.Nodes, identity(), func(n Node, base, local Mat4) {
-		if n.Mesh == nil || len(n.Mesh.indices) == 0 {
-			return
+	w.add(v.Nodes, identity(), 0, th)
+	if v.Shadows {
+		if vp, ok := v.shadowView(w.Lights[0].Direction); ok {
+			w.Shadow = &wireShadow{VP: vp}
+		}
+	}
+	return w
+}
+
+// add puts nodes on the wire, parents first. A spinning node goes even
+// without a mesh, so its children can turn with it: under is 1 + its index,
+// and parent is then the place within it.
+func (w *wire) add(nodes []Node, parent Mat4, under int, th ui.Theme) {
+	for _, n := range nodes {
+		base, local := n.place(parent)
+		drawn := n.Mesh != nil && len(n.Mesh.indices) > 0
+		if !drawn && n.Spin.Speed == 0 {
+			w.add(n.Children, mul(base, local), under, th)
+			continue
 		}
 		color := n.Color
 		if color == 0 {
@@ -266,19 +303,21 @@ func (v View) wire(th ui.Theme) wire {
 		if axis == (Vec3{}) {
 			axis = V(0, 1, 0)
 		}
-		wn := wireNode{ID: n.ID, Mesh: n.Mesh.register(), Color: rgba(color), Unlit: n.Unlit, Shine: clamp01(n.Shine),
-			Double: n.DoubleSided, Cast: !n.NoShadow && !n.Unlit, Base: base, Local: local, Axis: normalize(axis), Speed: n.Spin.Speed}
+		wn := wireNode{ID: n.ID, Color: rgba(color), Unlit: n.Unlit, Shine: clamp01(n.Shine), Double: n.DoubleSided,
+			Cast: drawn && !n.NoShadow && !n.Unlit, Base: base, Local: local, Axis: normalize(axis), Speed: n.Spin.Speed, Parent: under}
+		if drawn {
+			wn.Mesh = n.Mesh.register()
+		}
 		if n.Texture != nil {
 			wn.Texture = n.Texture.register()
 		}
 		w.Nodes = append(w.Nodes, wn)
-	})
-	if v.Shadows {
-		if vp, ok := v.shadowView(w.Lights[0].Direction); ok {
-			w.Shadow = &wireShadow{VP: vp}
+		if n.Spin.Speed != 0 {
+			w.add(n.Children, identity(), len(w.Nodes), th)
+		} else {
+			w.add(n.Children, mul(base, local), under, th)
 		}
 	}
-	return w
 }
 
 func clamp01(x float32) float32 { return float32(math.Max(0, math.Min(1, float64(x)))) }

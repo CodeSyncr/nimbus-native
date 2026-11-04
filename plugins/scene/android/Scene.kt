@@ -292,6 +292,7 @@ private class SceneHost(c: Context, private val emit: (String, String) -> Unit) 
             data[at + 41] = f(o.optBoolean("unlit"))
             data[at + 42] = f(o.optBoolean("double"))
             data[at + 43] = f(o.optBoolean("cast"))
+            data[at + 44] = o.optInt("parent", 0).toFloat()
         }
         SceneNative.nodes(h, ids, meshes, textures, data, now())
         frame()
