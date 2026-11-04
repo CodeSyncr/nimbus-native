@@ -368,11 +368,26 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 	if err != nil {
 		return err
 	}
+	// Check every plugin before changing anything, so one that's missing a
+	// value doesn't leave the others half added.
+	manifests := map[string]*pluginManifest{}
 	for _, n := range names {
 		m, err := e.pluginManifest(a.Root, n)
 		if err != nil {
 			return err
 		}
+		manifests[n] = m
+		if slices.Contains(on, n) {
+			continue
+		}
+		for _, need := range m.Needs {
+			if values[need] == "" {
+				return fmt.Errorf("%s needs -%s: nimbus native plugin add %s -%s VALUE", n, need, n, need)
+			}
+		}
+	}
+	for _, n := range names {
+		m := manifests[n]
 		if slices.Contains(on, n) {
 			// A newer version may need more, so adding it again catches up.
 			// What it needs from the project stays as it was given.
@@ -386,11 +401,6 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 				Infof(out, "%s is already in this project, and is up to date", n)
 			}
 			continue
-		}
-		for _, need := range m.Needs {
-			if values[need] == "" {
-				return fmt.Errorf("%s needs -%s: nimbus native plugin add %s -%s VALUE", n, need, n, need)
-			}
 		}
 		if err := requirePlugin(a.Root, fill(m, values)); err != nil {
 			return err
