@@ -20,11 +20,11 @@
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet."
+      "result": "The guide example on iOS 26: the map opens on the cafe with its pin and title. Tapping the pin hasn't been tried."
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet. There it shows Fallback."
+      "result": "On Android 14 (API 34): Fallback shows in its place."
     },
     {
       "where": "Real phones",
@@ -440,15 +440,15 @@
   "hinge": [
     {
       "where": "Go tests",
-      "result": "What the Android probe sends decodes as a Fold. The Android side compiles against stand-ins for Jetpack WindowManager's classes, since its library couldn't be downloaded here, so its exact names are unconfirmed."
+      "result": "What the Android probe sends decodes as a Fold. The Android side compiles against Jetpack WindowManager 1.3.0."
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet. The emulator's foldable devices are the way to test it."
+      "result": "On the 7.6in Foldable emulator (Android 14): a fold is reported with its place and orientation once the hinge bends, and Separates is set. The emulator's WindowManager reports the fold as FLAT even while the device is half open, so HalfOpen and the tabletop layout couldn't be checked. On a phone emulator it reports no fold."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. iOS has no folds, so it always reports none."
+      "result": "On iOS 26: no fold, as on any iPhone."
     },
     {
       "where": "Real phones",
@@ -546,11 +546,11 @@
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. The Swift hasn't been compiled, and the simulator's library has no Live Photos unless you add some."
+      "result": "On iOS 26: the picker opens showing only Live Photos. The simulator's library has none, so playing one hasn't been tried."
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet. There it shows Fallback."
+      "result": "On Android 14 (API 34): Pick answers that Live Photos are for iOS."
     },
     {
       "where": "Real phones",
@@ -708,11 +708,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet."
+      "result": "On Android 14 (API 34): sign-in opens a Custom Tab at Microsoft, which reaches Microsoft's sign-in page (and refuses the example's placeholder client ID). A redirect with the wrong state is refused, and backing out returns Cancelled."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet."
+      "result": "On iOS 26: sign-in brings up the system's prompt to sign in with microsoftonline.com. It wasn't continued, since this run can't tap the simulator."
     },
     {
       "where": "Real phones",
@@ -796,11 +796,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet."
+      "result": "On Android 14 (API 34): a link shared to the app with a share intent shows up in the inbox as a URL."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet."
+      "result": "On iOS 26: the app builds with its Share Extension, and iOS lists it as a share target. Nothing was shared to it, since this run can't use the share sheet."
     },
     {
       "where": "Real phones",
@@ -980,11 +980,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet."
+      "result": "The guide example on Android 14 (API 34): rows added from Go and with the button come back newest first. The Android side didn't compile before this run; it does now."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. The Swift hasn't been compiled."
+      "result": "The guide example on iOS 26: rows added from Go come back newest first."
     },
     {
       "where": "Real phones",
@@ -1026,11 +1026,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet, so the Material Symbols font drawing its icons isn't confirmed."
+      "result": "On Android 14 (API 34), with the Material Symbols Rounded font added: the four menu icons draw. Without the font, each name shows as text, a letter per line."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. The Swift hasn't been compiled."
+      "result": "On iOS 26: the four SF Symbols draw."
     },
     {
       "where": "Real phones",
