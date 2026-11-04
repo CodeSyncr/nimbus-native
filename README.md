@@ -291,6 +291,31 @@ the tab goes away. Native plugins answer `unavailable` on the web.
 
 ## Plugins: calling native code
 
+### Install a third-party plugin module
+
+Plugins can be shared as Go modules and installed by module path, with an
+optional pinned version:
+
+```sh
+nimbus native plugin add github.com/acme/native-battery@v1.2.0
+nimbus native plugin list
+nimbus native plugin remove battery
+```
+
+The module root contains `plugin.json`, its Go API, and `ios/*.swift` and
+`android/*.kt` handlers. The manifest declares the plugin `name`, `description`,
+`handler`, and any iOS usage descriptions/Swift packages or Android permissions/
+Gradle dependencies. The Swift handler is a type with the declared name; the
+Kotlin handler is an object with that name in `space.nimbusgo.nativekit`.
+Nimbus stages those native files under `native/plugins/<name>`, records enabled
+plugins in `native/plugins.json`, and adds the module to `go.mod`. Commit those
+files with `go.mod` and `go.sum`. Without `@version`, the CLI resolves the
+module's latest version; pin a version for repeatable builds. Set the optional
+`go` field in the manifest to a subpackage import path if the Go API is not in
+the module root. An Android plugin can also declare `android.native` libraries
+to compile C/C++ sources under `android/` for each ABI. After removing a plugin,
+run `go mod tidy` if its Go API is no longer imported.
+
 Go reaches Swift and Kotlin through plugins. Built in:
 
 ```go

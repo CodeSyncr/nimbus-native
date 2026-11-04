@@ -634,11 +634,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet."
+      "result": "The guide example on Android 14 (API 34): a smooth gradient bending toward its moved middle point, the same as on iOS."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. The Metal view hasn't been compiled."
+      "result": "The guide example on iOS 18 and iOS 26: the Metal view draws the gradient smoothly, filling the screen under the status bar."
     },
     {
       "where": "Real phones",
@@ -810,7 +810,7 @@
   "scene": [
     {
       "where": "Go tests",
-      "result": "Matrices, shapes, children, Matrix, the wire format, tap hit-testing, the shadow's view holding the whole scene, Bounds and Fit, sending meshes and pictures when asked, and a .glb built in the test (interleaved buffers, a quaternion, an embedded PNG, materials) are checked. glTF files that need Draco or meshopt are refused."
+      "result": "Matrices, shapes, children (turning with a spinning parent), Matrix, the wire format, tap hit-testing (children of a spinning node by the ball they sweep), the shadow's view holding the whole scene, Bounds and Fit, sending meshes and pictures when asked, and a .glb built in the test (interleaved buffers, a quaternion, an embedded PNG, materials) are checked. glTF files that need Draco or meshopt are refused."
     },
     {
       "where": "Vulkan, offscreen",
@@ -818,11 +818,11 @@
     },
     {
       "where": "Android emulator",
-      "result": "Not tried yet."
+      "result": "The guide example on Android 14 (API 34): Vulkan draws the textured gift with its ribbon turning with it, the shiny ball, and soft shadows on the table. Dragging orbits the camera, and a tap after orbiting names the gift. Pinching hasn't been tried."
     },
     {
       "where": "iOS simulator",
-      "result": "Not tried yet. The Metal renderer hasn't been compiled."
+      "result": "The guide example on iOS 18 and iOS 26: Metal draws the textured gift, the shiny ball and soft shadows; on iOS 26 the ribbon turns with the gift. Dragging and pinching haven't been tried."
     },
     {
       "where": "Real phones",

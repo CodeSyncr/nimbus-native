@@ -27,7 +27,7 @@ func (e *Env) pluginNativeLibs(root string, abi AndroidABI, dir string) (map[str
 		return nil, err
 	}
 	for _, n := range names {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(root, n)
 		if err != nil {
 			return nil, err
 		}
@@ -35,7 +35,7 @@ func (e *Env) pluginNativeLibs(root string, abi AndroidABI, dir string) (map[str
 			file := "lib" + l.Name + ".so"
 			lib := filepath.Join(dir, file)
 			e.step("cc → %s (android/%s)", file, abi.Name)
-			if err := e.run(nil, e.ndkClang(abi), nativeArgs(filepath.Join(e.Repo, "plugins", n), l, lib)...); err != nil {
+			if err := e.run(nil, e.ndkClang(abi), nativeArgs(e.pluginDir(root, n), l, lib)...); err != nil {
 				return nil, fmt.Errorf("%s: %w", file, err)
 			}
 			out[file] = lib

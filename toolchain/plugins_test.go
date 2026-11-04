@@ -60,7 +60,7 @@ func TestPluginManifests(t *testing.T) {
 	}
 	for _, p := range paths {
 		name := filepath.Base(filepath.Dir(p))
-		m, err := e.pluginManifest(name)
+		m, err := e.pluginManifest("..", name)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,7 +83,7 @@ func TestAddAndRemoveInAProject(t *testing.T) {
 		os.WriteFile(filepath.Join(root, p), []byte(body), 0o644)
 	}
 	e := &Env{Repo: ".."}
-	m, err := e.pluginManifest("audio")
+	m, err := e.pluginManifest("..", "audio")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestRequiringAgainCatchesUp(t *testing.T) {
 		os.WriteFile(filepath.Join(root, p), []byte(body), 0o644)
 	}
 	e := &Env{Repo: ".."}
-	m, err := e.pluginManifest("contacts")
+	m, err := e.pluginManifest("..", "contacts")
 	if err != nil {
 		t.Fatal(err)
 	}

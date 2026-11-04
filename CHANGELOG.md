@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `nimbus native plugin add <module>[@version]` installs third-party Go module
+  plugins, stages their Swift and Kotlin handlers in the project, and applies
+  their declared native dependencies and permissions. Plugin documentation in
+  nimbus-starter covers publishing and using modules.
+
 ## 0.0.12 (2026-10-30)
 
 - Projects with a Nimbus server are whole Nimbus apps: `nimbus native new`

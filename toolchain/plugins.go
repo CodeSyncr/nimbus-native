@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -12,17 +13,18 @@ import (
 	"strings"
 )
 
-// Optional plugins: a folder in plugins/ with its Go API, plugin.json, and
-// ios/ and android/ sources. A project lists the ones it uses in
-// native/plugins.json; only those reach its app, with their permissions.
-// The sources travel with the kit (syncIOSKit, syncAndroidKit), so the Xcode
-// and Gradle projects don't change.
+// Optional plugins ship in plugins/ or are installed from Go modules into
+// native/plugins/. A project lists enabled plugins in native/plugins.json;
+// only their native sources and permissions reach its app.
 
 // pluginList is a project's list of plugins, kept in order.
 const pluginList = "native/plugins.json"
 
 // pluginManifest is a plugin's plugin.json.
 type pluginManifest struct {
+	Name        string `json:"name"`
+	Module      string `json:"module"`
+	GoPackage   string `json:"go"`
 	Description string `json:"description"`
 	Handler     string `json:"handler"` // the Swift enum and Kotlin object with handle()
 	Boot        bool   `json:"boot"`    // it has a boot() to run at launch
@@ -66,8 +68,17 @@ type swiftPackage struct {
 	Product string `json:"product"`
 }
 
-func (e *Env) pluginManifest(name string) (*pluginManifest, error) {
-	b, err := os.ReadFile(filepath.Join(e.Repo, "plugins", name, "plugin.json"))
+func (e *Env) pluginDir(root, name string) string {
+	local := filepath.Join(root, "native", "plugins", name)
+	if exists(filepath.Join(local, "plugin.json")) {
+		return local
+	}
+	return filepath.Join(e.Repo, "plugins", name)
+}
+
+func (e *Env) pluginManifest(root, name string) (*pluginManifest, error) {
+	dir := e.pluginDir(root, name)
+	b, err := os.ReadFile(filepath.Join(dir, "plugin.json"))
 	if os.IsNotExist(err) {
 		return nil, fmt.Errorf("no plugin named %q (nimbus native plugin list shows them)", name)
 	}
@@ -76,7 +87,10 @@ func (e *Env) pluginManifest(name string) (*pluginManifest, error) {
 	}
 	m := &pluginManifest{}
 	if err := json.Unmarshal(b, m); err != nil {
-		return nil, fmt.Errorf("plugins/%s/plugin.json: %w", name, err)
+		return nil, fmt.Errorf("%s/plugin.json: %w", dir, err)
+	}
+	if m.Name != "" && m.Name != name {
+		return nil, fmt.Errorf("%s/plugin.json names %q, expected %q", dir, m.Name, name)
 	}
 	return m, nil
 }
@@ -144,7 +158,7 @@ func (e *Env) addPluginSources(root, platform, pattern, into string, gen func(ma
 	handlers := map[string]string{}
 	var boots []string
 	for _, n := range names {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(root, n)
 		if err != nil {
 			return fmt.Errorf("%s: %w", pluginList, err)
 		}
@@ -152,7 +166,7 @@ func (e *Env) addPluginSources(root, platform, pattern, into string, gen func(ma
 		if m.Boot {
 			boots = append(boots, m.Handler)
 		}
-		for _, p := range globs(filepath.Join(e.Repo, "plugins", n, platform, pattern)) {
+		for _, p := range globs(filepath.Join(e.pluginDir(root, n), platform, pattern)) {
 			b, err := os.ReadFile(p)
 			if err != nil {
 				return err
@@ -188,7 +202,7 @@ func (e *Env) ListPlugins(a *App, out io.Writer) error {
 	sort.Strings(paths)
 	for _, p := range paths {
 		name := filepath.Base(filepath.Dir(p))
-		m, err := e.pluginManifest(name)
+		m, err := e.pluginManifest(a.Root, name)
 		if err != nil {
 			return err
 		}
@@ -198,7 +212,150 @@ func (e *Env) ListPlugins(a *App, out io.Writer) error {
 			fmt.Fprintf(out, "  %-22s %s\n", name, m.Description)
 		}
 	}
+	local := globs(filepath.Join(a.Root, "native/plugins/*/plugin.json"))
+	for _, p := range local {
+		name := filepath.Base(filepath.Dir(p))
+		if slices.ContainsFunc(paths, func(b string) bool { return filepath.Base(filepath.Dir(b)) == name }) {
+			continue
+		}
+		m, err := e.pluginManifest(a.Root, name)
+		if err != nil {
+			return err
+		}
+		if slices.Contains(on, name) {
+			Successf(out, "%-22s %s (third party)", name, m.Description)
+		} else {
+			fmt.Fprintf(out, "  %-22s %s (third party, installed)\n", name, m.Description)
+		}
+	}
 	return nil
+}
+
+// AddPluginModules downloads plugin modules, stages their native handlers in
+// the project, adds the Go dependency, then enables them like bundled plugins.
+func (e *Env) AddPluginModules(a *App, modules []string, values map[string]string, out io.Writer) error {
+	if e.Repo = moduleDir(a.Root); e.Repo == "" {
+		return fmt.Errorf("nimbus-native module not found from %s", a.Root)
+	}
+	for _, requested := range modules {
+		module, _, hasVersion := strings.Cut(requested, "@")
+		if module == "" || !strings.Contains(module, "/") {
+			return fmt.Errorf("third-party plugin must be a Go module path, such as github.com/acme/nimbus-plugin-battery")
+		}
+		query := requested
+		if !hasVersion {
+			query += "@latest"
+		}
+		cmd := exec.Command("go", "list", "-m", "-json", query)
+		cmd.Dir = a.Root
+		b, err := cmd.Output()
+		if err != nil {
+			return fmt.Errorf("resolve plugin module %s: %w", query, err)
+		}
+		var mod struct{ Path, Version, Dir string }
+		if err := json.Unmarshal(b, &mod); err != nil {
+			return fmt.Errorf("read plugin module %s: %w", query, err)
+		}
+		if mod.Dir == "" || mod.Path != module {
+			return fmt.Errorf("Go did not resolve %s to a local module directory", query)
+		}
+		mb, err := os.ReadFile(filepath.Join(mod.Dir, "plugin.json"))
+		if err != nil {
+			return fmt.Errorf("%s must contain plugin.json: %w", module, err)
+		}
+		m := &pluginManifest{}
+		if err := json.Unmarshal(mb, m); err != nil {
+			return fmt.Errorf("%s/plugin.json: %w", module, err)
+		}
+		if m.Name == "" || !regexp.MustCompile(`^[a-z][a-z0-9]*$`).MatchString(m.Name) {
+			return fmt.Errorf("%s/plugin.json must set name to lowercase letters and digits, starting with a letter", module)
+		}
+		if m.Handler == "" || m.Description == "" {
+			return fmt.Errorf("%s/plugin.json must set handler and description", module)
+		}
+		if exists(filepath.Join(e.Repo, "plugins", m.Name, "plugin.json")) {
+			return fmt.Errorf("plugin name %q is already used by Nimbus Native; choose another name", m.Name)
+		}
+		for _, platform := range []string{"ios", "android"} {
+			pattern := "*.swift"
+			if platform == "android" {
+				pattern = "*.kt"
+			}
+			if len(globs(filepath.Join(mod.Dir, platform, pattern))) == 0 {
+				return fmt.Errorf("%s needs at least one %s/%s handler", module, platform, pattern)
+			}
+		}
+		if m.Module != "" && m.Module != module {
+			return fmt.Errorf("%s/plugin.json module is %q, expected %q", module, m.Module, module)
+		}
+		m.Module = module
+		staged := filepath.Join(a.Root, "native", "plugins", m.Name)
+		if exists(filepath.Join(staged, "plugin.json")) {
+			old, err := e.pluginManifest(a.Root, m.Name)
+			if err != nil {
+				return err
+			}
+			if old.Module != module {
+				return fmt.Errorf("plugin name %q is already provided by %s", m.Name, old.Module)
+			}
+		}
+		if err := stageExternalPlugin(mod.Dir, staged, m); err != nil {
+			return err
+		}
+		versioned := module + "@" + mod.Version
+		get := exec.Command("go", "get", versioned)
+		get.Dir = a.Root
+		if output, err := get.CombinedOutput(); err != nil {
+			return fmt.Errorf("add plugin dependency %s: %s: %w", versioned, strings.TrimSpace(string(output)), err)
+		}
+		if err := e.AddPlugins(a, []string{m.Name}, values, out); err != nil {
+			return err
+		}
+		Infof(out, "Import the Go API from %s (add a subpackage in plugin.json's go field if needed)", m.GoPackageOrModule())
+	}
+	return nil
+}
+
+func (m *pluginManifest) GoPackageOrModule() string {
+	if m.GoPackage != "" {
+		return m.GoPackage
+	}
+	return m.Module
+}
+
+func stageExternalPlugin(from, to string, m *pluginManifest) error {
+	if err := os.MkdirAll(filepath.Join(to, "ios"), 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Join(to, "android"), 0o755); err != nil {
+		return err
+	}
+	for platform, patterns := range map[string][]string{
+		"ios":     {"*.swift"},
+		"android": {"*.kt", "*.c", "*.h"},
+	} {
+		for _, pattern := range patterns {
+			for _, stale := range globs(filepath.Join(to, platform, pattern)) {
+				if err := os.Remove(stale); err != nil {
+					return err
+				}
+			}
+			for _, src := range globs(filepath.Join(from, platform, pattern)) {
+				b, err := os.ReadFile(src)
+				if err != nil {
+					return err
+				}
+				if err := os.WriteFile(filepath.Join(to, platform, filepath.Base(src)), b, 0o644); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(to, "plugin.json"), append(b, '\n'), 0o644)
 }
 
 // AddPlugins enables plugins: their sources reach the kit, and the app asks
@@ -212,7 +369,7 @@ func (e *Env) AddPlugins(a *App, names []string, values map[string]string, out i
 		return err
 	}
 	for _, n := range names {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(a.Root, n)
 		if err != nil {
 			return err
 		}
@@ -276,7 +433,7 @@ func (e *Env) RemovePlugins(a *App, names []string, out io.Writer) error {
 	}
 	keepInfo, keepPerm := map[string]bool{}, map[string]bool{}
 	for _, n := range on {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(a.Root, n)
 		if err != nil {
 			return err
 		}
@@ -288,7 +445,7 @@ func (e *Env) RemovePlugins(a *App, names []string, out io.Writer) error {
 		}
 	}
 	for _, n := range names {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(a.Root, n)
 		if err != nil {
 			return err
 		}
@@ -649,7 +806,7 @@ func (e *Env) kitPackage(root string) (string, error) {
 	}
 	var deps, products strings.Builder
 	for _, n := range names {
-		m, err := e.pluginManifest(n)
+		m, err := e.pluginManifest(root, n)
 		if err != nil {
 			return "", err
 		}

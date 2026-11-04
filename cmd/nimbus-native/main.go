@@ -348,7 +348,7 @@ with api.New("https://your-server"): see features/ for where calls go.`, fs.Arg(
 
 // pluginCmd adds and removes the project's optional plugins.
 func pluginCmd(args []string) error {
-	const use = "usage: nimbus native plugin add|remove <name>...  or  nimbus native plugin list"
+	const use = "usage: nimbus native plugin add <name|module[@version]>... | remove <name>... | list"
 	if len(args) == 0 {
 		return errors.New(use)
 	}
@@ -373,19 +373,33 @@ func pluginCmd(args []string) error {
 		}
 		names = append(names, args[i])
 	}
-	for i, n := range names {
-		names[i] = strings.ReplaceAll(n, "-", "") // status-bar is the package statusbar
-		if names[i] == "location" {
-			names[i] = "geolocation"
+	var modules, bundled []string
+	for _, n := range names {
+		if strings.Contains(n, "/") {
+			modules = append(modules, n)
+			continue
 		}
+		n = strings.ReplaceAll(n, "-", "") // status-bar is the package statusbar
+		if n == "location" {
+			n = "geolocation"
+		}
+		bundled = append(bundled, n)
 	}
 	switch {
 	case verb == "list":
 		return env.ListPlugins(app, os.Stdout)
 	case verb == "add" && len(names) > 0:
-		return env.AddPlugins(app, names, values, os.Stdout)
-	case verb == "remove" && len(names) > 0:
-		return env.RemovePlugins(app, names, os.Stdout)
+		if len(modules) > 0 {
+			if err := env.AddPluginModules(app, modules, values, os.Stdout); err != nil {
+				return err
+			}
+		}
+		if len(bundled) > 0 {
+			return env.AddPlugins(app, bundled, values, os.Stdout)
+		}
+		return nil
+	case verb == "remove" && len(bundled) > 0 && len(modules) == 0:
+		return env.RemovePlugins(app, bundled, os.Stdout)
 	}
 	return errors.New(use)
 }
@@ -696,7 +710,9 @@ func usage() {
   nimbus native build ios|android -release -server URL [-version V -build N] [-team ID] [-export app-store|ad-hoc|development]
   nimbus native keystore                               the Android release key
   nimbus native font add [-name Family] <font.ttf>     a font for Style.FontFamily
-  nimbus native plugin add|remove <name>...            an optional plugin in the project; plugin list shows them
+  nimbus native plugin add <name|module[@version]>...   add bundled or third-party plugins
+  nimbus native plugin remove <name>...                 remove plugins from the project
+  nimbus native plugin list                              list bundled and installed plugins
   nimbus native upgrade [version]                      move the project to the latest (or that) release
   nimbus native doctor
   nimbus native gen [app-dir]
