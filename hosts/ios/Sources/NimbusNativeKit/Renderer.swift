@@ -274,7 +274,14 @@ public final class Renderer {
                     decor[o.tag]?.layout(v)
                 }
             case .box(let o): box(o)
-            case .draw(let o): (views[o.tag] as? NNCanvas)?.set(o)
+            case .draw(let o):
+                let tag = o.tag
+                if let v = views[o.tag] as? NNCanvas {
+                    v.emit = { [weak self] name, data in
+                        self?.send(.nativeEvent(Render.NativeEvent(tag: tag, name: name, data: data)))
+                    }
+                    v.set(o)
+                }
             case .native(let o):
                 let tag = o.tag
                 (views[o.tag] as? NNNativeHost)?.set(o) { [weak self] name, data in
@@ -687,6 +694,19 @@ final class NNNativeHost: UIView {
 
 final class NNCanvas: UIView {
     private var d = Render.Draw()
+    /// Sends Go a NativeEvent from this canvas: an animation ended.
+    var emit: ((String, String) -> Void)?
+
+    /// One of Draw.Anims, and where it is.
+    private struct Anim {
+        var id: Float, run: Float, kind: Float, ms: Double, delay: Double, ease: Int, bounce: Double, repeats: Int, reverse: Bool, to: Double
+    }
+    private struct Clock {
+        var run: Float, start: Double, from: Double, to: Double, done: Bool
+    }
+    private var anims: [Anim] = []
+    private var clocks: [Float: Clock] = [:]
+    private var link: CADisplayLink?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -697,21 +717,225 @@ final class NNCanvas: UIView {
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    private static func now() -> Double { CACurrentMediaTime() * 1000 }
+
     func set(_ o: Render.Draw) {
+        let now = NNCanvas.now()
+        var next: [Anim] = []
+        var i = 0
+        while i + 10 <= o.anims.count {
+            let a = o.anims
+            let anim = Anim(id: a[i], run: a[i + 1], kind: a[i + 2], ms: Double(a[i + 3]), delay: Double(a[i + 4]), ease: Int(a[i + 5]),
+                            bounce: Double(a[i + 6]), repeats: Int(a[i + 7]), reverse: a[i + 8] != 0, to: Double(a[i + 9]))
+            if let c = clocks[anim.id], !(anim.kind == 0 && c.run != anim.run) {
+                if anim.kind == 1, c.to != anim.to {
+                    // A tween's new target: from where it is now.
+                    var c = c
+                    let old = anims.first { $0.id == anim.id } ?? anim
+                    c.from = value(old, &c, now)
+                    c.to = anim.to
+                    c.start = now
+                    c.done = false
+                    clocks[anim.id] = c
+                }
+            } else {
+                clocks[anim.id] = Clock(run: anim.run, start: now, from: anim.to, to: anim.to, done: anim.kind == 1)
+            }
+            next.append(anim)
+            i += 10
+        }
+        let ids = Set(next.map(\.id))
+        clocks = clocks.filter { ids.contains($0.key) }
+        anims = next
         d = o
         setNeedsDisplay()
+        running()
     }
+
+    /// eased is ui/animate.go's: where a run is t ms in, and how long a run takes.
+    private static func eased(_ e: Int, _ bounce: Double, _ t: Double, _ ms: Double) -> (Double, Double) {
+        if e == 4 {
+            let z = min(max(1 - bounce, 0.05), 1), w = 2 * Double.pi
+            if z == 1 {
+                let len = ms * 9.24 / w, u = min(t, len) / ms
+                return (1 - exp(-w * u) * (1 + w * u), len)
+            }
+            let wd = w * (1 - z * z).squareRoot(), len = ms * max(1, log(1000 * (1 + z * w / wd)) / (z * w)), u = min(t, len) / ms
+            return (1 - exp(-z * w * u) * (cos(wd * u) + z * w / wd * sin(wd * u)), len)
+        }
+        let x = min(max(t / ms, 0), 1)
+        switch e {
+        case 1: return (x, ms)
+        case 2: return (x * x * x, ms)
+        case 3: return (1 - pow(1 - x, 3), ms)
+        default: return (x < 0.5 ? 4 * x * x * x : 1 - 4 * pow(1 - x, 3), ms)
+        }
+    }
+
+    /// An animation's number now; it marks the clock done after its last run.
+    private func value(_ a: Anim, _ c: inout Clock, _ now: Double) -> Double {
+        let t = now - c.start - a.delay
+        if a.kind == 1 {
+            if t <= 0 { return c.from }
+            let (v, len) = NNCanvas.eased(a.ease, a.bounce, t, a.ms)
+            if t >= len { c.done = true; return c.to }
+            return c.from + (c.to - c.from) * v
+        }
+        if t < 0 { return 0 }
+        let len = NNCanvas.eased(a.ease, a.bounce, 0, a.ms).1
+        var i = Int(t / len), v: Double
+        if a.repeats >= 0, i > a.repeats {
+            c.done = true
+            i = a.repeats
+            v = 1
+        } else {
+            v = NNCanvas.eased(a.ease, a.bounce, t - Double(i) * len, a.ms).0
+        }
+        return a.reverse && i % 2 == 1 ? 1 - v : v
+    }
+
+    /// Redraws every frame while an animation runs and the canvas is on screen.
+    private func running() {
+        let active = window != nil && clocks.values.contains { !$0.done }
+        if active, link == nil {
+            let l = CADisplayLink(target: Ticker(self), selector: #selector(Ticker.tick))
+            l.add(to: .main, forMode: .common)
+            link = l
+        } else if !active {
+            link?.invalidate()
+            link = nil
+        }
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        running()
+    }
+
+    private final class Ticker: NSObject {
+        weak var canvas: NNCanvas?
+        init(_ c: NNCanvas) { canvas = c }
+        @objc func tick(_ l: CADisplayLink) {
+            guard let c = canvas else { return l.invalidate() }
+            c.setNeedsDisplay()
+        }
+    }
+
+    private static let blends: [CGBlendMode] = [.normal, .multiply, .screen, .overlay, .darken, .lighten, .colorDodge, .colorBurn,
+                                                 .hardLight, .softLight, .difference, .exclusion, .hue, .saturation, .color, .luminosity,
+                                                 .destinationOut, .sourceAtop, .plusLighter]
 
     override func draw(_ rect: CGRect) {
         guard let c = UIGraphicsGetCurrentContext(), d.w > 0, d.h > 0 else { return }
+        let now = NNCanvas.now()
+        var vals: [Double] = []
+        for a in anims {
+            guard var clock = clocks[a.id] else { vals.append(0); continue }
+            let was = clock.done
+            vals.append(value(a, &clock, now))
+            clocks[a.id] = clock
+            if clock.done, !was, a.kind == 0 { emit?("anim", "\(Int(a.id)):\(Int(a.run))") }
+        }
+        defer { if !clocks.values.contains(where: { !$0.done }) { running() } }
+
         let s = min(bounds.width / CGFloat(d.w), bounds.height / CGFloat(d.h))
+        c.saveGState()
+        defer { c.restoreGState() }
         c.translateBy(x: (bounds.width - CGFloat(d.w) * s) / 2, y: (bounds.height - CGFloat(d.h) * s) / 2)
         c.scaleBy(x: s, y: s)
-        var n = 0, k = 0
-        func num() -> CGFloat { defer { n += 1 }; return n < d.nums.count ? CGFloat(d.nums[n]) : 0 }
-        func col() -> CGColor { defer { k += 1 }; return (k < d.colors.count ? color(d.colors[k]) : nil)?.cgColor ?? UIColor.clear.cgColor }
-        var path = CGMutablePath()
+        c.setLineCap(.round)
+        c.setLineJoin(.round)
+        var n = 0, k = 0, si = 0, argBase = 0
+        var pending: [Int: (Int, Double, Double)]? = nil, binds: [Int: (Int, Double, Double)]? = nil
+        func num() -> CGFloat {
+            defer { n += 1 }
+            if let b = binds?[n - argBase], b.0 < vals.count { return CGFloat(b.1 + (b.2 - b.1) * vals[b.0]) }
+            return n < d.nums.count ? CGFloat(d.nums[n]) : 0
+        }
+        func col() -> UInt32 { defer { k += 1 }; return k < d.colors.count ? d.colors[k] : 0 }
+        func cg(_ v: UInt32) -> CGColor { (color(v) ?? .clear).cgColor }
+        func str() -> String { defer { si += 1 }; return si < d.strs.count ? d.strs[si] : "" }
+        var path = CGMutablePath(), evenOdd = false
+        var trim: (CGFloat, CGFloat, CGFloat)? = nil
+        // The shadow, as asked (Core Graphics ignores the transform for it), and
+        // what each Save remembers of it; true marks a Layer.
+        var shadow: (CGFloat, CGFloat, CGFloat, UInt32)? = nil
+        var stack: [((CGFloat, CGFloat, CGFloat, UInt32)?, Bool)] = []
+        func applyShadow() {
+            guard let sh = shadow, sh.3 != 0 else { c.setShadow(offset: .zero, blur: 0, color: nil); return }
+            c.setShadow(offset: CGSize(width: sh.0 * s, height: sh.1 * s), blur: sh.2 * s, color: cg(sh.3))
+        }
+        func fresh() { path = CGMutablePath(); evenOdd = false }
+        func gradient() -> (Int, CGPoint, CGPoint, [CGFloat], [CGColor]) {
+            let kind = Int(num())
+            let a = CGPoint(x: num(), y: num()), b = CGPoint(x: num(), y: num())
+            let count = max(Int(num()), 0)
+            var stops: [CGFloat] = [], cols: [CGColor] = []
+            for _ in 0..<count { stops.append(num()) }
+            for _ in 0..<count { cols.append(cg(col())) }
+            return (kind, a, b, stops, cols)
+        }
+        /// Paints a gradient inside the current clip.
+        func paint(_ g: (Int, CGPoint, CGPoint, [CGFloat], [CGColor])) {
+            let (kind, a, b, stops, cols) = g
+            guard !cols.isEmpty, let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols as CFArray, locations: stops) else { return }
+            switch kind {
+            case 1:
+                c.drawRadialGradient(grad, startCenter: a, startRadius: 0, endCenter: a, endRadius: hypot(b.x - a.x, b.y - a.y), options: [.drawsAfterEndLocation])
+            case 2:
+                // Core Graphics has no sweep: thin wedges, each its color, overlapping a little.
+                let start = atan2(b.y - a.y, b.x - a.x), r = max(CGFloat(d.w), CGFloat(d.h)) * 4
+                let steps = 360
+                c.setShouldAntialias(false)
+                for i in 0..<steps {
+                    let t = CGFloat(i) / CGFloat(steps)
+                    let a0 = start + t * 2 * .pi, a1 = a0 + 2 * .pi / CGFloat(steps) * 1.5
+                    let wedge = CGMutablePath()
+                    wedge.move(to: a)
+                    wedge.addArc(center: a, radius: r, startAngle: a0, endAngle: a1, clockwise: false)
+                    wedge.closeSubpath()
+                    c.addPath(wedge)
+                    c.setFillColor(NNCanvas.mix(stops, cols, t + 0.5 / CGFloat(steps)))
+                    c.fillPath()
+                }
+                c.setShouldAntialias(true)
+            default:
+                c.drawLinearGradient(grad, start: a, end: b, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            }
+        }
+        /// Strokes the path, trimmed if asked: Trim is a dash as long as the part shown.
+        func stroke(_ w: CGFloat, _ then: (() -> Void)? = nil) {
+            c.saveGState()
+            defer { c.restoreGState() }
+            if let t = trim {
+                trim = nil
+                let (len, a, b) = t, vis = max(min(b, 1) - max(a, 0), 0) * len
+                if vis <= 0 { return }
+                c.setLineDash(phase: vis + 2 * len - max(a, 0) * len, lengths: [vis, 2 * len])
+            }
+            c.addPath(path)
+            c.setLineWidth(w)
+            if let then {
+                c.replacePathWithStrokedPath()
+                c.clip()
+                then()
+            } else {
+                c.strokePath()
+            }
+        }
         for cmd in d.cmds {
+            if cmd == 28 { // DrawBind: for the next command's numbers
+                let arg = n < d.nums.count ? Int(d.nums[n]) : 0
+                let anim = n + 1 < d.nums.count ? Int(d.nums[n + 1]) : 0
+                let from = n + 2 < d.nums.count ? Double(d.nums[n + 2]) : 0, to = n + 3 < d.nums.count ? Double(d.nums[n + 3]) : 0
+                n += 4
+                if pending == nil { pending = [:] }
+                pending?[arg] = (anim, from, to)
+                continue
+            }
+            binds = pending
+            pending = nil
+            argBase = n
             switch cmd {
             case 0: path.move(to: CGPoint(x: num(), y: num()))
             case 1: path.addLine(to: CGPoint(x: num(), y: num()))
@@ -725,35 +949,122 @@ final class NNCanvas: UIView {
                 let r = CGRect(x: num(), y: num(), width: num(), height: num()), rad = min(num(), min(r.width, r.height) / 2)
                 path.addRoundedRect(in: r, cornerWidth: max(rad, 0), cornerHeight: max(rad, 0))
             case 7:
-                c.addPath(path); c.setFillColor(col()); c.fillPath()
-                path = CGMutablePath()
+                let fill = cg(col())
+                c.addPath(path); c.setFillColor(fill); c.fillPath(using: evenOdd ? .evenOdd : .winding)
+                fresh()
             case 8:
-                let w = num()
-                c.addPath(path); c.setStrokeColor(col()); c.setLineWidth(w); c.setLineCap(.round); c.setLineJoin(.round); c.strokePath()
-                path = CGMutablePath()
+                let w = num(), sc = cg(col())
+                c.setStrokeColor(sc)
+                stroke(w)
+                fresh()
             case 9:
-                let radial = num() != 0
-                let a = CGPoint(x: num(), y: num()), b = CGPoint(x: num(), y: num())
-                let count = Int(num())
-                var stops: [CGFloat] = [], cols: [CGColor] = []
-                for _ in 0..<max(count, 0) { stops.append(num()) }
-                for _ in 0..<max(count, 0) { cols.append(col()) }
-                if count > 0, let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: cols as CFArray, locations: stops) {
+                let g = gradient()
+                c.saveGState()
+                c.addPath(path)
+                c.clip(using: evenOdd ? .evenOdd : .winding)
+                paint(g)
+                c.restoreGState()
+                fresh()
+            case 10:
+                let x = num(), y = num(), r = num(), a0 = num() * .pi / 180, sw = num() * .pi / 180
+                path.move(to: CGPoint(x: x + r * cos(a0), y: y + r * sin(a0)))
+                // y points down, so Core Graphics' "clockwise" is the screen's counterclockwise.
+                path.addArc(center: CGPoint(x: x, y: y), radius: r, startAngle: a0, endAngle: a0 + sw, clockwise: sw < 0)
+            case 11: path.addEllipse(in: CGRect(x: num(), y: num(), width: num(), height: num()))
+            case 12: evenOdd = true
+            case 13:
+                let w = num(), g = gradient()
+                stroke(w) { paint(g) }
+                fresh()
+            case 14:
+                c.addPath(path)
+                c.clip(using: evenOdd ? .evenOdd : .winding)
+                fresh()
+            case 15:
+                c.saveGState()
+                stack.append((shadow, false))
+            case 16:
+                guard let (sh, layer) = stack.popLast() else { continue }
+                if layer { c.endTransparencyLayer() }
+                c.restoreGState()
+                shadow = sh
+            case 17:
+                let op = min(max(num(), 0), 1)
+                c.saveGState()
+                stack.append((shadow, true))
+                // Blended in without the shadow; the drawing inside keeps it.
+                c.setShadow(offset: .zero, blur: 0, color: nil)
+                c.setAlpha(op)
+                c.beginTransparencyLayer(auxiliaryInfo: nil)
+                applyShadow()
+            case 18: c.translateBy(x: num(), y: num())
+            case 19: c.rotate(by: num() * .pi / 180)
+            case 20: c.scaleBy(x: num(), y: num())
+            case 21:
+                let m = Int(num())
+                c.setBlendMode(m >= 0 && m < NNCanvas.blends.count ? NNCanvas.blends[m] : .normal)
+            case 22:
+                shadow = (num(), num(), num(), col())
+                applyShadow()
+            case 23:
+                let m = max(Int(num()), 0)
+                var ls: [CGFloat] = []
+                for _ in 0..<m { ls.append(num()) }
+                c.setLineDash(phase: 0, lengths: ls)
+            case 24:
+                let cap = Int(num()), join = Int(num())
+                c.setLineCap([.round, .butt, .square][min(max(cap, 0), 2)])
+                c.setLineJoin([.round, .miter, .bevel][min(max(join, 0), 2)])
+            case 25: trim = (num(), num(), num())
+            case 26:
+                let url = str()
+                let r = CGRect(x: num(), y: num(), width: num(), height: num()), fit = Int(num())
+                guard let img = NNImageView.picture(url, { [weak self] in self?.setNeedsDisplay() }) else { continue }
+                let iw = img.size.width, ih = img.size.height
+                if fit == 2 || iw <= 0 || ih <= 0 {
+                    img.draw(in: r)
+                } else {
+                    let sc = fit == 1 ? min(r.width / iw, r.height / ih) : max(r.width / iw, r.height / ih)
                     c.saveGState()
-                    c.addPath(path)
-                    c.clip()
-                    if radial {
-                        c.drawRadialGradient(g, startCenter: a, startRadius: 0, endCenter: a, endRadius: hypot(b.x - a.x, b.y - a.y),
-                                             options: [.drawsAfterEndLocation])
-                    } else {
-                        c.drawLinearGradient(g, start: a, end: b, options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
-                    }
+                    c.clip(to: r)
+                    img.draw(in: CGRect(x: r.midX - iw * sc / 2, y: r.midY - ih * sc / 2, width: iw * sc, height: ih * sc))
                     c.restoreGState()
                 }
-                path = CGMutablePath()
+            case 27:
+                let text = str(), family = str()
+                let x = num(), y = num(), w = num(), size = num(), weight = num(), align = Int(num()), lines = Int(num())
+                let tc = col()
+                let font = Renderer.font(Render.Font(size: Float(size), weight: UInt16(max(weight, 100)), family: family))
+                let para = NSMutableParagraphStyle()
+                para.alignment = align == 1 ? .center : align == 2 ? .right : .left
+                para.lineBreakMode = .byWordWrapping
+                let attr = NSAttributedString(string: text, attributes: [.font: font, .foregroundColor: color(tc) ?? UIColor.label,
+                                                                          .paragraphStyle: para])
+                let width = w > 0 ? w : .greatestFiniteMagnitude
+                let height = lines > 0 ? font.lineHeight * CGFloat(lines) + 1 : .greatestFiniteMagnitude
+                var opts: NSStringDrawingOptions = [.usesLineFragmentOrigin]
+                if lines > 0 { opts.insert(.truncatesLastVisibleLine) }
+                attr.draw(with: CGRect(x: x, y: y, width: width, height: height), options: opts, context: nil)
             default: return // a newer command: stop rather than draw it wrong
             }
         }
+        while let (_, layer) = stack.popLast() {
+            if layer { c.endTransparencyLayer() }
+            c.restoreGState()
+        }
+    }
+
+    /// A gradient's color at t (0 to 1), for the sweep's wedges.
+    private static func mix(_ stops: [CGFloat], _ cols: [CGColor], _ t: CGFloat) -> CGColor {
+        guard let first = cols.first else { return UIColor.clear.cgColor }
+        var i = 0
+        while i < stops.count && stops[i] < t { i += 1 }
+        if i == 0 { return first }
+        if i >= cols.count { return cols[cols.count - 1] }
+        let a = cols[i - 1].components ?? [], b = cols[i].components ?? []
+        guard a.count == 4, b.count == 4 else { return cols[i] }
+        let f = (t - stops[i - 1]) / max(stops[i] - stops[i - 1], 0.0001)
+        return CGColor(colorSpace: CGColorSpaceCreateDeviceRGB(), components: (0..<4).map { a[$0] + (b[$0] - a[$0]) * f }) ?? cols[i]
     }
 }
 
@@ -1118,6 +1429,19 @@ final class NNImageView: UIImageView {
         return URLSession(configuration: c)
     }()
     private var url = ""
+
+    /// The picture at url if it's loaded; otherwise nil, and loaded fires
+    /// (on the main thread) once it is. For canvases.
+    static func picture(_ url: String, _ loaded: @escaping () -> Void) -> UIImage? {
+        if let hit = cache.object(forKey: url as NSString) { return hit }
+        guard let u = URL(string: url) else { return nil }
+        session.dataTask(with: u) { data, _, _ in
+            guard let data, let img = UIImage(data: data) else { return }
+            cache.setObject(img, forKey: url as NSString)
+            DispatchQueue.main.async(execute: loaded)
+        }.resume()
+        return nil
+    }
 
     func load(_ o: Render.Image) {
         switch o.fit {

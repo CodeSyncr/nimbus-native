@@ -278,7 +278,7 @@ class Renderer internal constructor(private val root: NimbusView) {
             Render.Kind.SPINNER -> ProgressBar(ctx).apply { isIndeterminate = true }
             Render.Kind.SWITCH -> NNSwitch(ctx, tag)
             Render.Kind.SLIDER -> NNSlider(ctx, tag)
-            Render.Kind.CANVAS -> NNCanvas(ctx)
+            Render.Kind.CANVAS -> NNCanvas(ctx, tag)
             Render.Kind.NATIVE -> NNNativeHost(ctx)
             else -> NNGroup(ctx, this)
         }

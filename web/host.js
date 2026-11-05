@@ -11,35 +11,213 @@
 
   // ---- canvases (ui.Canvas): Go's shapes in a w×h space fitted to the box ----
 
-  function paint(el) {
+  const BLEND = ["source-over", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn",
+    "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity",
+    "destination-out", "source-atop", "lighter"];
+  const pictures = new Map(); // url → Image, shared by every canvas
+  const clocks = new WeakMap(); // canvas → {defs, st: Map(id → state), raf}
+
+  // eased is ui/animate.go's: where a run is t ms in, and how long a run takes.
+  function eased(e, bounce, t, ms) {
+    if (e === 4) {
+      const z = Math.min(Math.max(1 - bounce, 0.05), 1), w = 2 * Math.PI;
+      if (z === 1) { const len = ms * 9.24 / w, u = Math.min(t, len) / ms; return [1 - Math.exp(-w * u) * (1 + w * u), len]; }
+      const wd = w * Math.sqrt(1 - z * z), len = ms * Math.max(1, Math.log(1000 * (1 + z * w / wd)) / (z * w)), u = Math.min(t, len) / ms;
+      return [1 - Math.exp(-z * w * u) * (Math.cos(wd * u) + z * w / wd * Math.sin(wd * u)), len];
+    }
+    const x = Math.min(Math.max(t / ms, 0), 1);
+    if (e === 1) return [x, ms];
+    if (e === 2) return [x * x * x, ms];
+    if (e === 3) return [1 - (1 - x) ** 3, ms];
+    return [x < 0.5 ? 4 * x * x * x : 1 - 4 * (1 - x) ** 3, ms];
+  }
+  // value is an animation's number now; it marks the state done after its last run.
+  function value(a, s, now) {
+    const t = now - s.start - a.delay;
+    if (a.kind === 1) {
+      if (t <= 0) return s.from;
+      const [v, len] = eased(a.ease, a.bounce, t, a.ms);
+      if (t >= len) { s.done = true; return s.to; }
+      return s.from + (s.to - s.from) * v;
+    }
+    if (t < 0) return 0;
+    const len = eased(a.ease, a.bounce, 0, a.ms)[1];
+    let i = Math.floor(t / len), v;
+    if (a.repeat >= 0 && i > a.repeat) { s.done = true; i = a.repeat; v = 1; }
+    else v = eased(a.ease, a.bounce, t - i * len, a.ms)[0];
+    return a.reverse && i % 2 ? 1 - v : v;
+  }
+  function tick(el) {
+    const c = clocks.get(el);
+    if (!c) return;
+    c.raf = 0;
+    paint(el, true);
+  }
+
+  function paint(el, again) {
     let d;
     try { d = JSON.parse(el.dataset.draw); } catch (_) { return; }
     const dpr = devicePixelRatio || 1, W = el.clientWidth, H = el.clientHeight;
     if (!W || !H || !d.w || !d.h) return;
-    el.width = Math.round(W * dpr); el.height = Math.round(H * dpr);
-    const g = el.getContext("2d"), s = Math.min(W / d.w, H / d.h);
-    g.setTransform(dpr * s, 0, 0, dpr * s, dpr * (W - d.w * s) / 2, dpr * (H - d.h * s) / 2);
-    let n = 0, c = 0, p = new Path2D();
-    const v = () => d.n[n++] || 0;
-    for (const k of d.k) {
-      if (k === 0) p.moveTo(v(), v());
-      else if (k === 1) p.lineTo(v(), v());
-      else if (k === 2) p.quadraticCurveTo(v(), v(), v(), v());
-      else if (k === 3) p.bezierCurveTo(v(), v(), v(), v(), v(), v());
-      else if (k === 4) p.closePath();
-      else if (k === 5) { const x = v(), y = v(), r = v(); p.moveTo(x + r, y); p.arc(x, y, r, 0, 2 * Math.PI); }
-      else if (k === 6) { const x = v(), y = v(), w = v(), h = v(), r = Math.min(v(), w / 2, h / 2); p.roundRect(x, y, w, h, Math.max(r, 0)); }
-      else if (k === 7) { g.fillStyle = d.c[c++]; g.fill(p); p = new Path2D(); }
-      else if (k === 8) { g.lineWidth = v(); g.lineCap = g.lineJoin = "round"; g.strokeStyle = d.c[c++]; g.stroke(p); p = new Path2D(); }
-      else if (k === 9) {
-        const radial = v(), x0 = v(), y0 = v(), x1 = v(), y1 = v(), n2 = v(), stops = [];
-        for (let j = 0; j < n2; j++) stops.push(v());
-        const gr = radial ? g.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0)) : g.createLinearGradient(x0, y0, x1, y1);
-        for (let j = 0; j < n2; j++) gr.addColorStop(Math.min(Math.max(stops[j], 0), 1), d.c[c++]);
-        g.fillStyle = gr; g.fill(p); p = new Path2D();
+    const now = performance.now();
+    // The animations: new ones (or a new run) start now; a tween starts toward a new target from where it is.
+    let c = clocks.get(el);
+    if (!c) { c = { st: new Map(), raf: 0 }; clocks.set(el, c); }
+    const defs = [], A = d.a || [];
+    for (let i = 0; i + 10 <= A.length; i += 10) {
+      const a = { id: A[i], run: A[i + 1], kind: A[i + 2], ms: A[i + 3], delay: A[i + 4], ease: A[i + 5], bounce: A[i + 6],
+        repeat: A[i + 7], reverse: A[i + 8], to: A[i + 9] };
+      let s = c.st.get(a.id);
+      if (!s || (a.kind === 0 && s.run !== a.run)) s = { run: a.run, start: now, from: a.to, to: a.to, done: a.kind === 1 };
+      else if (a.kind === 1 && s.to !== a.to) { const at = value(c.defs.find((x) => x.id === a.id) || a, s, now); s.from = at; s.to = a.to; s.start = now; s.done = false; }
+      c.st.set(a.id, s);
+      defs.push(a);
+    }
+    c.defs = defs;
+    const vals = defs.map((a) => { const s = c.st.get(a.id), was = s.done, v = value(a, s, now); if (s.done && !was && a.kind === 0) send({ t: "native", tag: tagOf(el), name: "anim", data: a.id + ":" + a.run }); return v; });
+    if (!again || el.width !== Math.round(W * dpr)) { el.width = Math.round(W * dpr); el.height = Math.round(H * dpr); }
+    const top = el.getContext("2d"), s = Math.min(W / d.w, H / d.h), k = dpr * s;
+    top.setTransform(1, 0, 0, 1, 0, 0);
+    top.clearRect(0, 0, el.width, el.height);
+    top.save(); // this frame's state ends with it
+    top.setTransform(k, 0, 0, k, dpr * (W - d.w * s) / 2, dpr * (H - d.h * s) / 2);
+    top.lineCap = top.lineJoin = "round";
+    let g = top, n = 0, ci = 0, si = 0, p = new Path2D(), even = false, pending = null, binds = null, trim = null;
+    let shadow = null; // [dx, dy, blur, color] in canvas units: Canvas 2D's own ignore the transform
+    const stack = [];
+    const strs = d.s || [];
+    const v = () => { const j = n++, b = binds && binds[j - argBase]; return b ? b[1] + (b[2] - b[1]) * vals[b[0]] : (d.n[j] || 0); };
+    let argBase = 0;
+    const col = () => d.c[ci++];
+    const str = () => strs[si++] || "";
+    const setShadow = () => {
+      if (!shadow || shadow[3] === "transparent") { g.shadowColor = "transparent"; return; }
+      g.shadowOffsetX = shadow[0] * k; g.shadowOffsetY = shadow[1] * k; g.shadowBlur = shadow[2] * k; g.shadowColor = shadow[3];
+    };
+    const gradient = () => {
+      const kind = v(), x0 = v(), y0 = v(), x1 = v(), y1 = v(), m = v(), stops = [];
+      for (let j = 0; j < m; j++) stops.push(v());
+      const gr = kind === 1 ? g.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0))
+        : kind === 2 && g.createConicGradient ? g.createConicGradient(Math.atan2(y1 - y0, x1 - x0), x0, y0)
+        : g.createLinearGradient(x0, y0, x1, y1);
+      for (let j = 0; j < m; j++) gr.addColorStop(Math.min(Math.max(stops[j], 0), 1), col());
+      return gr;
+    };
+    const stroke = (w, style) => {
+      g.lineWidth = w; g.strokeStyle = style;
+      if (trim) {
+        const [len, a, b] = trim, vis = Math.max(Math.min(b, 1) - Math.max(a, 0), 0) * len;
+        trim = null;
+        if (vis <= 0) return;
+        g.save(); g.setLineDash([vis, 2 * len]); g.lineDashOffset = vis + 2 * len - Math.max(a, 0) * len; g.stroke(p); g.restore();
+      } else g.stroke(p);
+    };
+    const fresh = () => { p = new Path2D(); even = false; };
+    for (const cmd of d.k) {
+      if (cmd === 28) { // DrawBind: for the next command's numbers
+        (pending = pending || [])[d.n[n]] = [d.n[n + 1], d.n[n + 2], d.n[n + 3]];
+        n += 4;
+        continue;
+      }
+      binds = pending; pending = null; argBase = n;
+      if (cmd === 0) p.moveTo(v(), v());
+      else if (cmd === 1) p.lineTo(v(), v());
+      else if (cmd === 2) p.quadraticCurveTo(v(), v(), v(), v());
+      else if (cmd === 3) p.bezierCurveTo(v(), v(), v(), v(), v(), v());
+      else if (cmd === 4) p.closePath();
+      else if (cmd === 5) { const x = v(), y = v(), r = v(); p.moveTo(x + r, y); p.arc(x, y, r, 0, 2 * Math.PI); }
+      else if (cmd === 6) { const x = v(), y = v(), w = v(), h = v(), r = Math.min(v(), w / 2, h / 2); p.roundRect(x, y, w, h, Math.max(r, 0)); }
+      else if (cmd === 7) { g.fillStyle = col(); g.fill(p, even ? "evenodd" : "nonzero"); fresh(); }
+      else if (cmd === 8) { stroke(v(), col()); fresh(); }
+      else if (cmd === 9) { g.fillStyle = gradient(); g.fill(p, even ? "evenodd" : "nonzero"); fresh(); }
+      else if (cmd === 10) {
+        const x = v(), y = v(), r = v(), a0 = v() * Math.PI / 180, sw = v() * Math.PI / 180;
+        p.moveTo(x + r * Math.cos(a0), y + r * Math.sin(a0)); p.arc(x, y, r, a0, a0 + sw, sw < 0);
+      }
+      else if (cmd === 11) { const x = v(), y = v(), w = v(), h = v(); p.moveTo(x + w, y + h / 2); p.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 2 * Math.PI); }
+      else if (cmd === 12) even = true;
+      else if (cmd === 13) { const w = v(); stroke(w, gradient()); fresh(); }
+      else if (cmd === 14) { g.clip(p, even ? "evenodd" : "nonzero"); fresh(); }
+      else if (cmd === 15) { g.save(); stack.push({ shadow }); }
+      else if (cmd === 16) {
+        const top2 = stack.pop();
+        if (!top2) continue;
+        if (top2.layer) {
+          const child = g;
+          g = top2.parent;
+          g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = top2.opacity; g.shadowColor = "transparent";
+          g.drawImage(child.canvas, 0, 0); g.restore();
+        } else g.restore();
+        shadow = top2.shadow;
+      }
+      else if (cmd === 17) {
+        const op = Math.min(Math.max(v(), 0), 1), layer = document.createElement("canvas");
+        layer.width = el.width; layer.height = el.height;
+        const lg = layer.getContext("2d");
+        lg.setTransform(g.getTransform()); lg.lineCap = g.lineCap; lg.lineJoin = g.lineJoin; lg.setLineDash(g.getLineDash());
+        lg.globalCompositeOperation = "source-over";
+        stack.push({ layer: true, parent: g, opacity: op, shadow });
+        g = lg; setShadow();
+      }
+      else if (cmd === 18) g.translate(v(), v());
+      else if (cmd === 19) g.rotate(v() * Math.PI / 180);
+      else if (cmd === 20) g.scale(v(), v());
+      else if (cmd === 21) g.globalCompositeOperation = BLEND[v()] || "source-over";
+      else if (cmd === 22) {
+        // Canvas 2D's shadows ignore the transform: scale them to the canvas here.
+        shadow = [v(), v(), v(), col()];
+        setShadow();
+      }
+      else if (cmd === 23) { const m = v(), ls = []; for (let j = 0; j < m; j++) ls.push(v()); g.setLineDash(ls); }
+      else if (cmd === 24) { g.lineCap = ["round", "butt", "square"][v()] || "round"; g.lineJoin = ["round", "miter", "bevel"][v()] || "round"; }
+      else if (cmd === 25) trim = [v(), v(), v()];
+      else if (cmd === 26) {
+        const url = str(), x = v(), y = v(), w = v(), h = v(), fit = v();
+        let img = pictures.get(url);
+        if (!img) { img = new Image(); img.decoding = "async"; img.src = url; pictures.set(url, img); }
+        if (!img.complete || !img.naturalWidth) { img.addEventListener("load", () => paint(el), { once: true }); continue; }
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        if (fit === 2) g.drawImage(img, x, y, w, h);
+        else {
+          const sc = fit === 1 ? Math.min(w / iw, h / ih) : Math.max(w / iw, h / ih), dw = iw * sc, dh = ih * sc;
+          g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+          g.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh); g.restore();
+        }
+      }
+      else if (cmd === 27) {
+        const text = str(), family = str(), x = v(), y = v(), w = v(), size = v(), weight = v(), align = v(), lines = v();
+        let color = col();
+        if (color === "transparent") color = getComputedStyle(el).color;
+        g.save();
+        g.font = weight + " " + size + "px " + (family ? JSON.stringify(family) + ", " : "") + "system-ui, -apple-system, sans-serif";
+        g.fillStyle = color; g.textBaseline = "top";
+        const out = [];
+        for (const para of text.split("\n")) {
+          if (!(w > 0)) { out.push(para); continue; }
+          let line = "";
+          for (const word of para.split(" ")) {
+            const t = line ? line + " " + word : word;
+            if (line && g.measureText(t).width > w) { out.push(line); line = word; } else line = t;
+          }
+          out.push(line);
+        }
+        const shown = lines > 0 ? out.slice(0, lines) : out;
+        if (lines > 0 && out.length > lines && w > 0) {
+          let last = shown[lines - 1];
+          while (last && g.measureText(last + "…").width > w) last = last.slice(0, -1);
+          shown[lines - 1] = last.trimEnd() + "…";
+        }
+        shown.forEach((t, j) => {
+          const tw = g.measureText(t).width, dx = w > 0 ? (align === 1 ? (w - tw) / 2 : align === 2 ? w - tw : 0) : 0;
+          g.fillText(t, x + dx, y + j * size * 1.2);
+        });
+        g.restore();
       }
       else break;
     }
+    while (stack.length) { const t = stack.pop(); if (t.layer) { const child = g; g = t.parent; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = t.opacity; g.drawImage(child.canvas, 0, 0); g.restore(); } else g.restore(); }
+    top.restore();
+    if (defs.some((a) => !c.st.get(a.id).done) && !c.raf) c.raf = requestAnimationFrame(() => tick(el));
   }
   for (const el of root.querySelectorAll("canvas[data-draw]")) paint(el);
   addEventListener("resize", () => { for (const el of root.querySelectorAll("canvas[data-draw]")) paint(el); });

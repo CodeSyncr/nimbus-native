@@ -10,7 +10,7 @@ import (
 
 // SchemaHash identifies this schema's wire layout. Hosts pass it (combined
 // with any other schemas) to nn_start, which refuses a mismatch.
-const SchemaHash uint64 = 0xe925a1d209de7e03
+const SchemaHash uint64 = 0x2b7c85e7665d7903
 
 func init() { wire.Register("render", SchemaHash) }
 
@@ -466,6 +466,14 @@ func (m *Draw) AppendWire(b []byte) []byte {
 	for _, v0 := range m.Colors {
 		b = wire.AppendUint(b, uint64(v0))
 	}
+	b = wire.AppendUint(b, uint64(len(m.Strs)))
+	for _, v0 := range m.Strs {
+		b = wire.AppendString(b, v0)
+	}
+	b = wire.AppendUint(b, uint64(len(m.Anims)))
+	for _, v0 := range m.Anims {
+		b = wire.AppendFloat32(b, v0)
+	}
 	return b
 }
 
@@ -489,6 +497,22 @@ func (m *Draw) ReadWire(r *wire.Reader) {
 			var v0 uint32
 			v0 = uint32(r.UintMax(1<<32 - 1))
 			m.Colors = append(m.Colors, v0)
+		}
+	}
+	if n0 := r.Count(); n0 > 0 {
+		m.Strs = make([]string, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 string
+			v0 = r.String()
+			m.Strs = append(m.Strs, v0)
+		}
+	}
+	if n0 := r.Count(); n0 > 0 {
+		m.Anims = make([]float32, 0, wire.Cap(n0))
+		for i0 := 0; i0 < n0 && r.Err() == nil; i0++ {
+			var v0 float32
+			v0 = r.Float32()
+			m.Anims = append(m.Anims, v0)
 		}
 	}
 }

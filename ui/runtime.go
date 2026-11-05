@@ -738,7 +738,8 @@ func (rt *runtime) props(in *instance, first bool) {
 			d.Tag = in.tag
 			old := in.sent.draw
 			if first || d.W != old.W || d.H != old.H || !slices.Equal(d.Cmds, old.Cmds) ||
-				!slices.Equal(d.Nums, old.Nums) || !slices.Equal(d.Colors, old.Colors) {
+				!slices.Equal(d.Nums, old.Nums) || !slices.Equal(d.Colors, old.Colors) ||
+				!slices.Equal(d.Strs, old.Strs) || !slices.Equal(d.Anims, old.Anims) {
 				in.sent.draw = *d
 				rt.op(d)
 			}

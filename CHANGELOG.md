@@ -11,6 +11,18 @@
   bundle, executable and Swift module are still Runner. `nimbus native
   upgrade` (or `sync`) updates projects made before.
 
+- Canvas draws much more: arcs, ovals, SVG path data (`Painter.Path`),
+  even-odd fills, clipping, `Save`/`Restore`, translate, rotate and scale,
+  layers with opacity, blend modes, shadows, dashes, line caps and joins,
+  sweep gradients, gradient strokes, pictures and wrapped text. Each phone
+  draws it with its own graphics; nothing is added to the app.
+- Canvas animations the phone runs itself, frame by frame, without a render
+  from Go: `ui.UseAnimation` (timed, eased or springy, repeating,
+  reversing, `OnDone`, `Play`), `ui.UseTween` (a number that glides to a new
+  target), `Painter.Motion` to move, turn, scale and fade, and
+  `Painter.Trim` to draw part of a stroke.
+- The guide's API reference can describe parameters in pairs (`x, y`).
+
 ## 0.0.12 (2026-10-30)
 
 - Projects with a Nimbus server are whole Nimbus apps: `nimbus native new`

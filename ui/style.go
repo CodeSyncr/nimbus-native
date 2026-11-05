@@ -175,11 +175,12 @@ type Point struct{ X, Y float32 }
 
 // Gradient is a fill that blends between colors (Style.Gradient).
 type Gradient struct {
-	Colors []Color
+	Colors []Color   // the colors, in order
 	Stops  []float32 // where each color sits, 0..1; empty spaces them evenly
 	Radial bool      // from From outward to the distance to To; else along From → To
-	From   Point
-	To     Point
+	Sweep  bool      // on a Canvas: clockwise around From, starting toward To
+	From   Point     // where it starts: a Style's in its box's unit square, a Canvas's in its own units
+	To     Point     // where it ends
 }
 
 // LinearGradient blends colors along the line from → to:

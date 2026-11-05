@@ -39,4 +39,5 @@ var Screens = map[string]ui.Component{
 	"carousel":          Offers{},
 	"swipe-row":         Inbox{},
 	"gestures":          Tile{},
+	"canvas":            Bakery{},
 }

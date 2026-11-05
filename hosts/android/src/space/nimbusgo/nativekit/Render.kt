@@ -5,7 +5,7 @@ package space.nimbusgo.nativekit
 
 object Render {
     /** Identifies this schema's wire layout; must match the Go side. */
-    val SCHEMA_HASH: Long = 0xe925a1d209de7e03uL.toLong()
+    val SCHEMA_HASH: Long = 0x2b7c85e7665d7903uL.toLong()
 
     /** Kind is the native view a tag stands for. */
     object Kind {
@@ -650,7 +650,7 @@ object Render {
         }
     }
 
-    /** Draw sets what a canvas draws: commands in a W×H space fitted to the view (centred, keeping its aspect, like an SVG viewBox). Each command takes its numbers from Nums and its colors from Colors, in order:  DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y DrawCubicTo c1x c1y c2x c2y x y · DrawClose DrawCircle cx cy r · DrawRect x y w h radius   (add to the path) DrawFill color · DrawStroke width color        (paint the path, then start a new one) DrawFillGradient radial x0 y0 x1 y1 n stop×n colors×n (fill with a gradient from (x0, y0) to (x1, y1); radial: from (x0, y0) out to the distance to (x1, y1)) */
+    /** Draw sets what a canvas draws: commands in a W×H space fitted to the view (centred, keeping its aspect, like an SVG viewBox). Each command takes its numbers from Nums, its colors from Colors and its strings from Strs, in order:  DrawMoveTo x y · DrawLineTo x y · DrawQuadTo cx cy x y DrawCubicTo c1x c1y c2x c2y x y · DrawClose DrawCircle cx cy r · DrawRect x y w h radius   (add to the path) DrawArc cx cy r start sweep · DrawOval x y w h (add to the path: a new subpath; degrees, clockwise from 3 o'clock) DrawEvenOdd                                    (the path fills by the even-odd rule) DrawFill color · DrawStroke width color        (paint the path, then start a new one) DrawFillGradient kind x0 y0 x1 y1 n stop×n colors×n (kind 0: from (x0, y0) to (x1, y1); 1: from (x0, y0) out to the distance to (x1, y1); 2: around (x0, y0), starting toward (x1, y1)) DrawStrokeGradient width kind x0 y0 x1 y1 n stop×n colors×n DrawClip                                       (later drawing stays inside the path; a new path) DrawSave · DrawRestore                         (the state below, and the clip) DrawLayer opacity                              (a Save whose drawing is blended in at Restore) DrawTranslate x y · DrawRotate degrees · DrawScale sx sy DrawBlend mode · DrawShadow dx dy blur color   (blur: a CSS blur radius; color 0 for none) DrawDash n len×n                               (strokes dashed; n 0 for solid) DrawLineStyle cap join                         (cap 0 round, 1 butt, 2 square; join 0 round, 1 miter, 2 bevel) DrawTrim length start end                      (the next stroke shows start..end of its length, as fractions) DrawImage url x y w h fit                      (url a string; Fit) DrawText text family x y width size weight align lines color (text and family strings; (x, y) its top left, wrapped at width when over 0; color 0 the default) DrawBind arg anim from to                      (the next command's arg-th number is from + (to - from) × anim's value)  Anims holds the animations DrawBind uses, AnimSize numbers each: id, run, kind (0: a clock from 0 to 1; 1: follows to, from where it is), ms, delay, ease, bounce, repeat (-1 forever), reverse (0 or 1), to. The host runs them itself, from when it first sees each id or run, and sends a NativeEvent named "anim" with "id:run" when one ends. */
     data class Draw(
         var tag: Long = 0L,
         var w: Float = 0f,
@@ -658,6 +658,8 @@ object Render {
         var cmds: ByteArray = ByteArray(0),
         var nums: MutableList<Float> = mutableListOf(),
         var colors: MutableList<Long> = mutableListOf(),
+        var strs: MutableList<String> = mutableListOf(),
+        var anims: MutableList<Float> = mutableListOf(),
     ) : Op {
         fun write(w: WireWriter) {
             w.uint(this.tag)
@@ -672,6 +674,14 @@ object Render {
             for (v0 in this.colors) {
                 w.uint(v0)
             }
+            w.uint(this.strs.size.toLong())
+            for (v0 in this.strs) {
+                w.string(v0)
+            }
+            w.uint(this.anims.size.toLong())
+            for (v0 in this.anims) {
+                w.f32(v0)
+            }
         }
 
         companion object {
@@ -683,6 +693,8 @@ object Render {
                 m.cmds = r0.bytes()
                 m.nums = r0.list { r1 -> r1.f32() }
                 m.colors = r0.list { r1 -> r1.uintMax(4294967295L) }
+                m.strs = r0.list { r1 -> r1.string() }
+                m.anims = r0.list { r1 -> r1.f32() }
                 return m
             }
         }

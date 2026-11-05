@@ -112,7 +112,7 @@ func (t *translator) op(op render.Op) []instr {
 		for i, k := range o.Cmds {
 			cmds[i] = int(k)
 		}
-		b, _ := json.Marshal(map[string]any{"w": o.W, "h": o.H, "k": cmds, "n": o.Nums, "c": colorsCSS(o.Colors)})
+		b, _ := json.Marshal(map[string]any{"w": o.W, "h": o.H, "k": cmds, "n": o.Nums, "c": colorsCSS(o.Colors), "s": o.Strs, "a": o.Anims})
 		return []instr{{"a": []any{o.Tag, "data-draw", string(b)}}}
 	case *render.Text:
 		x := fontCSS(o.Font, o.Color) + "text-align:" + [...]string{"left", "center", "right"}[o.Align%3] + ";"

@@ -124,5 +124,21 @@
   "image": [
     "Image",
     "Element.Fit"
+  ],
+  "canvas": [
+    "Canvas",
+    "Painter",
+    "Motion",
+    "Num",
+    "Fixed",
+    "UseAnimation",
+    "Animation",
+    "Anim",
+    "Ease",
+    "UseTween",
+    "Gradient",
+    "BlendMode",
+    "Cap",
+    "Join"
   ]
 }

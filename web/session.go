@@ -243,6 +243,8 @@ type clientMessage struct {
 	Dark  bool    `json:"dark"`
 	Path  string  `json:"path"`
 	Value float32 `json:"value"`
+	Name  string  `json:"name"`
+	Data  string  `json:"data"`
 }
 
 func (s *session) receive(m clientMessage) {
@@ -272,6 +274,8 @@ func (s *session) receive(m clientMessage) {
 		msg = &render.Selected{Tag: m.Tag, Index: m.Index}
 	case "dismissed":
 		msg = &render.Dismissed{Tag: m.Tag}
+	case "native": // a canvas's animation ended
+		msg = &render.NativeEvent{Tag: m.Tag, Name: m.Name, Data: m.Data}
 	case "navigate": // the browser's back and forward buttons
 		s.ui.Do(func() { s.goTo(m.Path, false) })
 		return
