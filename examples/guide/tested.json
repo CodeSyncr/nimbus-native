@@ -23,10 +23,6 @@
       "result": "The guide example on iOS 26: the map opens on the cafe with its pin and title. Tapping the pin hasn't been tried."
     },
     {
-      "where": "Android emulator",
-      "result": "On Android 14 (API 34): Fallback shows in its place."
-    },
-    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
