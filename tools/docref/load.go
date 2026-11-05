@@ -151,7 +151,7 @@ func (p *plug) function(fset *token.FileSet, f *doc.Func, owner string) fn {
 	sig := *f.Decl
 	sig.Doc, sig.Body = nil, nil
 	out := fn{name: f.Name, sig: source(fset, &sig), doc: f.Doc}
-	descs := map[string]string{}
+	descs, group := map[string]string{}, map[string]string{}
 	if f.Decl.Doc != nil {
 		for _, c := range f.Decl.Doc.List {
 			line, ok := strings.CutPrefix(c.Text, "//nimbus:")
@@ -161,8 +161,22 @@ func (p *plug) function(fset *token.FileSet, f *doc.Func, owner string) fn {
 			key, rest, _ := strings.Cut(line, " ")
 			switch key {
 			case "param":
-				n, d, _ := strings.Cut(rest, " ")
-				descs[n] = d
+				// "x, y where it starts" describes x and y together, in one row.
+				var names []string
+				for {
+					n, d, _ := strings.Cut(rest, " ")
+					rest = d
+					if n, more := strings.CutSuffix(n, ","); more {
+						names = append(names, n)
+						continue
+					}
+					names = append(names, n)
+					break
+				}
+				for _, n := range names {
+					descs[n] = rest
+					group[n] = strings.Join(names, ", ")
+				}
 			case "returns":
 				out.returns = rest
 			case "platforms":
@@ -176,6 +190,13 @@ func (p *plug) function(fset *token.FileSet, f *doc.Func, owner string) fn {
 			// Every call takes a ctx, and the page explains it once. A
 			// component's c is just what it was given.
 			if t == "context.Context" || t == "*Ctx" {
+				continue
+			}
+			if g := group[n.Name]; g != "" && g != n.Name {
+				if !strings.HasPrefix(g, n.Name+",") {
+					continue // in the row of the first
+				}
+				out.params = append(out.params, param{g, t, descs[n.Name]})
 				continue
 			}
 			out.params = append(out.params, param{n.Name, t, descs[n.Name]})
