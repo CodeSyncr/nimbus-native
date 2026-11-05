@@ -6,6 +6,10 @@
   plugins, stages their Swift and Kotlin handlers in the project, and applies
   their declared native dependencies and permissions. Plugin documentation in
   nimbus-starter covers publishing and using modules.
+- iOS calls the app by its name, not "Runner", where it doesn't use the
+  display name, such as "… wants to use microsoftonline.com to sign in". The
+  bundle, executable and Swift module are still Runner. `nimbus native
+  upgrade` (or `sync`) updates projects made before.
 
 ## 0.0.12 (2026-10-30)
 

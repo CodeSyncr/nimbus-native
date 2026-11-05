@@ -445,8 +445,10 @@ func syncProject(args []string) error {
 	if err != nil {
 		return err
 	}
-	_, err = toolchain.Detect(app.Dir).Sync(app)
-	return err
+	if _, err = toolchain.Detect(app.Dir).Sync(app); err != nil {
+		return err
+	}
+	return toolchain.NameIOSBundle(app.Root)
 }
 
 // buildRelease makes the store builds.
