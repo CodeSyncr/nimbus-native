@@ -27,6 +27,11 @@
   axis, from a handle shape or anywhere; Go hears where it was let go and
   can snap it. A drag across leaves vertical scrolling to the page, and the
   other way round.
+- Canvas shaders: `ui.NewShader` takes a shader written once, in AGSL, and
+  `Painter.FillShader` fills a path with it, its uniforms animating like
+  any number. Go turns it into each phone's language: AGSL on Android 13+,
+  Metal on iOS, WebGL 2 on the web; older Android fills with a fallback
+  color.
 - The guide's API reference can describe parameters in pairs (`x, y`).
 
 ## 0.0.12 (2026-10-30)

@@ -117,6 +117,9 @@ type Painter struct {
 	// subpath began.
 	length       float32
 	x, y, sx, sy float32
+	// Its bounds, for shaders: min and max, once it has a point.
+	bx0, by0, bx1, by1 float32
+	bounded            bool
 }
 
 func (p *Painter) add(c uint8, nums ...float32) {
@@ -125,12 +128,25 @@ func (p *Painter) add(c uint8, nums ...float32) {
 }
 
 // painted starts a new path.
-func (p *Painter) painted() { p.length = 0 }
+func (p *Painter) painted() { p.length, p.bounded = 0, false }
 
 func (p *Painter) lineLen(x, y float32) {
 	p.length += float32(math.Hypot(float64(x-p.x), float64(y-p.y)))
 	p.x, p.y = x, y
+	p.grow(x, y, x, y)
 }
+
+// grow takes a box into the path's bounds.
+func (p *Painter) grow(x0, y0, x1, y1 float32) {
+	if !p.bounded {
+		p.bx0, p.by0, p.bx1, p.by1, p.bounded = x0, y0, x1, y1, true
+		return
+	}
+	p.bx0, p.by0, p.bx1, p.by1 = min(p.bx0, x0), min(p.by0, y0), max(p.bx1, x1), max(p.by1, y1)
+}
+
+// bounds is the path's box, an empty one at the origin before it has any.
+func (p *Painter) bounds() (x0, y0, x1, y1 float32) { return p.bx0, p.by0, p.bx1, p.by1 }
 
 // MoveTo starts a new subpath at (x, y).
 //
@@ -138,6 +154,7 @@ func (p *Painter) lineLen(x, y float32) {
 func (p *Painter) MoveTo(x, y float32) {
 	p.add(render.DrawMoveTo, x, y)
 	p.x, p.y, p.sx, p.sy = x, y, x, y
+	p.grow(x, y, x, y)
 }
 
 // LineTo draws a straight line to (x, y).
@@ -196,6 +213,7 @@ func (p *Painter) Close() {
 func (p *Painter) Circle(cx, cy, r float32) {
 	p.add(render.DrawCircle, cx, cy, r)
 	p.length += 2 * math.Pi * r
+	p.grow(cx-r, cy-r, cx+r, cy+r)
 }
 
 // Rect adds a rectangle, its corners rounded by radius.
@@ -207,6 +225,7 @@ func (p *Painter) Rect(x, y, w, h, radius float32) {
 	p.add(render.DrawRect, x, y, w, h, radius)
 	r := max(min(radius, w/2, h/2), 0)
 	p.length += 2*(w+h) - 8*r + 2*math.Pi*r
+	p.grow(x, y, x+w, y+h)
 }
 
 // Arc adds part of a circle's edge, as a subpath of its own: from start
@@ -220,6 +239,7 @@ func (p *Painter) Rect(x, y, w, h, radius float32) {
 func (p *Painter) Arc(cx, cy, r, start, sweep float32) {
 	p.add(render.DrawArc, cx, cy, r, start, sweep)
 	p.length += float32(math.Abs(float64(sweep))) * math.Pi / 180 * r
+	p.grow(cx-r, cy-r, cx+r, cy+r) // the whole circle's: enough for a shader
 }
 
 // Oval adds an ellipse that fills the rectangle.
@@ -230,6 +250,7 @@ func (p *Painter) Oval(x, y, w, h float32) {
 	p.add(render.DrawOval, x, y, w, h)
 	a, b := float64(w/2), float64(h/2) // Ramanujan's
 	p.length += float32(math.Pi * (3*(a+b) - math.Sqrt((3*a+b)*(a+3*b))))
+	p.grow(x, y, x+w, y+h)
 }
 
 // EvenOdd fills the path by the even-odd rule, so a shape inside another

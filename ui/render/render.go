@@ -388,6 +388,11 @@ type Native struct {
 //	                                               from + (to - from) × anim's value)
 //	DrawTag n                                      (the next Fill, Stroke or gradient paints
 //	                                               shape n, from 1, for taps and drag handles)
+//	DrawFillShader x y w h n u×n fallback source   (fill with a shader, run over the box
+//	                                               (x, y, w, h) that holds the path; its
+//	                                               uniforms; a color where it can't run; the
+//	                                               platform's source, its main taking a point
+//	                                               in the canvas's units)
 //
 // Anims holds the animations DrawBind uses, AnimSize numbers each: id, run,
 // kind (0: a clock from 0 to 1; 1: follows to, from where it is; 2: a drag,
@@ -449,6 +454,7 @@ const (
 	DrawText
 	DrawBind
 	DrawTag
+	DrawFillShader
 )
 
 // Slider sets a slider.

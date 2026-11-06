@@ -736,6 +736,7 @@ func (rt *runtime) props(in *instance, first bool) {
 	case render.KindCanvas:
 		if d := el.draw; d != nil {
 			d.Tag = in.tag
+			d.Strs = shadersFor(d.Strs, rt.viewport.Platform)
 			old := in.sent.draw
 			if first || d.W != old.W || d.H != old.H || d.Touch != old.Touch || !slices.Equal(d.Cmds, old.Cmds) ||
 				!slices.Equal(d.Nums, old.Nums) || !slices.Equal(d.Colors, old.Colors) ||

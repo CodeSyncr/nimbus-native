@@ -140,6 +140,8 @@
     "Tap",
     "UseDrag",
     "Drag",
+    "NewShader",
+    "Shader",
     "Gradient",
     "BlendMode",
     "Cap",

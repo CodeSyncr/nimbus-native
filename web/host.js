@@ -48,6 +48,38 @@
     else v = eased(a.ease, a.bounce, t - i * len, a.ms)[0];
     return a.reverse && i % 2 ? 1 - v : v;
   }
+  // shade runs a shader (ui.Shader, as WebGL 2) over box at pw×ph pixels,
+  // on one canvas shared by every canvas; null where it can't.
+  let gl = null;
+  const programs = new Map();
+  function shade(src, u, box, pw, ph) {
+    if (gl === null) gl = document.createElement("canvas").getContext("webgl2", { premultipliedAlpha: true }) || false;
+    if (!gl) return null;
+    let prog = programs.get(src);
+    if (prog === undefined) {
+      const part = (type, text) => { const sh = gl.createShader(type); gl.shaderSource(sh, text); gl.compileShader(sh);
+        if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { console.warn("shader:", gl.getShaderInfoLog(sh)); return null; } return sh; };
+      const vs = part(gl.VERTEX_SHADER, "#version 300 es\nout vec2 nn_uv;\nvoid main() { vec2 c = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2); " +
+        "nn_uv = vec2(c.x, 1.0 - c.y); gl_Position = vec4(c * 2.0 - 1.0, 0.0, 1.0); }"), fs = part(gl.FRAGMENT_SHADER, src);
+      prog = null;
+      if (vs && fs) {
+        prog = gl.createProgram(); gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.warn("shader:", gl.getProgramInfoLog(prog)); prog = null; }
+      }
+      programs.set(src, prog);
+    }
+    if (!prog) return null;
+    const c = gl.canvas;
+    if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
+    gl.viewport(0, 0, pw, ph);
+    gl.useProgram(prog);
+    if (u.length) gl.uniform1fv(gl.getUniformLocation(prog, "nn_u"), u);
+    gl.uniform4f(gl.getUniformLocation(prog, "nn_box"), box[0], box[1], box[2], box[3]);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    return c;
+  }
+
   function tick(el) {
     const c = clocks.get(el);
     if (!c) return;
@@ -192,6 +224,17 @@
       else if (cmd === 12) even = true;
       else if (cmd === 13) { const w = v(); stroke(w, gradient()); hit(w); fresh(); }
       else if (cmd === 29) tagNext = v();
+      else if (cmd === 30) {
+        const x = v(), y = v(), w = v(), h = v(), m = v(), u = [];
+        for (let j = 0; j < m; j++) u.push(v());
+        const fallback = col(), src = str();
+        // Run it over the box at the canvas's resolution, then draw that inside the path.
+        const t = g.getTransform(), k = Math.hypot(t.a, t.b);
+        const out = w > 0 && h > 0 && shade(src, u, [x, y, w, h], Math.min(Math.ceil(w * k), 2048), Math.min(Math.ceil(h * k), 2048));
+        if (out) { g.save(); g.clip(p, even ? "evenodd" : "nonzero"); g.drawImage(out, 0, 0, out.width, out.height, x, y, w, h); g.restore(); }
+        else { g.fillStyle = fallback; g.fill(p, even ? "evenodd" : "nonzero"); }
+        hit(0); fresh();
+      }
       else if (cmd === 14) { g.clip(p, even ? "evenodd" : "nonzero"); fresh(); }
       else if (cmd === 15) { g.save(); stack.push({ shadow }); }
       else if (cmd === 16) {

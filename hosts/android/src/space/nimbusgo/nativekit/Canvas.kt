@@ -146,6 +146,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
         oy = (height - d.h * s) / 2
         val drawn = ArrayList<Hit>()
         val toView = Matrix().also { Matrix(canvas.matrix).invert(it) } // the canvas's matrix back to the view's pixels
+        val used = HashMap<String, Int>() // how many times each shader is used in this drawing
         var tagNext = 0
         val base = canvas.save()
         canvas.translate((width - d.w * s) / 2, (height - d.h * s) / 2)
@@ -375,6 +376,24 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                     canvas.restore()
                 }
                 29 -> tagNext = num().toInt()
+                30 -> {
+                    num(); num(); num(); num() // the box: Android runs the shader over the path itself
+                    val n = num().toInt().coerceAtLeast(0)
+                    val u = FloatArray(n) { num() }
+                    val fallback = col()
+                    val src = str()
+                    ready(Paint.Style.FILL)
+                    val sh = if (Build.VERSION.SDK_INT >= 33) runtimeShader(src, used.merge(src, 1, Int::plus)!!) else null
+                    if (sh != null) {
+                        if (n > 0) setUniforms(sh, u)
+                        paint.shader = sh
+                    } else {
+                        paint.color = fallback
+                    }
+                    canvas.drawPath(path, paint)
+                    hit(0f)
+                    fresh()
+                }
                 else -> break@loop // a newer command: stop rather than draw it wrong
             }
         }
@@ -454,6 +473,28 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
 
     private fun send(name: String, data: String) =
         Bridge.send(Render.encode(Render.NativeEvent(tag = tag.toLong(), name = name, data = data)))
+
+    // Each use of a shader in a drawing has its own instance, so one use's
+    // uniforms don't change another's; compiled once, kept for the next frame.
+    private val shaders = HashMap<String, Any?>()
+
+    private fun runtimeShader(src: String, use: Int): Shader? {
+        if (Build.VERSION.SDK_INT < 33) return null
+        val key = "$use\u0000$src"
+        if (!shaders.containsKey(key)) {
+            shaders[key] = try {
+                android.graphics.RuntimeShader(src)
+            } catch (e: IllegalArgumentException) {
+                Log.w("NimbusNative", "shader: ${e.message}")
+                null
+            }
+        }
+        return shaders[key] as Shader?
+    }
+
+    private fun setUniforms(sh: Shader, u: FloatArray) {
+        if (Build.VERSION.SDK_INT >= 33) (sh as android.graphics.RuntimeShader).setFloatUniform("nn_u", u)
+    }
 
     private fun defaultText(): Int {
         val a = context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))

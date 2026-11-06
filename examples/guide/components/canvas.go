@@ -8,9 +8,22 @@ import (
 
 // Bakery draws a day at the bakery on one canvas: a ring that fills to the
 // day's goal (tap it to fill it again), a spinner, a card with a shadow, a
-// photo and wrapped text, a heart that beats, colors that blend, and a
-// slider that snaps. The phone runs the animations and follows the finger.
+// photo and wrapped text, a heart that beats, colors that blend, a slider
+// that snaps, and a banner a shader paints. The phone runs the animations
+// and the shader, and follows the finger.
 type Bakery struct{}
+
+// oven paints warm waves that drift with time, across the rectangle rect
+// (x, y, width, height).
+var oven = ui.NewShader(`
+uniform float time;
+uniform float4 rect;
+half4 main(float2 p) {
+	float2 uv = (p - rect.xy) / rect.zw;
+	float w = 0.5 + 0.5 * sin(uv.x * 6.0 + time + 1.5 * sin(uv.y * 4.0 + time));
+	half3 c = mix(half3(0.906, 0.435, 0.318), half3(0.957, 0.718, 0.380), w);
+	return half4(c, 1.0);
+}`)
 
 const heart = "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
 
@@ -19,6 +32,7 @@ func (Bakery) Render(c *ui.Ctx) ui.Component {
 	fill := ui.UseAnimation(c, ui.Animation{Ms: 900, Delay: 200, Ease: ui.Spring, Bounce: 0.2})
 	spin := ui.UseAnimation(c, ui.Animation{Ms: 900, Ease: ui.Linear, Repeat: ui.Forever})
 	beat := ui.UseAnimation(c, ui.Animation{Ms: 450, Repeat: ui.Forever, Reverse: true})
+	clock := ui.UseAnimation(c, ui.Animation{Ms: 4000, Ease: ui.Linear, Repeat: ui.Forever})
 	teal, coral, ink := ui.Hex("#2A9D8F"), ui.Hex("#E76F51"), ui.Hex("#264653")
 
 	// The slider's five stops, from 30 to 310 across the canvas.
@@ -29,7 +43,7 @@ func (Bakery) Render(c *ui.Ctx) ui.Component {
 		OnEnd:     func(x float32) { setSweet(30 + 70*float32(math.Round(float64(x-30)/70))) }})
 
 	return ui.Scroll(ui.Style{Grow: 1}, ui.SafeArea(ui.Style{Padding: ui.All(16)},
-		ui.Canvas(340, 670, func(p *ui.Painter) {
+		ui.Canvas(340, 800, func(p *ui.Painter) {
 			// The day's goal: a track, then a ring that fills to 72% around it.
 			p.Arc(85, 85, 60, 0, 360)
 			p.Stroke(14, ui.Hex("#2646531A"))
@@ -115,7 +129,13 @@ func (Bakery) Render(c *ui.Ctx) ui.Component {
 			p.Tag("thumb")
 			p.Fill(coral)
 			p.Restore()
-		}, ui.Style{Width: ui.Pct(100), Height: ui.Pt(670)}).OnTap(func(t ui.Tap) {
+
+			// A banner a shader paints, its time running on the phone.
+			p.Rect(8, 690, 324, 96, 20)
+			p.FillShader(oven, coral, clock.Range(0, 2*math.Pi), ui.Fixed(8), ui.Fixed(690), ui.Fixed(324), ui.Fixed(96))
+			p.Text("Fresh out of the oven", 8, 726, ui.Style{Width: ui.Pt(324), FontSize: 20, FontWeight: 700,
+				TextAlign: ui.AlignCenter, Color: ui.Hex("#FFFFFF")})
+		}, ui.Style{Width: ui.Pct(100), Height: ui.Pt(800)}).OnTap(func(t ui.Tap) {
 			if t.ID == "goal" {
 				fill.Play()
 			}

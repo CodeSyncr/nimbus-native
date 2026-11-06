@@ -1124,6 +1124,28 @@ final class NNCanvas: UIView {
                 if lines > 0 { opts.insert(.truncatesLastVisibleLine) }
                 attr.draw(with: CGRect(x: x, y: y, width: width, height: height), options: opts, context: nil)
             case 29: tagNext = Int(num())
+            case 30:
+                let box = CGRect(x: num(), y: num(), width: num(), height: num())
+                let n = max(Int(num()), 0)
+                var u: [Float] = []
+                for _ in 0..<n { u.append(Float(num())) }
+                let fallback = cg(col()), src = str()
+                // Run it over the box at the canvas's resolution, then draw that inside the path.
+                let t = c.ctm, k = (t.a * t.a + t.b * t.b).squareRoot()
+                let pw = min(Int((box.width * k).rounded(.up)), 2048), ph = min(Int((box.height * k).rounded(.up)), 2048)
+                c.saveGState()
+                c.addPath(path)
+                c.clip(using: evenOdd ? .evenOdd : .winding)
+                if let img = Shaders.picture(src, u, box: SIMD4(Float(box.minX), Float(box.minY), Float(box.width), Float(box.height)),
+                                             width: pw, height: ph) {
+                    UIImage(cgImage: img).draw(in: box)
+                } else {
+                    c.setFillColor(fallback)
+                    c.fill(box)
+                }
+                c.restoreGState()
+                hit(0)
+                fresh()
             default: return // a newer command: stop rather than draw it wrong
             }
         }
@@ -1148,10 +1170,11 @@ final class NNCanvas: UIView {
 }
 
 extension NNCanvas {
-    /// A pan starts only where a drag can, and along its axis, so a scroll
-    /// around the canvas keeps the other direction.
+    /// The canvas's pan starts only where a drag can, and along its axis, so
+    /// a scroll around the canvas keeps the other direction. UIKit asks about
+    /// the scroll's own pan here too: that one is left alone.
     override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-        guard let p = g as? UIPanGestureRecognizer else { return super.gestureRecognizerShouldBegin(g) }
+        guard g === pan, let p = g as? UIPanGestureRecognizer else { return super.gestureRecognizerShouldBegin(g) }
         let t = p.translation(in: self), v = p.velocity(in: self)
         let start = CGPoint(x: p.location(in: self).x - t.x, y: p.location(in: self).y - t.y)
         guard let a = drag(at: start) else { return false }
