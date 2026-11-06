@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -35,22 +36,69 @@ func Canvas(w, h float32, paint func(p *Painter), s Style) *Element {
 	if s.Height == (Value{}) {
 		s.Height = Pt(h)
 	}
-	el := &Element{kind: render.KindCanvas, style: s, draw: &render.Draw{W: w, H: h, Cmds: p.cmds, Nums: p.nums, Colors: p.colors, Strs: p.strs, Anims: p.animNums()}}
-	if len(p.anims) > 0 {
-		anims := p.anims
-		el.onEvent = func(name, data string) {
-			if name != "anim" {
-				return
-			}
-			id, run, _ := strings.Cut(data, ":")
+	el := &Element{kind: render.KindCanvas, style: s}
+	el.draw = &render.Draw{W: w, H: h, Cmds: p.cmds, Nums: p.nums, Colors: p.colors, Strs: p.strs, Anims: p.animNums()}
+	for _, a := range p.anims {
+		if a.kind == 2 {
+			el.draw.Touch = true
+		}
+	}
+	anims, tags := p.anims, p.tags
+	el.onEvent = func(name, data string) {
+		switch name {
+		case "anim", "drag":
+			id, rest, _ := strings.Cut(data, ":")
 			for _, a := range anims {
-				if strconv.FormatUint(uint64(a.id), 10) == id && strconv.FormatUint(uint64(a.run), 10) == run {
+				if strconv.FormatUint(uint64(a.id), 10) != id {
+					continue
+				}
+				if name == "drag" {
+					if v, err := strconv.ParseFloat(rest, 32); err == nil {
+						a.dragged(float32(v))
+					}
+				} else if strconv.FormatUint(uint64(a.run), 10) == rest {
 					a.ended()
 				}
 			}
+		case "tap":
+			if el.onCanvasTap == nil {
+				return
+			}
+			f := strings.SplitN(data, ",", 3)
+			if len(f) != 3 {
+				return
+			}
+			n, _ := strconv.Atoi(f[0])
+			x, _ := strconv.ParseFloat(f[1], 32)
+			y, _ := strconv.ParseFloat(f[2], 32)
+			t := Tap{X: float32(x), Y: float32(y)}
+			if n > 0 && n <= len(tags) {
+				t.ID = tags[n-1]
+			}
+			el.onCanvasTap(t)
 		}
 	}
 	return el
+}
+
+// Tap is a tap on a canvas: the shape it hit (named by Painter.Tag; "" for
+// none) and where, in the canvas's own units.
+type Tap struct {
+	ID string  // the shape's Tag; "" when it hit none
+	X  float32 // where, across
+	Y  float32 // where, down
+}
+
+// OnTap makes a canvas take taps: f gets the topmost tagged shape under
+// the finger, as the phone drew it that moment, animations included.
+//
+//nimbus:param f called on each tap
+func (e *Element) OnTap(f func(Tap)) *Element {
+	e.onCanvasTap = f
+	if e.draw != nil {
+		e.draw.Touch = true
+	}
+	return e
 }
 
 // Painter collects a canvas's shapes: build a path (MoveTo, LineTo, …,
@@ -63,6 +111,7 @@ type Painter struct {
 	colors []uint32
 	strs   []string
 	anims  []*animRef
+	tags   []string
 
 	// The path so far, for Trim: its length, where it is and where its
 	// subpath began.
@@ -258,6 +307,20 @@ func (p *Painter) Stroke(width float32, c Color) {
 func (p *Painter) Clip() {
 	p.add(render.DrawClip)
 	p.painted()
+}
+
+// Tag names the shape the next Fill, Stroke or gradient paints, for OnTap
+// and for a Drag's Handle. Taps go to the topmost tagged shape: the last
+// painted.
+//
+//nimbus:param id its name
+func (p *Painter) Tag(id string) {
+	n := slices.Index(p.tags, id)
+	if n < 0 {
+		p.tags = append(p.tags, id)
+		n = len(p.tags) - 1
+	}
+	p.add(render.DrawTag, float32(n+1))
 }
 
 // Save remembers the transform, clip, blend, shadow, dashes and line style,

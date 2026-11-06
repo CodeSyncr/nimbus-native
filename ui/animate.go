@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math"
+	"slices"
 	"sync/atomic"
 
 	"github.com/CodeSyncr/nimbus-native/ui/render"
@@ -53,11 +54,19 @@ type Anim struct{ ref *animRef }
 
 type animRef struct {
 	id, run uint32
-	kind    float32 // 0: a clock, 1: follows to
+	kind    float32 // 0: a clock, 1: follows to, 2: a drag
 	spec    Animation
 	to      float32
+	drag    Drag
 	done    uint32 // run+1 of the run OnDone was called for
 	play    func()
+}
+
+// dragged is a host saying a drag was let go at v.
+func (r *animRef) dragged(v float32) {
+	if r.kind == 2 && r.drag.OnEnd != nil {
+		r.drag.OnEnd(v)
+	}
 }
 
 // ended is a host saying the run is over: OnDone, once per run, however
@@ -129,6 +138,46 @@ func UseTween(c *Ctx, target float32, a Animation) Num {
 	return Num{r, 0, 1}
 }
 
+// Drag is a number the finger moves on the phone, without Go: a thumb on a
+// track, a card pulled across. Across (or down, with Vertical), the finger
+// moves it as far as it moves, in the canvas's units, between Min and Max.
+type Drag struct {
+	Vertical bool    // moves with the finger down, not across
+	Min, Max float32 // how far it goes, in the canvas's units
+	Handle   string  // the tagged shape (Painter.Tag) it starts on; "" anywhere on the canvas
+	// Animation is how it moves to a new value from Go (Repeat and Reverse
+	// aside): a snap after OnEnd, say.
+	Animation
+	// OnEnd gets where it was let go. Give UseDrag that value (or a snapped
+	// one) to keep it there; the old value takes it back.
+	OnEnd func(float32)
+}
+
+// UseDrag is a number the finger moves, as d says, starting at value; a new
+// value from Go moves it there, animated.
+//
+//	x, setX := ui.State(c, float32(20))
+//	thumb := ui.UseDrag(c, x, ui.Drag{Min: 20, Max: 280, Handle: "thumb", OnEnd: setX})
+//	ui.Canvas(300, 40, func(p *ui.Painter) {
+//		p.Motion(ui.Motion{X: thumb, Y: ui.Fixed(20)})
+//		p.Circle(0, 0, 14)
+//		p.Tag("thumb")
+//		p.Fill(th.Primary)
+//		p.Restore()
+//	}, ui.Style{})
+//
+//nimbus:param value where it is, in the canvas's units
+//nimbus:param d how it moves
+func UseDrag(c *Ctx, value float32, d Drag) Num {
+	r := Ref(c, animRef{})
+	if r.id == 0 {
+		r.id = animIDs.Add(1)
+	}
+	r.kind, r.spec, r.to, r.drag = 2, d.Animation, value, d
+	r.spec.Repeat, r.spec.Reverse = 0, false
+	return Num{r, 0, 1}
+}
+
 // Motion moves, turns, scales and fades what's drawn after it, until its
 // Restore, with numbers that can animate. It turns and scales about the
 // point it moves to. Unset fields leave it be. Like Save, it needs a
@@ -193,12 +242,27 @@ func (p *Painter) animNums() []float32 {
 		if ms <= 0 {
 			ms = 300
 		}
-		reverse := float32(0)
+		repeat, reverse := float32(s.Repeat), float32(0)
 		if s.Reverse {
 			reverse = 1
 		}
+		var lo, hi float32
+		if a.kind == 2 {
+			repeat, lo, hi = 0, a.drag.Min, a.drag.Max
+			if a.drag.Vertical {
+				repeat = 1
+			}
+			reverse = 0
+			if a.drag.Handle != "" {
+				// A handle never painted can't be grabbed: -1, not "anywhere".
+				reverse = float32(slices.Index(p.tags, a.drag.Handle) + 1)
+				if reverse == 0 {
+					reverse = -1
+				}
+			}
+		}
 		out = append(out, float32(a.id), float32(a.run), a.kind, float32(ms), float32(max(s.Delay, 0)),
-			float32(s.Ease), s.Bounce, float32(s.Repeat), reverse, a.to)
+			float32(s.Ease), s.Bounce, repeat, reverse, a.to, lo, hi)
 	}
 	return out
 }

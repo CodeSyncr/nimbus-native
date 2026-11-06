@@ -596,19 +596,19 @@
   "canvas": [
     {
       "where": "Go tests",
-      "result": "Every Painter command sends the numbers its wire comment says; Trim sends the path's length (circles, rounded rects, arcs, ovals, curves); SVG path data, arcs and packed flags included, turns into the same commands; each ease starts at 0 and ends at 1, and springs settle; an animation's OnDone comes once per run however many canvases use it, Play starts a new run, and a tween sends its new target."
+      "result": "Every Painter command sends the numbers its wire comment says; Trim sends the path's length (circles, rounded rects, arcs, ovals, curves); SVG path data, arcs and packed flags included, turns into the same commands; each ease starts at 0 and ends at 1, and springs settle; an animation's OnDone comes once per run however many canvases use it, Play starts a new run, and a tween sends its new target. Tags number the shapes, taps come back with the shape's name, a drag sends its axis, handle and range and reports where it was let go, and OnTap or a drag makes the canvas take touches."
     },
     {
       "where": "iOS simulator",
-      "result": "The example on iOS 26: every part draws as on the web. The ring fills with a spring and OnDone reaches Go once; the spinner and the heart move without renders from Go."
+      "result": "The example on iOS 26: every part draws as on the web. The ring fills with a spring and OnDone reaches Go once; the spinner and the heart move without renders from Go. Driven with idb: tapping the ring filled it again; a swipe moved the slider's thumb to about 244, Go snapped it to 240 and it sprang there; a vertical swipe on the thumb and a drag that starts on the track left it."
     },
     {
       "where": "Android emulator",
-      "result": "The example on Android 14 (API 34): every part draws as on iOS. The ring fills, OnDone reaches Go once, and the spinner turns between frames."
+      "result": "The example on Android 14 (API 34): every part draws as on iOS. The ring fills, OnDone reaches Go once, and the spinner turns between frames. Driven with adb: the same tap, drag and snap as on iOS, to the pixel expected; a vertical swipe and a drag from the track left the thumb."
     },
     {
       "where": "The web",
-      "result": "The example in Chromium: every part draws, the ring fills and OnDone reaches Go. A tween started at its target, glided when the target changed and stopped there."
+      "result": "The example in Chromium: every part draws, the ring fills and OnDone reaches Go. A tween started at its target, glided when the target changed and stopped there. With the mouse, through DevTools: taps named the track and the thumb with the right coordinates, the thumb followed a drag to 170, snapped to 150 on release, and a drag from the track moved nothing."
     },
     {
       "where": "Real phones",

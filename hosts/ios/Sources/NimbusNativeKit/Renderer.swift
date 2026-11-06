@@ -699,11 +699,23 @@ final class NNCanvas: UIView {
 
     /// One of Draw.Anims, and where it is.
     private struct Anim {
-        var id: Float, run: Float, kind: Float, ms: Double, delay: Double, ease: Int, bounce: Double, repeats: Int, reverse: Bool, to: Double
+        var id: Float, run: Float, kind: Float, ms: Double, delay: Double, ease: Int, bounce: Double, repeats: Int, rev: Int, to: Double
+        var lo: Double, hi: Double
+        var reverse: Bool { rev != 0 }
     }
     private struct Clock {
         var run: Float, start: Double, from: Double, to: Double, done: Bool
+        var live: Double? = nil // where a finger has a drag
     }
+    /// The tagged shapes as last drawn, in the view's points, for taps: topmost last.
+    private var hits: [(n: Int, path: CGPath, evenOdd: Bool)] = []
+    /// Where the drawing sits in the view: its offset and scale.
+    private var ox: CGFloat = 0, oy: CGFloat = 0, scale: CGFloat = 1
+    private lazy var tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+    private lazy var pan: UIPanGestureRecognizer = {
+        UIPanGestureRecognizer(target: self, action: #selector(panned))
+    }()
+    private var dragging: (anim: Anim, v0: Double)?
     private var anims: [Anim] = []
     private var clocks: [Float: Clock] = [:]
     private var link: CADisplayLink?
@@ -723,12 +735,13 @@ final class NNCanvas: UIView {
         let now = NNCanvas.now()
         var next: [Anim] = []
         var i = 0
-        while i + 10 <= o.anims.count {
+        while i + 12 <= o.anims.count {
             let a = o.anims
             let anim = Anim(id: a[i], run: a[i + 1], kind: a[i + 2], ms: Double(a[i + 3]), delay: Double(a[i + 4]), ease: Int(a[i + 5]),
-                            bounce: Double(a[i + 6]), repeats: Int(a[i + 7]), reverse: a[i + 8] != 0, to: Double(a[i + 9]))
+                            bounce: Double(a[i + 6]), repeats: Int(a[i + 7]), rev: Int(a[i + 8]), to: Double(a[i + 9]),
+                            lo: Double(a[i + 10]), hi: Double(a[i + 11]))
             if let c = clocks[anim.id], !(anim.kind == 0 && c.run != anim.run) {
-                if anim.kind == 1, c.to != anim.to {
+                if anim.kind != 0, c.to != anim.to, c.live == nil {
                     // A tween's new target: from where it is now.
                     var c = c
                     let old = anims.first { $0.id == anim.id } ?? anim
@@ -739,17 +752,63 @@ final class NNCanvas: UIView {
                     clocks[anim.id] = c
                 }
             } else {
-                clocks[anim.id] = Clock(run: anim.run, start: now, from: anim.to, to: anim.to, done: anim.kind == 1)
+                clocks[anim.id] = Clock(run: anim.run, start: now, from: anim.to, to: anim.to, done: anim.kind != 0)
             }
             next.append(anim)
-            i += 10
+            i += 12
         }
         let ids = Set(next.map(\.id))
         clocks = clocks.filter { ids.contains($0.key) }
         anims = next
         d = o
+        isUserInteractionEnabled = o.touch
+        if o.touch, tap.view == nil {
+            addGestureRecognizer(tap)
+            addGestureRecognizer(pan)
+        }
         setNeedsDisplay()
         running()
+    }
+
+    /// The topmost tagged shape at p, 0 for none.
+    private func shape(at p: CGPoint) -> Int {
+        hits.last { $0.path.contains(p, using: $0.evenOdd ? .evenOdd : .winding) }?.n ?? 0
+    }
+
+    @objc private func tapped(_ g: UITapGestureRecognizer) {
+        let p = g.location(in: self)
+        emit?("tap", "\(shape(at: p)),\((p.x - ox) / scale),\((p.y - oy) / scale)")
+    }
+
+    /// The drag a pan starting at p moves: the one whose handle is under it, or one that starts anywhere.
+    private func drag(at p: CGPoint) -> Anim? {
+        let n = shape(at: p)
+        return anims.first { $0.kind == 2 && n != 0 && $0.rev == n } ?? anims.first { $0.kind == 2 && $0.rev == 0 }
+    }
+
+    @objc private func panned(_ g: UIPanGestureRecognizer) {
+        let t = g.translation(in: self)
+        switch g.state {
+        case .began:
+            let start = CGPoint(x: g.location(in: self).x - t.x, y: g.location(in: self).y - t.y)
+            guard let a = drag(at: start), var c = clocks[a.id] else { return }
+            dragging = (a, value(a, &c, NNCanvas.now()))
+            fallthrough
+        case .changed:
+            guard let (a, v0) = dragging else { return }
+            let delta = Double((a.repeats == 1 ? t.y : t.x) / scale)
+            clocks[a.id]?.live = min(max(v0 + delta, a.lo), a.hi)
+            setNeedsDisplay()
+        default:
+            guard let (a, _) = dragging, let v = clocks[a.id]?.live else { dragging = nil; return }
+            dragging = nil
+            clocks[a.id]?.live = nil
+            clocks[a.id]?.from = v
+            clocks[a.id]?.to = v
+            clocks[a.id]?.done = true
+            emit?("drag", "\(Int(a.id)):\(v)")
+            setNeedsDisplay()
+        }
     }
 
     /// eased is ui/animate.go's: where a run is t ms in, and how long a run takes.
@@ -775,7 +834,8 @@ final class NNCanvas: UIView {
     /// An animation's number now; it marks the clock done after its last run.
     private func value(_ a: Anim, _ c: inout Clock, _ now: Double) -> Double {
         let t = now - c.start - a.delay
-        if a.kind == 1 {
+        if a.kind != 0 { // a tween, or a drag let go
+            if let live = c.live { return live }
             if t <= 0 { return c.from }
             let (v, len) = NNCanvas.eased(a.ease, a.bounce, t, a.ms)
             if t >= len { c.done = true; return c.to }
@@ -839,6 +899,20 @@ final class NNCanvas: UIView {
         defer { if !clocks.values.contains(where: { !$0.done }) { running() } }
 
         let s = min(bounds.width / CGFloat(d.w), bounds.height / CGFloat(d.h))
+        scale = s
+        ox = (bounds.width - CGFloat(d.w) * s) / 2
+        oy = (bounds.height - CGFloat(d.h) * s) / 2
+        hits = []
+        let base = c.ctm.inverted() // device back to the view's points
+        var tagNext = 0
+        /// Remembers the path as drawn if it's tagged: stroked w wide, or filled.
+        func hit(_ w: CGFloat) {
+            guard tagNext != 0 else { return }
+            var t = c.ctm.concatenating(base)
+            let shape = w > 0 ? path.copy(strokingWithWidth: w, lineCap: .round, lineJoin: .round, miterLimit: 10) : path
+            if let p = shape.copy(using: &t) { hits.append((tagNext, p, w > 0 ? false : evenOdd)) }
+            tagNext = 0
+        }
         c.saveGState()
         defer { c.restoreGState() }
         c.translateBy(x: (bounds.width - CGFloat(d.w) * s) / 2, y: (bounds.height - CGFloat(d.h) * s) / 2)
@@ -951,11 +1025,13 @@ final class NNCanvas: UIView {
             case 7:
                 let fill = cg(col())
                 c.addPath(path); c.setFillColor(fill); c.fillPath(using: evenOdd ? .evenOdd : .winding)
+                hit(0)
                 fresh()
             case 8:
                 let w = num(), sc = cg(col())
                 c.setStrokeColor(sc)
                 stroke(w)
+                hit(w)
                 fresh()
             case 9:
                 let g = gradient()
@@ -964,6 +1040,7 @@ final class NNCanvas: UIView {
                 c.clip(using: evenOdd ? .evenOdd : .winding)
                 paint(g)
                 c.restoreGState()
+                hit(0)
                 fresh()
             case 10:
                 let x = num(), y = num(), r = num(), a0 = num() * .pi / 180, sw = num() * .pi / 180
@@ -975,6 +1052,7 @@ final class NNCanvas: UIView {
             case 13:
                 let w = num(), g = gradient()
                 stroke(w) { paint(g) }
+                hit(w)
                 fresh()
             case 14:
                 c.addPath(path)
@@ -1045,6 +1123,7 @@ final class NNCanvas: UIView {
                 var opts: NSStringDrawingOptions = [.usesLineFragmentOrigin]
                 if lines > 0 { opts.insert(.truncatesLastVisibleLine) }
                 attr.draw(with: CGRect(x: x, y: y, width: width, height: height), options: opts, context: nil)
+            case 29: tagNext = Int(num())
             default: return // a newer command: stop rather than draw it wrong
             }
         }
@@ -1065,6 +1144,18 @@ final class NNCanvas: UIView {
         guard a.count == 4, b.count == 4 else { return cols[i] }
         let f = (t - stops[i - 1]) / max(stops[i] - stops[i - 1], 0.0001)
         return CGColor(colorSpace: CGColorSpaceCreateDeviceRGB(), components: (0..<4).map { a[$0] + (b[$0] - a[$0]) * f }) ?? cols[i]
+    }
+}
+
+extension NNCanvas {
+    /// A pan starts only where a drag can, and along its axis, so a scroll
+    /// around the canvas keeps the other direction.
+    override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        guard let p = g as? UIPanGestureRecognizer else { return super.gestureRecognizerShouldBegin(g) }
+        let t = p.translation(in: self), v = p.velocity(in: self)
+        let start = CGPoint(x: p.location(in: self).x - t.x, y: p.location(in: self).y - t.y)
+        guard let a = drag(at: start) else { return false }
+        return a.repeats == 1 ? abs(v.y) >= abs(v.x) : abs(v.x) >= abs(v.y)
     }
 }
 

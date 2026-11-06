@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0x2b7c85e7665d7903
+    public static let schemaHash: UInt64 = 0xc217f49188f442a9
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -824,11 +824,19 @@ public enum Render {
     /// wrapped at width when over 0; color 0 the default)
     /// DrawBind arg anim from to                      (the next command's arg-th number is
     /// from + (to - from) × anim's value)
+    /// DrawTag n                                      (the next Fill, Stroke or gradient paints
+    /// shape n, from 1, for taps and drag handles)
     /// Anims holds the animations DrawBind uses, AnimSize numbers each: id, run,
-    /// kind (0: a clock from 0 to 1; 1: follows to, from where it is), ms, delay,
-    /// ease, bounce, repeat (-1 forever), reverse (0 or 1), to. The host runs them
-    /// itself, from when it first sees each id or run, and sends a NativeEvent
-    /// named "anim" with "id:run" when one ends.
+    /// kind (0: a clock from 0 to 1; 1: follows to, from where it is; 2: a drag,
+    /// which also follows to), ms, delay, ease, bounce, repeat (-1 forever; a
+    /// drag's axis, 0 across, 1 down), reverse (0 or 1; a drag's handle, the
+    /// shape it starts on, 0 for anywhere), to, min, max (a drag's range). The
+    /// host runs them itself, from when it first sees each id or run, and sends a
+    /// NativeEvent named "anim" with "id:run" when one ends.
+    /// With Touch, the canvas takes touches: a tap sends a NativeEvent named
+    /// "tap" with "shape,x,y" (the topmost tagged shape under it, 0 for none, and
+    /// where, in the canvas's units), and a drag moves its number with the finger,
+    /// in the canvas's units, sending "drag" with "id:value" when it's let go.
     public struct Draw: Equatable {
         public var tag: UInt32
         public var w: Float
@@ -838,8 +846,9 @@ public enum Render {
         public var colors: [UInt32]
         public var strs: [String]
         public var anims: [Float]
+        public var touch: Bool
 
-        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, cmds: [UInt8] = [], nums: [Float] = [], colors: [UInt32] = [], strs: [String] = [], anims: [Float] = []) {
+        public init(tag: UInt32 = 0, w: Float = 0, h: Float = 0, cmds: [UInt8] = [], nums: [Float] = [], colors: [UInt32] = [], strs: [String] = [], anims: [Float] = [], touch: Bool = false) {
             self.tag = tag
             self.w = w
             self.h = h
@@ -848,6 +857,7 @@ public enum Render {
             self.colors = colors
             self.strs = strs
             self.anims = anims
+            self.touch = touch
         }
 
         public func write(to w: inout WireWriter) {
@@ -871,6 +881,7 @@ public enum Render {
             for v0 in self.anims {
                 w.float32(v0)
             }
+            w.bool(self.touch)
         }
 
         public static func read(from r: inout WireReader) throws -> Draw {
@@ -883,6 +894,7 @@ public enum Render {
             m.colors = try r.list { r in UInt32(try r.uint(max: 4294967295)) }
             m.strs = try r.list { r in try r.string() }
             m.anims = try r.list { r in try r.float32() }
+            m.touch = try r.bool()
             return m
         }
     }

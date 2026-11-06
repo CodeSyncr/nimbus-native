@@ -13,6 +13,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Region
 import android.graphics.Shader
 import android.graphics.SweepGradient
 import android.os.Build
@@ -21,6 +22,7 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
 import java.net.HttpURLConnection
 import java.net.URL
@@ -44,10 +46,20 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
     /** One of Draw.Anims, and where it is. */
     private class Anim(val a: List<Float>, i: Int) {
         val id = a[i]; val run = a[i + 1]; val kind = a[i + 2].toInt(); val ms = a[i + 3].toDouble(); val delay = a[i + 4].toDouble()
-        val ease = a[i + 5].toInt(); val bounce = a[i + 6].toDouble(); val repeats = a[i + 7].toInt(); val reverse = a[i + 8] != 0f
-        val to = a[i + 9].toDouble()
+        val ease = a[i + 5].toInt(); val bounce = a[i + 6].toDouble(); val repeats = a[i + 7].toInt(); val rev = a[i + 8].toInt()
+        val reverse = rev != 0
+        val to = a[i + 9].toDouble(); val lo = a[i + 10].toDouble(); val hi = a[i + 11].toDouble()
     }
-    private class Clock(var run: Float, var start: Double, var from: Double, var to: Double, var done: Boolean)
+    private class Clock(var run: Float, var start: Double, var from: Double, var to: Double, var done: Boolean) {
+        var live: Double? = null // where a finger has a drag
+    }
+
+    /** A tagged shape as last drawn, in the view's pixels, for taps: topmost last. */
+    private class Hit(val n: Int, val path: Path)
+    private var hits = ArrayList<Hit>()
+    private var ox = 0f
+    private var oy = 0f
+    private var scale = 1f
     private var anims: List<Anim> = emptyList()
     private val clocks = HashMap<Float, Clock>()
 
@@ -57,12 +69,12 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
         val now = now()
         val next = ArrayList<Anim>()
         var i = 0
-        while (i + 10 <= o.anims.size) {
+        while (i + 12 <= o.anims.size) {
             val a = Anim(o.anims, i)
             val c = clocks[a.id]
             if (c == null || (a.kind == 0 && c.run != a.run)) {
-                clocks[a.id] = Clock(a.run, now, a.to, a.to, a.kind == 1)
-            } else if (a.kind == 1 && c.to != a.to) {
+                clocks[a.id] = Clock(a.run, now, a.to, a.to, a.kind != 0)
+            } else if (a.kind != 0 && c.to != a.to && c.live == null) {
                 // A tween's new target: from where it is now.
                 c.from = value(anims.firstOrNull { it.id == a.id } ?: a, c, now)
                 c.to = a.to
@@ -70,7 +82,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                 c.done = false
             }
             next.add(a)
-            i += 10
+            i += 12
         }
         val ids = next.map { it.id }.toSet()
         clocks.keys.retainAll(ids)
@@ -82,7 +94,8 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
     /** An animation's number now; it marks the clock done after its last run. */
     private fun value(a: Anim, c: Clock, now: Double): Double {
         val t = now - c.start - a.delay
-        if (a.kind == 1) {
+        if (a.kind != 0) { // a tween, or a drag let go
+            c.live?.let { return it }
             if (t <= 0) return c.from
             val (v, len) = eased(a.ease, a.bounce, t, a.ms)
             if (t >= len) { c.done = true; return c.to }
@@ -128,6 +141,12 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
         if (clocks.values.any { !it.done } && isAttachedToWindow) postInvalidateOnAnimation()
 
         val s = min(width / d.w, height / d.h)
+        scale = s
+        ox = (width - d.w * s) / 2
+        oy = (height - d.h * s) / 2
+        val drawn = ArrayList<Hit>()
+        val toView = Matrix().also { Matrix(canvas.matrix).invert(it) } // the canvas's matrix back to the view's pixels
+        var tagNext = 0
         val base = canvas.save()
         canvas.translate((width - d.w * s) / 2, (height - d.h * s) / 2)
         canvas.scale(s, s)
@@ -150,6 +169,20 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
         var trim: FloatArray? = null
 
         fun fresh() { path = Path() }
+        /** Remembers the path as drawn if it's tagged: its outline when stroked w wide. */
+        fun hit(w: Float) {
+            if (tagNext == 0) return
+            val shape = Path()
+            if (w > 0) {
+                val p = Paint().apply { style = Paint.Style.STROKE; strokeWidth = w; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+                @Suppress("DEPRECATION") p.getFillPath(path, shape)
+            } else {
+                shape.set(path)
+            }
+            shape.transform(Matrix().apply { setConcat(toView, canvas.matrix) })
+            drawn.add(Hit(tagNext, shape))
+            tagNext = 0
+        }
         /** The paint as the state says, for a fill or stroke; false when a trim leaves nothing to draw. */
         fun ready(style: Paint.Style): Boolean {
             paint.reset()
@@ -233,6 +266,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                     ready(Paint.Style.FILL)
                     paint.color = c
                     canvas.drawPath(path, paint)
+                    hit(0f)
                     fresh()
                 }
                 8 -> {
@@ -242,6 +276,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                         paint.color = c
                         canvas.drawPath(path, paint)
                     }
+                    hit(w)
                     fresh()
                 }
                 9 -> {
@@ -249,6 +284,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                     ready(Paint.Style.FILL)
                     paint.shader = sh
                     if (sh != null) canvas.drawPath(path, paint)
+                    hit(0f)
                     fresh()
                 }
                 10 -> {
@@ -271,6 +307,7 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                         paint.shader = sh
                         canvas.drawPath(path, paint)
                     }
+                    hit(w)
                     fresh()
                 }
                 14 -> { canvas.clipPath(path); fresh() }
@@ -337,11 +374,86 @@ internal class NNCanvas(c: android.content.Context, private val tag: Int) : View
                     l.draw(canvas)
                     canvas.restore()
                 }
+                29 -> tagNext = num().toInt()
                 else -> break@loop // a newer command: stop rather than draw it wrong
             }
         }
         canvas.restoreToCount(base)
+        hits = drawn
     }
+
+    /** The topmost tagged shape at (x, y), 0 for none. */
+    private fun shape(x: Float, y: Float): Int {
+        for (h in hits.asReversed()) {
+            val b = RectF().also { h.path.computeBounds(it, true) }
+            if (!b.contains(x, y)) continue
+            val r = Region().apply { setPath(h.path, Region(b.left.toInt() - 1, b.top.toInt() - 1, b.right.toInt() + 1, b.bottom.toInt() + 1)) }
+            if (r.contains(x.toInt(), y.toInt())) return h.n
+        }
+        return 0
+    }
+
+    private class Down(val x: Float, val y: Float, val shape: Int, val drag: Anim?, val v0: Double) {
+        var moved = false
+        var dragging = false
+    }
+    private var down: Down? = null
+    private val slop = android.view.ViewConfiguration.get(c).scaledTouchSlop
+
+    /** Taps and drags (Draw.Touch): a drag moves its number here, frame by frame, and Go hears where it was let go. */
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+        if (!d.touch) return super.onTouchEvent(e)
+        when (e.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                val n = shape(e.x, e.y)
+                val a = anims.firstOrNull { it.kind == 2 && n != 0 && it.rev == n } ?: anims.firstOrNull { it.kind == 2 && it.rev == 0 }
+                val v0 = a?.let { clocks[it.id]?.let { c -> value(it, c, now()) } } ?: 0.0
+                down = Down(e.x, e.y, n, a, v0)
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dn = down ?: return true
+                val dx = e.x - dn.x
+                val dy = e.y - dn.y
+                if (!dn.moved && hypot(dx, dy) > slop) {
+                    dn.moved = true
+                    // Along the drag's axis it's ours; across it, the scroll around us takes it.
+                    val a = dn.drag
+                    if (a != null && (if (a.repeats == 1) abs(dy) >= abs(dx) else abs(dx) >= abs(dy))) {
+                        dn.dragging = true
+                        parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+                }
+                val a = dn.drag
+                if (dn.dragging && a != null) {
+                    clocks[a.id]?.live = min(max(dn.v0 + (if (a.repeats == 1) dy else dx) / scale, a.lo), a.hi)
+                    invalidate()
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val dn = down ?: return true
+                down = null
+                val a = dn.drag
+                if (dn.dragging && a != null) {
+                    val c = clocks[a.id]
+                    val v = c?.live
+                    if (c != null && v != null) {
+                        c.live = null; c.from = v; c.to = v; c.done = true
+                        send("drag", "${a.id.toInt()}:$v")
+                        invalidate()
+                    }
+                } else if (!dn.moved && e.actionMasked == MotionEvent.ACTION_UP) {
+                    performClick()
+                    send("tap", "${dn.shape},${(dn.x - ox) / scale},${(dn.y - oy) / scale}")
+                }
+            }
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean = super.performClick()
+
+    private fun send(name: String, data: String) =
+        Bridge.send(Render.encode(Render.NativeEvent(tag = tag.toLong(), name = name, data = data)))
 
     private fun defaultText(): Int {
         val a = context.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))

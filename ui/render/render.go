@@ -386,12 +386,21 @@ type Native struct {
 //	                                               wrapped at width when over 0; color 0 the default)
 //	DrawBind arg anim from to                      (the next command's arg-th number is
 //	                                               from + (to - from) × anim's value)
+//	DrawTag n                                      (the next Fill, Stroke or gradient paints
+//	                                               shape n, from 1, for taps and drag handles)
 //
 // Anims holds the animations DrawBind uses, AnimSize numbers each: id, run,
-// kind (0: a clock from 0 to 1; 1: follows to, from where it is), ms, delay,
-// ease, bounce, repeat (-1 forever), reverse (0 or 1), to. The host runs them
-// itself, from when it first sees each id or run, and sends a NativeEvent
-// named "anim" with "id:run" when one ends.
+// kind (0: a clock from 0 to 1; 1: follows to, from where it is; 2: a drag,
+// which also follows to), ms, delay, ease, bounce, repeat (-1 forever; a
+// drag's axis, 0 across, 1 down), reverse (0 or 1; a drag's handle, the
+// shape it starts on, 0 for anywhere), to, min, max (a drag's range). The
+// host runs them itself, from when it first sees each id or run, and sends a
+// NativeEvent named "anim" with "id:run" when one ends.
+//
+// With Touch, the canvas takes touches: a tap sends a NativeEvent named
+// "tap" with "shape,x,y" (the topmost tagged shape under it, 0 for none, and
+// where, in the canvas's units), and a drag moves its number with the finger,
+// in the canvas's units, sending "drag" with "id:value" when it's let go.
 //
 //wire:variant Op
 type Draw struct {
@@ -402,10 +411,11 @@ type Draw struct {
 	Colors []uint32
 	Strs   []string
 	Anims  []float32
+	Touch  bool
 }
 
 // AnimSize is how many numbers each animation takes in Draw.Anims.
-const AnimSize = 10
+const AnimSize = 12
 
 // The commands in Draw.Cmds.
 const (
@@ -438,6 +448,7 @@ const (
 	DrawImage
 	DrawText
 	DrawBind
+	DrawTag
 )
 
 // Slider sets a slider.

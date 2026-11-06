@@ -264,3 +264,95 @@ func TestTween(t *testing.T) {
 		t.Fatalf("after a new target: %v", d.Anims)
 	}
 }
+
+type slider struct {
+	taps  *[]Tap
+	ended *[]float32
+	x     *float32
+}
+
+func (s slider) Render(c *Ctx) Component {
+	thumb := UseDrag(c, *s.x, Drag{Min: 20, Max: 280, Handle: "thumb", Vertical: true,
+		OnEnd: func(v float32) { *s.ended = append(*s.ended, v) }})
+	return Canvas(300, 40, func(p *Painter) {
+		p.Rect(0, 15, 300, 10, 5)
+		p.Tag("track")
+		p.Fill(1)
+		p.Motion(Motion{X: thumb, Y: Fixed(20)})
+		p.Circle(0, 0, 14)
+		p.Tag("thumb")
+		p.Fill(2)
+		p.Restore()
+	}, Style{}).OnTap(func(t Tap) { *s.taps = append(*s.taps, t) }).TestID("slider")
+}
+
+// Tags number the shapes for the host; taps come back named, and a drag
+// says its axis, handle and range, and reports where it was let go.
+func TestCanvasTouch(t *testing.T) {
+	var taps []Tap
+	var ended []float32
+	x := float32(20)
+	h := start(t, slider{&taps, &ended, &x})
+	d := h.find(h.last(), func(o render.Op) bool { _, ok := o.(*render.Draw); return ok })[0].(*render.Draw)
+	if !d.Touch {
+		t.Fatal("a canvas with OnTap and a drag doesn't take touches")
+	}
+	var tags []float32
+	n := 0
+	for _, c := range d.Cmds {
+		switch c {
+		case render.DrawTag:
+			tags = append(tags, d.Nums[n])
+			n++
+		case render.DrawRect:
+			n += 5
+		case render.DrawCircle, render.DrawFill:
+			if c == render.DrawCircle {
+				n += 3
+			}
+		case render.DrawTranslate:
+			n += 2
+		case render.DrawBind:
+			n += 4
+		}
+	}
+	if !slices.Equal(tags, []float32{1, 2}) {
+		t.Fatalf("tags %v in %v", tags, d.Cmds)
+	}
+	a := d.Anims
+	if len(a) != render.AnimSize || a[2] != 2 || a[7] != 1 || a[8] != 2 || a[9] != 20 || a[10] != 20 || a[11] != 280 {
+		t.Fatalf("drag %v", a)
+	}
+	tag := h.tagOf("slider")
+	h.send(&render.NativeEvent{Tag: tag, Name: "tap", Data: "2,21.5,19"})
+	h.send(&render.NativeEvent{Tag: tag, Name: "tap", Data: "0,5,5"})
+	if len(taps) != 2 || taps[0] != (Tap{"thumb", 21.5, 19}) || taps[1] != (Tap{"", 5, 5}) {
+		t.Fatalf("taps %v", taps)
+	}
+	h.send(&render.NativeEvent{Tag: tag, Name: "drag", Data: fmt.Sprintf("%d:150.5", int(a[0]))})
+	if !slices.Equal(ended, []float32{150.5}) {
+		t.Fatalf("ended %v", ended)
+	}
+	// A new value from Go goes to the host as the drag's target.
+	x = 150.5
+	h.rerender()
+	d = h.find(h.last(), func(o render.Op) bool { _, ok := o.(*render.Draw); return ok })[0].(*render.Draw)
+	if d.Anims[9] != 150.5 {
+		t.Fatalf("after OnEnd: %v", d.Anims)
+	}
+}
+
+// A canvas without taps or drags lets touches through to what's under it.
+func TestCanvasNoTouch(t *testing.T) {
+	el := Canvas(10, 10, func(p *Painter) { p.Circle(5, 5, 4); p.Fill(1) }, Style{})
+	if el.draw.Touch {
+		t.Fatal("takes touches")
+	}
+	p := &Painter{}
+	p.Tag("a")
+	p.Tag("b")
+	p.Tag("a")
+	if !slices.Equal(p.nums, []float32{1, 2, 1}) {
+		t.Fatalf("tags %v", p.nums)
+	}
+}

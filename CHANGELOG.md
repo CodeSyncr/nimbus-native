@@ -21,6 +21,12 @@
   reversing, `OnDone`, `Play`), `ui.UseTween` (a number that glides to a new
   target), `Painter.Motion` to move, turn, scale and fade, and
   `Painter.Trim` to draw part of a stroke.
+- Canvas touch: `Painter.Tag` names shapes, `OnTap` reports the topmost
+  tagged shape under a tap (where the phone drew it, animations included),
+  and `ui.UseDrag` is a number the finger moves on the phone, along one
+  axis, from a handle shape or anywhere; Go hears where it was let go and
+  can snap it. A drag across leaves vertical scrolling to the page, and the
+  other way round.
 - The guide's API reference can describe parameters in pairs (`x, y`).
 
 ## 0.0.12 (2026-10-30)

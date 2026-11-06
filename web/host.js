@@ -34,7 +34,8 @@
   // value is an animation's number now; it marks the state done after its last run.
   function value(a, s, now) {
     const t = now - s.start - a.delay;
-    if (a.kind === 1) {
+    if (a.kind) { // a tween, or a drag let go
+      if (s.live != null) return s.live;
       if (t <= 0) return s.from;
       const [v, len] = eased(a.ease, a.bounce, t, a.ms);
       if (t >= len) { s.done = true; return s.to; }
@@ -54,6 +55,53 @@
     paint(el, true);
   }
 
+  // touch takes a canvas's taps and drags (Draw.Touch): the topmost tagged
+  // shape under the finger, as last drawn; a drag moves its number here,
+  // frame by frame, and Go hears where it was let go.
+  function touch(el, c) {
+    const drags = c.defs.filter((a) => a.kind === 2);
+    el.style.touchAction = drags.some((a) => a.repeat === 0) ? (drags.some((a) => a.repeat === 1) ? "none" : "pan-y") : drags.length ? "pan-x" : "manipulation";
+    if (el.dataset.touch) return;
+    el.dataset.touch = "1";
+    const at = (e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    let down = null;
+    el.addEventListener("pointerdown", (e) => {
+      const [x, y] = at(e), dpr = devicePixelRatio || 1, g = el.getContext("2d");
+      let shape = 0;
+      for (let i = c.hits.length - 1; i >= 0 && !shape; i--) {
+        const h = c.hits[i];
+        g.save(); g.setTransform(h.m); g.lineWidth = h.w; g.lineCap = g.lineJoin = "round";
+        if (h.w ? g.isPointInStroke(h.p, x * dpr, y * dpr) : g.isPointInPath(h.p, x * dpr, y * dpr, h.even ? "evenodd" : "nonzero")) shape = h.n;
+        g.restore();
+      }
+      const a = c.defs.find((a) => a.kind === 2 && a.reverse === shape && shape) || c.defs.find((a) => a.kind === 2 && a.reverse === 0);
+      down = { x, y, shape, moved: false, a };
+      if (a) { const st = c.st.get(a.id); down.v0 = value(a, st, performance.now()); el.setPointerCapture(e.pointerId); }
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!down) return;
+      const [x, y] = at(e);
+      if (Math.hypot(x - down.x, y - down.y) > 8) down.moved = true;
+      if (!down.a || !down.moved) return;
+      const a = down.a, st = c.st.get(a.id), delta = (a.repeat === 1 ? y - down.y : x - down.x) / c.s;
+      st.live = Math.min(Math.max(down.v0 + delta, a.min), a.max);
+      if (!c.raf) c.raf = requestAnimationFrame(() => tick(el));
+    });
+    const up = (e, cancel) => {
+      if (!down) return;
+      const d = down; down = null;
+      if (d.a && d.moved) {
+        const st = c.st.get(d.a.id), v = st.live;
+        st.live = null; st.from = st.to = v; st.done = true;
+        send({ t: "native", tag: tagOf(el), name: "drag", data: d.a.id + ":" + v });
+      } else if (!d.moved && !cancel) {
+        send({ t: "native", tag: tagOf(el), name: "tap", data: d.shape + "," + (d.x - c.ox) / c.s + "," + (d.y - c.oy) / c.s });
+      }
+    };
+    el.addEventListener("pointerup", (e) => up(e, false));
+    el.addEventListener("pointercancel", (e) => up(e, true));
+  }
+
   function paint(el, again) {
     let d;
     try { d = JSON.parse(el.dataset.draw); } catch (_) { return; }
@@ -64,19 +112,22 @@
     let c = clocks.get(el);
     if (!c) { c = { st: new Map(), raf: 0 }; clocks.set(el, c); }
     const defs = [], A = d.a || [];
-    for (let i = 0; i + 10 <= A.length; i += 10) {
+    for (let i = 0; i + 12 <= A.length; i += 12) {
       const a = { id: A[i], run: A[i + 1], kind: A[i + 2], ms: A[i + 3], delay: A[i + 4], ease: A[i + 5], bounce: A[i + 6],
-        repeat: A[i + 7], reverse: A[i + 8], to: A[i + 9] };
+        repeat: A[i + 7], reverse: A[i + 8], to: A[i + 9], min: A[i + 10], max: A[i + 11] };
       let s = c.st.get(a.id);
-      if (!s || (a.kind === 0 && s.run !== a.run)) s = { run: a.run, start: now, from: a.to, to: a.to, done: a.kind === 1 };
-      else if (a.kind === 1 && s.to !== a.to) { const at = value(c.defs.find((x) => x.id === a.id) || a, s, now); s.from = at; s.to = a.to; s.start = now; s.done = false; }
+      if (!s || (a.kind === 0 && s.run !== a.run)) s = { run: a.run, start: now, from: a.to, to: a.to, done: a.kind !== 0 };
+      else if (a.kind && s.to !== a.to && s.live == null) { const at = value(c.defs.find((x) => x.id === a.id) || a, s, now); s.from = at; s.to = a.to; s.start = now; s.done = false; }
       c.st.set(a.id, s);
       defs.push(a);
     }
     c.defs = defs;
+    c.d = d; c.hits = [];
+    if (d.t) touch(el, c);
     const vals = defs.map((a) => { const s = c.st.get(a.id), was = s.done, v = value(a, s, now); if (s.done && !was && a.kind === 0) send({ t: "native", tag: tagOf(el), name: "anim", data: a.id + ":" + a.run }); return v; });
     if (!again || el.width !== Math.round(W * dpr)) { el.width = Math.round(W * dpr); el.height = Math.round(H * dpr); }
     const top = el.getContext("2d"), s = Math.min(W / d.w, H / d.h), k = dpr * s;
+    c.s = s; c.ox = (W - d.w * s) / 2; c.oy = (H - d.h * s) / 2;
     top.setTransform(1, 0, 0, 1, 0, 0);
     top.clearRect(0, 0, el.width, el.height);
     top.save(); // this frame's state ends with it
@@ -113,6 +164,9 @@
       } else g.stroke(p);
     };
     const fresh = () => { p = new Path2D(); even = false; };
+    // hit remembers a tagged shape as drawn, for taps: its path, transform and stroke.
+    let tagNext = 0;
+    const hit = (w) => { if (tagNext) c.hits.push({ n: tagNext, p, m: g.getTransform(), w, even }); tagNext = 0; };
     for (const cmd of d.k) {
       if (cmd === 28) { // DrawBind: for the next command's numbers
         (pending = pending || [])[d.n[n]] = [d.n[n + 1], d.n[n + 2], d.n[n + 3]];
@@ -127,16 +181,17 @@
       else if (cmd === 4) p.closePath();
       else if (cmd === 5) { const x = v(), y = v(), r = v(); p.moveTo(x + r, y); p.arc(x, y, r, 0, 2 * Math.PI); }
       else if (cmd === 6) { const x = v(), y = v(), w = v(), h = v(), r = Math.min(v(), w / 2, h / 2); p.roundRect(x, y, w, h, Math.max(r, 0)); }
-      else if (cmd === 7) { g.fillStyle = col(); g.fill(p, even ? "evenodd" : "nonzero"); fresh(); }
-      else if (cmd === 8) { stroke(v(), col()); fresh(); }
-      else if (cmd === 9) { g.fillStyle = gradient(); g.fill(p, even ? "evenodd" : "nonzero"); fresh(); }
+      else if (cmd === 7) { g.fillStyle = col(); g.fill(p, even ? "evenodd" : "nonzero"); hit(0); fresh(); }
+      else if (cmd === 8) { const w = v(); stroke(w, col()); hit(w); fresh(); }
+      else if (cmd === 9) { g.fillStyle = gradient(); g.fill(p, even ? "evenodd" : "nonzero"); hit(0); fresh(); }
       else if (cmd === 10) {
         const x = v(), y = v(), r = v(), a0 = v() * Math.PI / 180, sw = v() * Math.PI / 180;
         p.moveTo(x + r * Math.cos(a0), y + r * Math.sin(a0)); p.arc(x, y, r, a0, a0 + sw, sw < 0);
       }
       else if (cmd === 11) { const x = v(), y = v(), w = v(), h = v(); p.moveTo(x + w, y + h / 2); p.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 2 * Math.PI); }
       else if (cmd === 12) even = true;
-      else if (cmd === 13) { const w = v(); stroke(w, gradient()); fresh(); }
+      else if (cmd === 13) { const w = v(); stroke(w, gradient()); hit(w); fresh(); }
+      else if (cmd === 29) tagNext = v();
       else if (cmd === 14) { g.clip(p, even ? "evenodd" : "nonzero"); fresh(); }
       else if (cmd === 15) { g.save(); stack.push({ shadow }); }
       else if (cmd === 16) {

@@ -46,6 +46,7 @@ type Element struct {
 	draw        *render.Draw // a Canvas's shapes
 	native      *render.Native
 	onEvent     func(name, data string)
+	onCanvasTap func(Tap)
 	onScroll    func(x, y float32)
 	onSubmit    func()
 	spans       []Span // a Rich text's runs
