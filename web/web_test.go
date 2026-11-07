@@ -295,3 +295,21 @@ func TestPluginInBrowser(t *testing.T) {
 	http.Post(srv.URL+"/_nn/send?s="+sid, "application/json", strings.NewReader(`{"t":"viewport","w":400,"h":700,"scale":2}`))
 	next("pasted NOVA-4821")
 }
+
+type copyPage struct{}
+
+func (copyPage) Render(c *ui.Ctx) ui.Component {
+	return ui.Button{Label: "Copy code", Copies: "MONSOON-25", OnPress: func() {}}
+}
+
+// A Copies text rides on the page, for the browser to copy inside the tap.
+func TestCopiesInPage(t *testing.T) {
+	router.Register(router.Table{
+		{Pattern: "/gift", New: func(router.Params) (ui.Component, bool) { return copyPage{}, true }},
+	})
+	srv := httptest.NewServer(Handler(Options{SiteName: "Shop"}))
+	t.Cleanup(srv.Close)
+	if _, body := get(t, srv.URL+"/gift"); !strings.Contains(body, `data-copy="MONSOON-25"`) {
+		t.Fatalf("no data-copy in %s", body)
+	}
+}

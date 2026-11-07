@@ -34,6 +34,7 @@ type Element struct {
 	onRefresh   func()     // pull to refresh on a Scroll or List
 	refreshing  bool
 	href        string
+	copies      string
 	onLongPress func()
 	takesBack   bool // the system's back button presses it
 	onPan       func(Pan)
@@ -384,6 +385,14 @@ func swipeOf(p Pan) Swipe {
 // makes it a link crawlers and new tabs can follow. Taps still run its
 // handler. router.Link sets it.
 func (e *Element) Href(path string) *Element { e.href = path; return e }
+
+// Copies makes a tap on a Pressable copy text to the clipboard, before its
+// handler runs. Browsers, Safari most of all, copy only inside the tap
+// itself, which clipboard.Set from a handler is not; on phones it uses the
+// clipboard plugin (`nimbus native plugin add clipboard`).
+//
+//nimbus:param text what a tap copies
+func (e *Element) Copies(text string) *Element { e.copies = text; return e }
 
 // Multiline lets a TextInput wrap and take new lines; it is three lines
 // tall unless its style sets a height.

@@ -187,8 +187,13 @@ func (rt *runtime) receive(b []byte) {
 				SafeLeft: m.SafeLeft, SafeRight: m.SafeRight, Platform: m.Platform, Dark: m.Dark, Keyboard: m.Keyboard}
 			rt.haveViewport, rt.dirty, rt.forceAll = true, true, true
 		case *render.Press:
-			if in := rt.byTag[m.Tag]; in != nil && in.el.onPress != nil {
-				in.el.onPress()
+			if in := rt.byTag[m.Tag]; in != nil {
+				if in.el.copies != "" {
+					rt.copy(in.el.copies)
+				}
+				if in.el.onPress != nil {
+					in.el.onPress()
+				}
 			}
 		case *render.Submitted:
 			if in := rt.byTag[m.Tag]; in != nil && in.el.onSubmit != nil {
@@ -513,7 +518,7 @@ func (rt *runtime) renderComponent(in *instance) (out *Element) {
 // What the component set itself stays.
 func inheritWrapper(w, out *Element) *Element {
 	gesture := w.onPan != nil || w.onSwipe != nil || w.onPinch != nil
-	if out == nil || !gesture && w.testID == "" && w.label == "" && w.onLongPress == nil && w.href == "" {
+	if out == nil || !gesture && w.testID == "" && w.label == "" && w.onLongPress == nil && w.href == "" && w.copies == "" {
 		return out
 	}
 	cp := *out // the component may return a shared element
@@ -525,6 +530,9 @@ func inheritWrapper(w, out *Element) *Element {
 	}
 	if cp.href == "" {
 		cp.href = w.href
+	}
+	if cp.copies == "" {
+		cp.copies = w.copies
 	}
 	if cp.onLongPress == nil {
 		cp.onLongPress = w.onLongPress
@@ -659,7 +667,7 @@ func (rt *runtime) props(in *instance, first bool) {
 	}
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
-		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href,
+		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href, Copy: el.copies,
 		Transition: uint32(max(s.Transition, 0)), LongPress: el.onLongPress != nil, Blur: s.Blur, Corners: uint8(s.Corners), Hidden: s.Hidden, Rotate: s.Rotate, Pan: el.panAxis, Pinch: el.onPinch != nil, Back: el.takesBack}
 	if s.Scale != 0 && s.Scale != 1 {
 		box.Scale = s.Scale
@@ -939,4 +947,19 @@ func textEqual(a, b render.Text) bool {
 	}
 	a.Spans, b.Spans = nil, nil
 	return reflect.DeepEqual(a, b) // the rest are plain values
+}
+
+// copy puts a Pressable's Copies text on the clipboard. A browser has
+// already copied it, inside the tap.
+func (rt *runtime) copy(text string) {
+	if plugin.InBrowser(rt.ctx) {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(rt.ctx, 5*time.Second)
+		defer cancel()
+		if _, err := plugin.CallJSON(ctx, "clipboard", "set", map[string]string{"text": text}); err != nil {
+			logf("copying: %v", err)
+		}
+	}()
 }

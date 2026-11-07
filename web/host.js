@@ -500,12 +500,19 @@
     // A link opened in a new tab or window is the browser's business.
     if (p.hasAttribute("href") && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)) return;
     e.preventDefault();
+    copy(p);
     send({ t: "press", tag: tagOf(p) });
   });
+  // Browsers copy only inside the tap itself, so a Copies text is copied
+  // here, not when Go asks.
+  function copy(p) {
+    if (p.hasAttribute("data-copy")) navigator.clipboard?.writeText(p.dataset.copy).catch(() => {});
+  }
   root.addEventListener("keydown", (e) => {
     const p = e.target.closest("a.p[role=button]");
     if (p && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
+      copy(p);
       send({ t: "press", tag: tagOf(p) });
     }
   });

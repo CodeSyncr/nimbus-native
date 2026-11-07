@@ -101,6 +101,7 @@ type Box struct {
 	Label       string // accessibility label
 	TestID      string // accessibilityIdentifier / view tag, for tests
 	Href        string // where a pressable leads (the web host makes it a link)
+	Copy        string // text a tap on a pressable copies (the web host copies it inside the tap)
 	// Transition animates changes to this view's frame, opacity and
 	// background over this many milliseconds; 0 changes them at once.
 	Transition uint32

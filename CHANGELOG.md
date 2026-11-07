@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `Button.Copies` and `Pressable(...).Copies(text)`: a tap copies the text,
+  then the handler runs. Browsers copy it inside the tap itself, which
+  Safari requires (it refuses `clipboard.Set` from a handler); phones use
+  the clipboard plugin.
 - Plugins in the browser. On the web, a plugin call goes from the tab's
   session on the server to the visitor's browser, which answers with its
   own APIs: clipboard, share, geolocation, device, network, app state, keep

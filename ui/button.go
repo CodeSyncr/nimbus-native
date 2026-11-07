@@ -48,6 +48,7 @@ type Button struct {
 	Label    string  // The words on it
 	Icon     string  // an Icon name, before the label
 	OnPress  func()  // Called on a tap
+	Copies   string  // text a tap copies to the clipboard (see Element.Copies)
 	Variant  Variant // Filled, Tonal, Outlined, Plain or Destructive
 	Size     Size    // SizeSmall, SizeMedium or SizeLarge
 	Disabled bool    // Dimmed, can't be tapped
@@ -92,7 +93,11 @@ func (b Button) Render(c *Ctx) Component {
 	if b.Label != "" {
 		kids = append(kids, Text(b.Label, Style{Color: fg, FontSize: font, FontWeight: 600}))
 	}
-	return Pressable(onPress, s, kids...).Label(b.Label)
+	p := Pressable(onPress, s, kids...).Label(b.Label)
+	if !b.Disabled && !b.Loading {
+		p.Copies(b.Copies)
+	}
+	return p
 }
 
 // IconButton is a button that is only an icon. Label says what it does, for

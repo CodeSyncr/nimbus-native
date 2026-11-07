@@ -254,7 +254,7 @@ func (t *translator) box(o *render.Box) []instr {
 		{"a": []any{o.Tag, "data-pan", panAttr(o.Pan)}},
 		{"a": []any{o.Tag, "data-pinch", boolAttr(o.Pinch)}}}
 	if t.kinds[o.Tag] == render.KindPressable {
-		out = append(out, instr{"a": []any{o.Tag, "href", nullable(o.Href)}})
+		out = append(out, instr{"a": []any{o.Tag, "href", nullable(o.Href)}}, instr{"a": []any{o.Tag, "data-copy", nullable(o.Copy)}})
 		if o.Href == "" {
 			out = append(out, instr{"a": []any{o.Tag, "role", "button"}}, instr{"a": []any{o.Tag, "tabindex", "0"}})
 		}

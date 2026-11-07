@@ -3,7 +3,7 @@
 
 public enum Render {
     /// Identifies this schema's wire layout; must match the Go side.
-    public static let schemaHash: UInt64 = 0xc217f49188f442a9
+    public static let schemaHash: UInt64 = 0x454dac12204004c4
 
     /// Kind is the native view a tag stands for.
     public struct Kind: RawRepresentable, Equatable, Hashable {
@@ -227,6 +227,7 @@ public enum Render {
         public var label: String
         public var testID: String
         public var href: String
+        public var copy: String
         public var transition: UInt32
         public var longPress: Bool
         public var blur: Blur
@@ -249,7 +250,7 @@ public enum Render {
         public var pinch: Bool
         public var back: Bool
 
-        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0, pan: UInt8 = 0, pinch: Bool = false, back: Bool = false) {
+        public init(tag: UInt32 = 0, background: UInt32 = 0, radius: Float = 0, borderWidth: Float = 0, borderColor: UInt32 = 0, opacity: Float = 0, clip: Bool = false, label: String = "", testID: String = "", href: String = "", copy: String = "", transition: UInt32 = 0, longPress: Bool = false, blur: Blur = Blur(rawValue: 0), gradientColors: [UInt32] = [], gradientStops: [Float] = [], gradientRadial: Bool = false, gradientX0: Float = 0, gradientY0: Float = 0, gradientX1: Float = 0, gradientY1: Float = 0, shadowColor: UInt32 = 0, shadowRadius: Float = 0, shadowX: Float = 0, shadowY: Float = 0, corners: UInt8 = 0, hidden: Bool = false, scale: Float = 0, rotate: Float = 0, pan: UInt8 = 0, pinch: Bool = false, back: Bool = false) {
             self.tag = tag
             self.background = background
             self.radius = radius
@@ -260,6 +261,7 @@ public enum Render {
             self.label = label
             self.testID = testID
             self.href = href
+            self.copy = copy
             self.transition = transition
             self.longPress = longPress
             self.blur = blur
@@ -294,6 +296,7 @@ public enum Render {
             w.string(self.label)
             w.string(self.testID)
             w.string(self.href)
+            w.string(self.copy)
             w.uint(UInt64(self.transition))
             w.bool(self.longPress)
             w.uint(UInt64(self.blur.rawValue))
@@ -335,6 +338,7 @@ public enum Render {
             m.label = try r.string()
             m.testID = try r.string()
             m.href = try r.string()
+            m.copy = try r.string()
             m.transition = UInt32(try r.uint(max: 4294967295))
             m.longPress = try r.bool()
             m.blur = Blur(rawValue: UInt8(try r.uint(max: 255)))

@@ -320,15 +320,19 @@
   "clipboard": [
     {
       "where": "Android emulator",
-      "result": "Copy and paste both work."
+      "result": "The Copies button copied the code, and Paste read it back."
     },
     {
       "where": "iOS simulator",
-      "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+      "result": "The Copies button put the code on the simulator's clipboard."
     },
     {
       "where": "Chromium",
-      "result": "Copied a code and pasted it back."
+      "result": "clipboard.Set and Get copied a code and pasted it back."
+    },
+    {
+      "where": "Safari",
+      "result": "The Copies button copied the code. clipboard.Set from a handler is refused, as Safari copies only inside a tap."
     },
     {
       "where": "Real phones",
