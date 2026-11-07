@@ -17,11 +17,18 @@ package applemaps
 
 import (
 	"encoding/json"
+	"os"
 
 	"github.com/CodeSyncr/nimbus-native/ui"
 )
 
 // LatLng is a place.
+// WebToken is the MapKit JS token the web uses, from MAPKIT_JS_TOKEN unless
+// you set it: a JWT you make with a Maps ID and key in your Apple developer
+// account, limited to your site's origin. Without one, the web shows
+// Fallback, as Android does.
+var WebToken = os.Getenv("MAPKIT_JS_TOKEN")
+
 type LatLng struct {
 	Latitude  float64 `json:"lat"` // in degrees
 	Longitude float64 `json:"lng"` // in degrees
@@ -79,6 +86,7 @@ type props struct {
 	Lines      []line   `json:"lines"`
 	Kind       Kind     `json:"kind"`
 	MyLocation bool     `json:"myLocation"`
+	Token      string   `json:"token,omitempty"` // the web's MapKit JS token
 }
 
 type line struct {
@@ -111,13 +119,18 @@ func (m Map) props(th ui.Theme) props {
 
 // Render shows the map, or Fallback on Android.
 func (m Map) Render(c *ui.Ctx) ui.Component {
-	if ui.Viewport(c).Platform == "android" {
+	platform := ui.Viewport(c).Platform
+	if platform == "android" || platform == "web" && WebToken == "" {
 		if m.Fallback == nil {
 			return ui.View(m.Style)
 		}
 		return ui.View(m.Style, m.Fallback)
 	}
-	return ui.Native("applemaps", m.props(ui.UseTheme(c)), m.Style).OnEvent(m.event)
+	p := m.props(ui.UseTheme(c))
+	if platform == "web" {
+		p.Token = WebToken
+	}
+	return ui.Native("applemaps", p, m.Style).OnEvent(m.event)
 }
 
 func (m Map) event(name, data string) {

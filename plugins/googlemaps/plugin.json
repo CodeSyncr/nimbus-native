@@ -12,5 +12,5 @@
   "android": {
     "dependencies": ["com.google.android.gms:play-services-maps:19.0.0"],
     "application": ["<meta-data android:name=\"com.google.android.geo.API_KEY\" android:value=\"{{key}}\" />"]
-  }
-}
+  },
+  "platforms": { "web": "with a web key" } }

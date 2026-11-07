@@ -28,6 +28,15 @@
 - Native views on the web: a plugin draws its kind with `NN.view`. Video
   plays in a `<video>` and the web view is an iframe.
 - `DateField` opens the browser's date picker on the web.
+- The last plugins in the browser: Google Maps (Maps JavaScript API, with
+  `googlemaps.WebKey`), Apple Maps (MapKit JS, with `applemaps.WebToken`;
+  Fallback without one), 3D scenes in WebGL 2 with shadows, orbit and taps,
+  mesh gradients, symbols from the Material font, voice turns through the
+  browser's microphone, and haptics through `haptics.For(ctx)`.
+- `ui.Ctx.Context` is the context for plugin calls from an event handler;
+  on the web it leads to the visitor's tab.
+- On the web, one-line text ends in an ellipsis instead of breaking a word,
+  and font files with spaces in their names load.
 - Effects, queries and actions in a web session get a context that ends when
   the tab's session closes.
 - Plugins' clean-up calls (stopping a sensor, a watch or speech) reach the

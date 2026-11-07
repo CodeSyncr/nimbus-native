@@ -15,11 +15,18 @@ package googlemaps
 
 import (
 	"encoding/json"
+	"os"
 
 	"github.com/CodeSyncr/nimbus-native/ui"
 )
 
 // LatLng is a place.
+// WebKey is the Maps JavaScript API key the web uses, from
+// GOOGLE_MAPS_WEB_KEY unless you set it. It's visible in the page, so
+// restrict it to your site's address in Google Cloud. Without one, the map
+// on the web is an empty box.
+var WebKey = os.Getenv("GOOGLE_MAPS_WEB_KEY")
+
 type LatLng struct {
 	Latitude  float64 `json:"lat"` // in degrees
 	Longitude float64 `json:"lng"` // in degrees
@@ -60,6 +67,7 @@ type props struct {
 	Markers    []Marker `json:"markers"`
 	Lines      []line   `json:"lines"`
 	MyLocation bool     `json:"myLocation"`
+	Key        string   `json:"key,omitempty"` // the web's API key
 }
 
 type line struct {
@@ -72,6 +80,9 @@ type line struct {
 func (m Map) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	p := props{Center: m.Center, Zoom: m.Zoom, Markers: m.Markers, MyLocation: m.MyLocation}
+	if ui.Viewport(c).Platform == "web" {
+		p.Key = WebKey
+	}
 	if p.Zoom == 0 {
 		p.Zoom = 12
 	}

@@ -86,8 +86,9 @@ func table(b *strings.Builder, head []string, rows [][]string) {
 	b.WriteString("</tbody></table></div>\n")
 }
 
-// plainGo are the plugins with no host code at all, so they run in a browser too.
-var plainGo = map[string]bool{"imagemanipulator": true}
+// plainGo are the plugins whose browser side is plain Go, with no web.js:
+// no host code at all, or Go that draws something else on the web.
+var plainGo = map[string]bool{"imagemanipulator": true, "symbols": true}
 
 // platforms is the line under a page's title.
 func (p *plug) platforms() string {

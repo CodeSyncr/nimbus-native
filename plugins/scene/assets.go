@@ -75,13 +75,18 @@ var call = func(ctx context.Context, method string, args any) error {
 	return err
 }
 
-func (n need) send() {
+func (n need) send(ctx context.Context) {
 	for _, k := range n.Keys {
-		if _, busy := sending.LoadOrStore(k, true); busy {
+		// Each phone or tab gets its own copy, so busy is per ctx.
+		busy := struct {
+			to  context.Context
+			key string
+		}{ctx, k}
+		if _, already := sending.LoadOrStore(busy, true); already {
 			continue
 		}
-		err := sendAsset(context.Background(), k)
-		sending.Delete(k)
+		err := sendAsset(ctx, k)
+		sending.Delete(busy)
 		if err != nil {
 			fmt.Println("scene:", err) // the phone shows nothing for it, and asks again next time
 		}

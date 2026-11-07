@@ -10,8 +10,9 @@
 // iOS has SF Symbols built in. Android has no named icon set, so it draws
 // Material Symbols from the font, which you download from Google Fonts
 // (github.com/google/material-design-icons, under variablefont/) and add
-// as above. For the same icon on every platform and the web, ui.Icon is
-// built in.
+// as above. The web draws the Android name with the same font, which the
+// site serves from the fonts folder. For the same icon everywhere, ui.Icon
+// is built in.
 package symbols
 
 import (
@@ -64,7 +65,7 @@ func (s Symbol) Render(c *ui.Ctx) ui.Component {
 	box := ui.Style{Width: ui.Pt(s.Size), Height: ui.Pt(s.Size)}
 	var e *ui.Element
 	switch {
-	case ui.Viewport(c).Platform == "android" && s.Android != "":
+	case (ui.Viewport(c).Platform == "android" || ui.Viewport(c).Platform == "web") && s.Android != "":
 		// The font turns the name into the icon: a ligature.
 		// A screen reader would read the name out, so it gets a label either way.
 		spoken := s.Label
@@ -72,7 +73,7 @@ func (s Symbol) Render(c *ui.Ctx) ui.Component {
 			spoken = strings.ReplaceAll(s.Android, "_", " ")
 		}
 		return ui.View(ui.Style{Width: box.Width, Height: box.Height, AlignItems: ui.AlignCenter, Justify: ui.JustifyCenter},
-			ui.Text(s.Android, ui.Style{FontFamily: AndroidFont, FontSize: s.Size, FontWeight: s.Weight, Color: s.Color, LineHeight: s.Size}).Label(spoken))
+			ui.Text(s.Android, ui.Style{FontFamily: AndroidFont, FontSize: s.Size, FontWeight: s.Weight, Color: s.Color, LineHeight: s.Size, Lines: 1}).Label(spoken))
 	case ui.Viewport(c).Platform == "ios" && s.IOS != "":
 		e = ui.Native("symbol", props{s.IOS, s.Size, uint32(s.Color), s.Weight}, box)
 	default:

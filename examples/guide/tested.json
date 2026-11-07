@@ -27,6 +27,10 @@
       "result": "The guide example on iOS 26: the map opens on the cafe with its pin and title. Tapping the pin hasn't been tried."
     },
     {
+      "where": "Chromium",
+      "result": "Without a token it shows Fallback. With a token: not tried, as there's no MapKit JS key here."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -75,6 +79,10 @@
     {
       "where": "iOS simulator",
       "result": "A real spoken turn worked in an earlier test, heard from the Mac's speaker."
+    },
+    {
+      "where": "Chromium",
+      "result": "Heard a spoken sentence from a simulated microphone, ended the turn by itself, and played the clip back with levels."
     },
     {
       "where": "Real phones",
@@ -499,6 +507,10 @@
       "result": "The example's pin shows. Pins, routes and camera events worked in an earlier test."
     },
     {
+      "where": "Chromium",
+      "result": "Real tiles with a pin and a route from a Maps JavaScript API key; tapping the pin and dragging the map reached Go."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -511,6 +523,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Calls through For(ctx) reached the page; a computer has no vibration to feel."
     },
     {
       "where": "Real phones",
@@ -757,6 +773,10 @@
       "result": "The guide example on iOS 18 and iOS 26: the Metal view draws the gradient smoothly, filling the screen under the status bar."
     },
     {
+      "where": "Chromium",
+      "result": "Drew the gradient with WebGL."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -971,6 +991,10 @@
     {
       "where": "iOS simulator",
       "result": "The guide example on iOS 18 and iOS 26: Metal draws the textured gift, the shiny ball and soft shadows; on iOS 26 the ribbon turns with the gift. Dragging and pinching haven't been tried."
+    },
+    {
+      "where": "Chromium",
+      "result": "The guide's showroom drew as on iOS, with the texture, shine and shadows; it spins, orbits with a drag, and taps hit the right node."
     },
     {
       "where": "Real phones",
@@ -1227,6 +1251,10 @@
     {
       "where": "iOS simulator",
       "result": "On iOS 26: the four SF Symbols draw."
+    },
+    {
+      "where": "Chromium",
+      "result": "Drew Material Symbols from the font the site serves."
     },
     {
       "where": "Real phones",

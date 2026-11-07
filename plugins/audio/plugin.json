@@ -11,5 +11,5 @@
       "android.permission.RECORD_AUDIO",
       "android.permission.MODIFY_AUDIO_SETTINGS"
     ]
-  }
-}
+  },
+  "platforms": { "web": "after a first tap" } }

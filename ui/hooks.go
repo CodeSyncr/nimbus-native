@@ -14,6 +14,11 @@ type Ctx struct {
 	hook int
 }
 
+// Context is for plugin calls from an event handler, which gets no ctx of
+// its own: on the web it leads to the visitor's tab, and it ends when the
+// tab's session closes. Queries, actions and effects hand you one already.
+func (c *Ctx) Context() context.Context { return c.rt.ctx }
+
 func (c *Ctx) slot() *hookSlot {
 	if c.hook == len(c.inst.hooks) {
 		c.inst.hooks = append(c.inst.hooks, &hookSlot{})

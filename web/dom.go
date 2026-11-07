@@ -118,7 +118,10 @@ func (t *translator) op(op render.Op) []instr {
 		return []instr{{"a": []any{o.Tag, "data-draw", string(b)}}}
 	case *render.Text:
 		x := fontCSS(o.Font, o.Color) + "text-align:" + [...]string{"left", "center", "right"}[o.Align%3] + ";"
-		if o.Lines > 0 {
+		switch {
+		case o.Lines == 1: // one line ends in an ellipsis, as on the phones, rather than breaking a word
+			x += "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+		case o.Lines > 1:
 			x += fmt.Sprintf("display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:%d;overflow:hidden;", o.Lines)
 		}
 		if len(o.Spans) > 0 {

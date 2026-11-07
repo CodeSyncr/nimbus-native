@@ -183,7 +183,7 @@ func TestNeed(t *testing.T) {
 	tex, _ := NewTexture(pngBytes(t, 2, 2))
 	w := View{Nodes: []Node{{Mesh: Box(3, 3, 3), Texture: tex}}}.wire(ui.Theme{})
 	n := w.Nodes[0]
-	need{Keys: []string{n.Mesh, n.Texture, "nonsense"}}.send()
+	need{Keys: []string{n.Mesh, n.Texture, "nonsense"}}.send(context.Background())
 	mesh, texture := got["mesh "+n.Mesh], got["texture "+n.Texture]
 	if mesh == nil || texture == nil || len(got) != 2 {
 		t.Fatalf("sent %v", got)

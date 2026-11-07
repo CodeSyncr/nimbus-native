@@ -112,12 +112,13 @@ type View struct {
 func (v View) Render(c *ui.Ctx) ui.Component {
 	th := ui.UseTheme(c)
 	w := v.wire(th)
+	ctx := c.Context() // where the asset calls go: the phone, or the tab on the web
 	return ui.Native("scene", w, v.Style).OnEvent(func(name, data string) {
 		switch name {
 		case "need":
 			var n need
 			if json.Unmarshal([]byte(data), &n) == nil {
-				go n.send()
+				go n.send(ctx)
 			}
 		case "tap":
 			if v.OnTap == nil {

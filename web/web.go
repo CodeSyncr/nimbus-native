@@ -28,6 +28,7 @@ import (
 	"html"
 	"io"
 	"net/http"
+	"net/url"
 	"path"
 	"path/filepath"
 	"sort"
@@ -202,8 +203,8 @@ func (s *site) fontFaces() string {
 			continue
 		}
 		format := map[string]string{".ttf": "truetype", ".otf": "opentype"}[ext]
-		fmt.Fprintf(&b, "@font-face{font-family:\"%s\";src:url(%sfonts/%s) format(\"%s\");font-weight:100 900;font-display:swap}\n",
-			strings.TrimSuffix(name, ext), prefix, name, format)
+		fmt.Fprintf(&b, "@font-face{font-family:\"%s\";src:url(\"%sfonts/%s\") format(\"%s\");font-weight:100 900;font-display:swap}\n",
+			strings.TrimSuffix(name, ext), prefix, url.PathEscape(name), format)
 	}
 	return b.String()
 }

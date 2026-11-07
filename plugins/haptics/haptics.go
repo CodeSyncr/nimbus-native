@@ -2,8 +2,11 @@
 // feedback (Impact, Notify, Selection) and patterns of your own (Play) —
 // Core Haptics on iOS, the vibrator's effects on Android. Every call returns
 // at once (the feedback plays on its own), so they are safe anywhere,
-// handlers included. On the web, and on phones without a haptic engine,
-// they do nothing.
+// handlers included. On phones without a haptic engine they do nothing.
+//
+// On the web, call them through For(ctx), with the ctx a query, action or
+// effect gives you: the browser vibrates where it can (Chrome on Android;
+// not iPhones), and does nothing elsewhere.
 //
 //	haptics.Impact(haptics.Medium, 1)          // a tap
 //	haptics.Notify(haptics.Success)            // something worked
@@ -68,24 +71,52 @@ type Point struct {
 //
 //nimbus:param style how it feels
 //nimbus:param intensity how strong, 0 to 1
-func Impact(style Style, intensity float32) {
-	send("impact", map[string]any{"style": style, "intensity": intensity})
-}
+func Impact(style Style, intensity float32) { For(context.Background()).Impact(style, intensity) }
 
 // Notify is the system's feedback for a success, warning or error.
 //
 //nimbus:param kind what happened
-func Notify(kind Kind) { send("notify", map[string]any{"kind": kind}) }
+func Notify(kind Kind) { For(context.Background()).Notify(kind) }
 
 // Selection is the light tick of a choice changing.
-func Selection() { send("selection", nil) }
+func Selection() { For(context.Background()).Selection() }
 
 // Play plays a pattern. Android plays its taps and buzzes with their
 // strength; it can't vary sharpness, and its curves are sampled.
 //
 //nimbus:param events the taps and buzzes
 //nimbus:param curves changes over time; optional
-func Play(events []Event, curves ...Curve) {
+func Play(events []Event, curves ...Curve) { For(context.Background()).Play(events, curves...) }
+
+// Feedback plays haptics for a ctx's phone or browser tab.
+type Feedback struct{ ctx context.Context }
+
+// For is the same calls for ctx: the way to reach a browser tab on the web.
+//
+//nimbus:param ctx from a query, action or effect
+func For(ctx context.Context) Feedback { return Feedback{ctx} }
+
+// Impact is a single tap of a style, at intensity (0…1).
+//
+//nimbus:param style how it feels
+//nimbus:param intensity how strong, 0 to 1
+func (f Feedback) Impact(style Style, intensity float32) {
+	f.send("impact", map[string]any{"style": style, "intensity": intensity})
+}
+
+// Notify is the system's feedback for a success, warning or error.
+//
+//nimbus:param kind what happened
+func (f Feedback) Notify(kind Kind) { f.send("notify", map[string]any{"kind": kind}) }
+
+// Selection is the light tick of a choice changing.
+func (f Feedback) Selection() { f.send("selection", nil) }
+
+// Play plays a pattern.
+//
+//nimbus:param events the taps and buzzes
+//nimbus:param curves changes over time; optional
+func (f Feedback) Play(events []Event, curves ...Curve) {
 	type ev struct {
 		T, D, I, S float64
 	}
@@ -105,14 +136,14 @@ func Play(events []Event, curves ...Curve) {
 		}
 		cs = append(cs, v)
 	}
-	send("play", map[string]any{"events": es, "curves": cs})
+	f.send("play", map[string]any{"events": es, "curves": cs})
 }
 
 // send calls the host off the caller's goroutine: plugin calls wait for an
 // answer, and feedback has nothing to wait for.
-func send(method string, args any) {
+func (f Feedback) send(method string, args any) {
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(f.ctx), 5*time.Second)
 		defer cancel()
 		_, _ = plugin.CallJSON(ctx, name, method, args)
 	}()

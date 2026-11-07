@@ -1,2 +1,2 @@
 { "description": "Apple Maps inside your screen, on iOS", "handler": "AppleMapsPlugin", "boot": true,
-  "platforms": { "android": "none" } }
+  "platforms": { "web": "with a MapKit JS token", "android": "none" } }
