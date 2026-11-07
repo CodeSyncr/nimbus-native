@@ -9,6 +9,10 @@
       "result": "The example shows the real version, system and language."
     },
     {
+      "where": "Chromium",
+      "result": "Platform web, the site's host as the ID, and the browser's language."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -55,6 +59,10 @@
       "result": "Active while the tab shows."
     },
     {
+      "where": "Safari",
+      "result": "Active while the tab shows."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -87,6 +95,10 @@
       "result": "Loaded a sound from bytes, played it and reported its position."
     },
     {
+      "where": "Safari",
+      "result": "Played a sound from bytes."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -103,6 +115,10 @@
     {
       "where": "Chromium",
       "result": "Recorded 1.2 s from a simulated microphone as audio/mp4."
+    },
+    {
+      "where": "Safari",
+      "result": "Recorded 1.2 s as audio/mp4."
     },
     {
       "where": "Real phones",
@@ -151,6 +167,10 @@
       "result": "Set without error; it shows only for an installed web app."
     },
     {
+      "where": "Safari",
+      "result": "Unavailable: Safari badges only installed web apps."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -163,6 +183,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Chromium",
+      "result": "Read an EAN-13 barcode from a simulated camera; Cancel closed the camera."
     },
     {
       "where": "Real phones",
@@ -251,6 +275,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Chromium",
+      "result": "Downloaded an .ics file with the event."
     },
     {
       "where": "Real phones",
@@ -349,6 +377,10 @@
       "result": "The same test passes, with the permission granted from outside the app. The prompt, the picker and the Add screen haven't been opened, and limited access wasn't tried."
     },
     {
+      "where": "Chromium",
+      "result": "Pick is unavailable on a computer, as expected; not tried in Chrome on Android."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -367,6 +399,10 @@
       "result": "Reports the browser's platform and memory, and the battery through the Battery API."
     },
     {
+      "where": "Safari",
+      "result": "Works, without memory or battery, which Safari doesn't give."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -379,6 +415,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Alert, Confirm, Choose and PickDate showed in the page and returned the button or date chosen; Toast showed."
     },
     {
       "where": "Real phones",
@@ -537,6 +577,10 @@
       "result": "Took and released a screen wake lock."
     },
     {
+      "where": "Safari",
+      "result": "Took and released a wake lock."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -549,6 +593,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Dismiss ran."
     },
     {
       "where": "Real phones",
@@ -577,6 +625,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Opened a page in a new tab; CanOpen is true for tel: and false for an app's own scheme."
     },
     {
       "where": "Real phones",
@@ -613,6 +665,10 @@
     {
       "where": "Chromium",
       "result": "Languages, region, time zone, 24-hour clock, first weekday and separators from Intl; no currency."
+    },
+    {
+      "where": "Safari",
+      "result": "Works, as in Chromium."
     },
     {
       "where": "Real phones",
@@ -679,6 +735,10 @@
       "result": "Save adds the picture to the library, which its permission prompt showed. List and Read haven't been run: that prompt can't be answered here."
     },
     {
+      "where": "Chromium",
+      "result": "Save downloaded the file."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -715,6 +775,10 @@
       "result": "With no sensor, it fails with unavailable after a second. Not tried on a phone's browser."
     },
     {
+      "where": "Safari",
+      "result": "With no sensor, it fails with unavailable."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -747,6 +811,10 @@
       "result": "Reports online, and the connection type where the browser says."
     },
     {
+      "where": "Safari",
+      "result": "Reports online."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -759,6 +827,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Simulators have no NFC, so reading a tag has never been run."
+    },
+    {
+      "where": "Chromium",
+      "result": "Available is false on a computer; not tried in Chrome on Android."
     },
     {
       "where": "Real phones",
@@ -779,6 +851,10 @@
       "result": "On iOS 26: sign-in brings up the system's prompt to sign in with microsoftonline.com. It wasn't continued, since this run can't tap the simulator."
     },
     {
+      "where": "Chromium",
+      "result": "Signed in through a popup against a test provider, and the server exchanged the code with its PKCE verifier."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet. No sign-in with a real provider has been run."
     }
@@ -791,6 +867,10 @@
     {
       "where": "iOS simulator",
       "result": "Locks to landscape, and unlocking returns to portrait."
+    },
+    {
+      "where": "Chromium",
+      "result": "Unavailable on a computer, as expected."
     },
     {
       "where": "Real phones",
@@ -921,6 +1001,10 @@
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
     },
     {
+      "where": "Chromium",
+      "result": "Announce reached a live region. Enabled is unavailable: browsers don't say."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -937,6 +1021,10 @@
     {
       "where": "Chromium",
       "result": "Set, read back and deleted a secret in the browser's own storage."
+    },
+    {
+      "where": "Safari",
+      "result": "Set, read back and deleted a secret."
     },
     {
       "where": "Real phones",
@@ -969,6 +1057,10 @@
     {
       "where": "iOS simulator",
       "result": "Apple's sheet opens and stops at signing in to an Apple Account. Google's consent prompt opens. A completed sign-in has never been run."
+    },
+    {
+      "where": "Chromium",
+      "result": "Google and Apple asked with the right client IDs and came back through /_nn/oauth with an ID token, against simulated providers. Real accounts weren't tried."
     },
     {
       "where": "Real phones",
@@ -1007,6 +1099,10 @@
       "result": "Read a word aloud and returned when it was done."
     },
     {
+      "where": "Safari",
+      "result": "Read a word aloud."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -1019,6 +1115,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Permission and start ran in an earlier test, but real speech hasn't been heard."
+    },
+    {
+      "where": "Chromium",
+      "result": "Brave has no speech service and fails with network. Not tried in Chrome or Safari."
     },
     {
       "where": "Real phones",
@@ -1085,6 +1185,10 @@
       "result": "The dark screen shows. Icon color wasn't checked."
     },
     {
+      "where": "Chromium",
+      "result": "SetColor became the page's theme color."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -1101,6 +1205,10 @@
     {
       "where": "Chromium",
       "result": "Set, read back and deleted a value in the browser's own storage."
+    },
+    {
+      "where": "Safari",
+      "result": "Set, read back and deleted a value."
     },
     {
       "where": "Real phones",
@@ -1135,6 +1243,10 @@
       "result": "The real prompt shows. Choosing Allow or Deny hasn't been tested."
     },
     {
+      "where": "Chromium",
+      "result": "Answers not-needed."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -1149,6 +1261,10 @@
       "result": "Plays, and reports its length."
     },
     {
+      "where": "Chromium",
+      "result": "Played a clip in a video element, reporting its length and its end."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -1161,6 +1277,10 @@
     {
       "where": "iOS simulator",
       "result": "The page's view shows."
+    },
+    {
+      "where": "Chromium",
+      "result": "Showed a page of its own in an iframe and reported it loaded."
     },
     {
       "where": "Real phones",

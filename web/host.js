@@ -412,6 +412,7 @@
         const el = els.get(i.a[0]);
         if (el) i.a[2] == null ? el.removeAttribute(i.a[1]) : el.setAttribute(i.a[1], i.a[2]);
         if (el && i.a[1] === "data-draw") paint(el);
+        if (el && i.a[1] === "data-np") nativeView(el);
       } else if (i.p) {
         const el = els.get(i.p[0]);
         if (el && el[i.p[1]] !== i.p[2]) el[i.p[1]] = i.p[2];
@@ -621,6 +622,35 @@
       document.body.appendChild(f);
       setTimeout(() => f.remove(), 2000);
     },
+    // download saves bytes as a file, the browser's way to keep one.
+    download(name, type, b64) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([NN.bytes(b64)], { type }));
+      a.download = name || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    },
+    // popup opens a sign-in page in a window of its own and resolves with
+    // the address it came back to, which the site's /_nn/oauth page hands
+    // over. Closing the window cancels.
+    popup(url) {
+      return new Promise((done, fail) => {
+        const w = window.open(url, "nn-auth", "popup,width=520,height=680");
+        if (!w) return fail(Object.assign(new Error("the browser blocked the sign-in window"), { nnCode: "failed" }));
+        const got = (e) => {
+          if (e.origin !== location.origin || !e.data?.nnAuth) return;
+          finish();
+          done(e.data.nnAuth);
+        };
+        const shut = setInterval(() => {
+          if (w.closed) { finish(); fail(Object.assign(new Error("the sign-in window was closed"), { nnCode: "cancelled" })); }
+        }, 400);
+        function finish() { clearInterval(shut); removeEventListener("message", got); try { w.close(); } catch (_) {} }
+        addEventListener("message", got);
+      });
+    },
     // pick opens the browser's file chooser; it resolves with the chosen
     // files, or none when the chooser is closed.
     pick({ accept = "", multiple = false, capture } = {}) {
@@ -639,6 +669,24 @@
       });
     },
   };
+  // A Native view's browser side: NN.view(kind, make) registers make(el,
+  // emit), which fills el and returns update(props). Its plugin's script
+  // loads when the first one shows.
+  const viewMakers = {}, mounted = new WeakMap();
+  NN.view = (kind, make) => { viewMakers[kind] = make; };
+  async function nativeView(el) {
+    const kind = el.dataset.nv;
+    let props;
+    try { props = JSON.parse(el.dataset.np || "null"); } catch (_) { return; }
+    if (!kind) return;
+    if (!mounted.has(el)) {
+      if (!viewMakers[kind]) await loadPlugin(kind);
+      const make = viewMakers[kind];
+      if (!make || mounted.has(el)) return;
+      mounted.set(el, make(el, (name, data) => send({ t: "native", tag: tagOf(el), name, data: typeof data === "string" ? data : JSON.stringify(data ?? {}) })));
+    }
+    mounted.get(el)?.(props);
+  }
   function loadPlugin(name) {
     if (plugins[name]) return Promise.resolve(plugins[name]);
     return loading[name] ||= new Promise((done) => {
@@ -664,6 +712,8 @@
     fetch("/_nn/result?s=" + sid, { method: "POST", body: JSON.stringify(r), headers: { "Content-Type": "application/json" } })
       .catch(() => {});
   }
+
+  for (const el of root.querySelectorAll("[data-np]")) nativeView(el); // views in the served HTML
 
   // ---- the stream ----
 

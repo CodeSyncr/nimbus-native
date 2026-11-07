@@ -12,6 +12,10 @@
 //		Scopes:      []string{"openid", "profile", "offline_access", "User.Read"},
 //	})
 //
+// On the web the page opens in a popup and comes back to the site's
+// /_nn/oauth, such as https://cafe.example/_nn/oauth: register that address
+// at the provider too.
+//
 // Some providers, GitHub among them, still want a secret for the exchange.
 // For those, Authorize gets the code on the phone and your server calls
 // Exchange with the secret.
@@ -63,7 +67,8 @@ type Config struct {
 	ClientID string
 	// RedirectURL is where the provider sends them back, such as
 	// "com.example.cafe://auth". Its scheme is the one you gave plugin add,
-	// and it must be registered at the provider exactly as written.
+	// and it must be registered at the provider exactly as written. On the
+	// web it is the site's /_nn/oauth instead, whatever this says.
 	RedirectURL string
 	// Scopes are what you ask for.
 	Scopes []string
@@ -128,6 +133,15 @@ func SignIn(ctx context.Context, c Config) (Token, error) {
 //
 //nimbus:param c the provider and your app's registration there
 func Authorize(ctx context.Context, c Config) (Grant, error) {
+	if plugin.InBrowser(ctx) {
+		r, err := plugin.Call[struct {
+			Origin string `json:"origin"`
+		}](ctx, "oauth", "origin", nil)
+		if err != nil {
+			return Grant{}, err
+		}
+		c.RedirectURL = r.Origin + "/_nn/oauth"
+	}
 	if c.Endpoint.AuthURL == "" || c.ClientID == "" || c.RedirectURL == "" {
 		return Grant{}, fmt.Errorf("oauth: Config needs Endpoint, ClientID and RedirectURL")
 	}

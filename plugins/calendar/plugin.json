@@ -1,3 +1,4 @@
 { "description": "Add an event with the system's own screen", "handler": "CalendarPlugin",
   "ios": { "info": { "NSCalendarsWriteOnlyAccessUsageDescription": "This app adds events to your calendar.",
-                     "NSCalendarsUsageDescription": "This app adds events to your calendar." } } }
+                     "NSCalendarsUsageDescription": "This app adds events to your calendar." } },
+  "platforms": { "web": "as an .ics file" } }

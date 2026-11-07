@@ -11,7 +11,7 @@ import (
 
 // Info is the app and device.
 type Info struct {
-	Platform  string `json:"platform"`  // "ios" or "android"
+	Platform  string `json:"platform"`  // "ios", "android" or "web"
 	ID        string `json:"id"`        // bundle id / application id
 	Version   string `json:"version"`   // e.g. "1.2.0"
 	Build     string `json:"build"`     // e.g. "42"
@@ -28,6 +28,9 @@ var (
 
 // Get returns the app's Info (asked once, then remembered).
 func Get(ctx context.Context) (Info, error) {
+	if plugin.InBrowser(ctx) {
+		return plugin.Call[Info](ctx, "app", "info", nil) // each visitor's own, never cached
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if cached != nil {

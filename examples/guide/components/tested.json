@@ -153,8 +153,8 @@
       "result": "The example's screen shows. It wasn't tapped: this run can't tap the simulator."
     },
     {
-      "where": "The web",
-      "result": "Does nothing: the browser has no such picker yet. Avoid it on web pages for now."
+      "where": "Chromium",
+      "result": "Opened the browser's date picker in a dialog and kept the day chosen."
     },
     {
       "where": "Real phones",

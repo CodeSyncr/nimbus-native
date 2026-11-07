@@ -1,1 +1,1 @@
-{ "description": "VoiceOver and TalkBack: whether one is on, and announcements", "handler": "ScreenReaderPlugin" }
+{ "description": "VoiceOver and TalkBack: whether one is on, and announcements", "handler": "ScreenReaderPlugin", "platforms": { "web": "announcing only" } }

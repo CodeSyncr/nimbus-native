@@ -1,3 +1,4 @@
 { "description": "Pick, read, add and change contacts", "handler": "ContactsPlugin",
   "ios": { "info": { "NSContactsUsageDescription": "This app finds people in your contacts." } },
-  "android": { "permissions": ["android.permission.READ_CONTACTS", "android.permission.WRITE_CONTACTS"] } }
+  "android": { "permissions": ["android.permission.READ_CONTACTS", "android.permission.WRITE_CONTACTS"] },
+  "platforms": { "web": "picking, in Chrome on Android" } }

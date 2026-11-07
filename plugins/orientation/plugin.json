@@ -1,1 +1,1 @@
-{ "description": "Lock the screen to portrait or landscape", "handler": "OrientationPlugin" }
+{ "description": "Lock the screen to portrait or landscape", "handler": "OrientationPlugin", "platforms": { "web": "full screen only" } }

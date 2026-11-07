@@ -1,3 +1,4 @@
 { "description": "Scan QR codes and barcodes", "handler": "BarcodePlugin",
   "ios": { "info": { "NSCameraUsageDescription": "This app scans codes with the camera." } },
-  "android": { "dependencies": ["com.google.android.gms:play-services-code-scanner:16.1.0"] } }
+  "android": { "dependencies": ["com.google.android.gms:play-services-code-scanner:16.1.0"] },
+  "platforms": { "web": "Chrome on Android and Macs" } }

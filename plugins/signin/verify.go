@@ -29,8 +29,9 @@ var ErrInvalid = errors.New("signin: invalid token")
 
 // Verification says what a token must be.
 type Verification struct {
-	// Audiences are your client IDs: Apple's is the app's bundle ID,
-	// Google's are the ones in Options. A token for another app is refused.
+	// Audiences are your client IDs: Apple's is the app's bundle ID (and
+	// the Services ID, for the web), Google's are the ones in Options. A
+	// token for another app is refused.
 	Audiences []string
 	// Nonce is the value you gave the phone. Empty skips the check.
 	Nonce string

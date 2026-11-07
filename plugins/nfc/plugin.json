@@ -2,4 +2,5 @@
   "ios": {
     "info": { "NFCReaderUsageDescription": "This app reads NFC tags when you ask it to." },
     "entitlementArrays": { "com.apple.developer.nfc.readersession.formats": ["TAG"] } },
-  "android": { "permissions": ["android.permission.NFC"] } }
+  "android": { "permissions": ["android.permission.NFC"] },
+  "platforms": { "web": "Chrome on Android" } }

@@ -114,6 +114,8 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.result(w, r)
 	case strings.HasPrefix(r.URL.Path, prefix+"plugin/"):
 		s.pluginJS(w, r)
+	case r.URL.Path == prefix+"oauth":
+		authReturn(w, r)
 	case r.URL.Path == "/sitemap.xml":
 		s.sitemap(w, r)
 	case r.URL.Path == "/robots.txt":
@@ -311,6 +313,34 @@ func (s *site) result(w http.ResponseWriter, r *http.Request) {
 	}
 	sess.result(m)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// authReturn is where sign-in providers send the visitor back, in the popup
+// that NN.popup opened. It hands the address, with what a provider posted
+// (Apple's form_post), to the page that opened it, and closes.
+func authReturn(w http.ResponseWriter, r *http.Request) {
+	// A GET's answer may be in the fragment, which only the page sees: it
+	// hands over its own address. A POST's is in the form.
+	posted := ""
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "bad form", http.StatusBadRequest)
+			return
+		}
+		back := *r.URL
+		back.RawQuery = r.PostForm.Encode()
+		posted = back.RequestURI()
+	}
+	addr, _ := json.Marshal(posted) // json escapes <, > and &, so it can't end the script
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>Signing in</title><p style="font-family:system-ui;padding:24px">Signing in…</p>
+<script>
+const posted = %s, back = posted ? location.origin + posted : location.href;
+if (window.opener) { window.opener.postMessage({ nnAuth: back }, location.origin); }
+window.close();
+</script>`, addr)
 }
 
 // pluginJS serves a plugin's browser side (plugin.RegisterWeb).

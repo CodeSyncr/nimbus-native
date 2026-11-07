@@ -59,7 +59,7 @@ func components(uiDir, list, examples, tested, out string) (failed bool, err err
 }
 
 // noWeb are the components a browser can't do yet.
-var noWeb = map[string]bool{"date-field": true}
+var noWeb = map[string]bool{}
 
 func componentHead(slug string) string {
 	web := `<span class="nd-plat">The web</span>`

@@ -278,7 +278,7 @@ func (d DateField) Render(c *Ctx) Component {
 			start = time.Now()
 		}
 		go func() {
-			if t, ok, err := dialog.PickDate(context.Background(), d.Mode, start); err == nil && ok {
+			if t, ok, err := dialog.PickDate(c.rt.ctx, d.Mode, start); err == nil && ok {
 				c.rt.do(func() { d.OnChange(t) })
 			}
 		}()

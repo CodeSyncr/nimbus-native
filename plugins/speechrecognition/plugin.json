@@ -2,4 +2,5 @@
   "ios": { "info": {
     "NSSpeechRecognitionUsageDescription": "This app turns what you say into text.",
     "NSMicrophoneUsageDescription": "This app listens when you talk to it." } },
-  "android": { "permissions": ["android.permission.RECORD_AUDIO"] } }
+  "android": { "permissions": ["android.permission.RECORD_AUDIO"] },
+  "platforms": { "web": "Chrome and Safari" } }

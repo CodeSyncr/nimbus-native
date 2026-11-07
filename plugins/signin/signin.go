@@ -10,6 +10,10 @@
 //
 // Then send u.IDToken to your server, which checks it with Verify. The other
 // fields are for showing their name: anyone can forge what a phone sends.
+//
+// On the web, the provider's page opens in a popup and comes back to the
+// site's /_nn/oauth, such as https://cafe.example/_nn/oauth: register that
+// as a redirect URI (Google) or return URL (Apple).
 package signin
 
 import (
@@ -29,8 +33,11 @@ type Options struct {
 	// IOSClient is Google's iOS OAuth client ID. Google only.
 	IOSClient string `json:"iosClient,omitempty"`
 	// AndroidClient is Google's Web OAuth client ID: that kind, not the
-	// Android one, which only has to exist. Google only.
+	// Android one, which only has to exist. The web uses it too. Google only.
 	AndroidClient string `json:"androidClient,omitempty"`
+	// AppleServicesID is Apple's Services ID, for Sign in with Apple on
+	// the web. Apple only.
+	AppleServicesID string `json:"appleServicesID,omitempty"`
 }
 
 // User is who signed in.
@@ -45,8 +52,8 @@ type User struct {
 	Code string `json:"code"`
 }
 
-// Apple shows Sign in with Apple. It's iOS only: on Android the error has
-// code plugin.Unavailable. Apple gives their name the first time only, and
+// Apple shows Sign in with Apple, on iOS and on the web (with
+// AppleServicesID). On Android the error has code plugin.Unavailable. Apple gives their name the first time only, and
 // their email may be a private relay address.
 //
 //nimbus:param o the nonce; the client IDs are for Google

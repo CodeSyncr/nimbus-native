@@ -104,6 +104,8 @@ func (t *translator) op(op render.Op) []instr {
 		return []instr{{"k": []any{o.Tag, o.Children}}}
 	case *render.Box:
 		return t.box(o)
+	case *render.Native: // the page's NN.view for the kind draws it
+		return []instr{{"a": []any{o.Tag, "data-nv", o.Type}}, {"a": []any{o.Tag, "data-np", o.Props}}}
 	case *render.Draw:
 		// The commands as an attribute (it survives server rendering);
 		// host.js paints any canvas that has one.

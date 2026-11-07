@@ -17,6 +17,17 @@
   `plugin.InBrowser`). A plugin gives itself a browser side with
   `plugin.RegisterWeb` and a `web.js` that calls `NN.plugin`; the page loads
   it the first time it's needed.
+- More plugins in the browser: dialogs, toasts and date pickers drawn in the
+  page, linking, app info, keyboard, screen reader announcements, calendar
+  (an .ics file), saving media (a download), contact picking, NFC, speech
+  recognition, barcodes (the camera with BarcodeDetector), orientation,
+  tracking consent and the status bar's color.
+- OAuth and Google and Apple sign-in on the web, in a popup that comes back
+  to the site's `/_nn/oauth`. `signin.Options.AppleServicesID` is Apple's
+  Services ID for the web.
+- Native views on the web: a plugin draws its kind with `NN.view`. Video
+  plays in a `<video>` and the web view is an iframe.
+- `DateField` opens the browser's date picker on the web.
 - Effects, queries and actions in a web session get a context that ends when
   the tab's session closes.
 - Plugins' clean-up calls (stopping a sensor, a watch or speech) reach the

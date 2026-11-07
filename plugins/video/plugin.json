@@ -1,1 +1,1 @@
-{ "description": "A video player inside your screen", "handler": "VideoPlugin", "boot": true }
+{ "description": "A video player inside your screen", "handler": "VideoPlugin", "boot": true, "platforms": { "web": "a video element" } }
