@@ -4,7 +4,7 @@
 // A request for a page runs the app's UI on the server until its data has
 // loaded and answers with plain HTML, with the page's title and meta tags,
 // so search engines and link previews see real content. A small script
-// (host.js, 24 KB, 8 KB gzipped) then takes over that HTML: taps and typing go to the
+// (host.js, 33 KB, 11 KB gzipped) then takes over that HTML: taps and typing go to the
 // page's UI session on the server, and the changes it renders come back as
 // DOM updates. Layout is the browser's own CSS flexbox.
 //
@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -34,6 +35,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 	"github.com/CodeSyncr/nimbus-native/ui/render"
@@ -108,6 +110,10 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.events(w, r)
 	case r.URL.Path == prefix+"send" && r.Method == http.MethodPost:
 		s.send(w, r)
+	case r.URL.Path == prefix+"result" && r.Method == http.MethodPost:
+		s.result(w, r)
+	case strings.HasPrefix(r.URL.Path, prefix+"plugin/"):
+		s.pluginJS(w, r)
 	case r.URL.Path == "/sitemap.xml":
 		s.sitemap(w, r)
 	case r.URL.Path == "/robots.txt":
@@ -288,6 +294,36 @@ func (s *site) send(w http.ResponseWriter, r *http.Request) {
 	}
 	sess.receive(m)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// result takes a plugin's answer from the page. It has a route of its own
+// because answers can be large: a picked photo, a recording.
+func (s *site) result(w http.ResponseWriter, r *http.Request) {
+	sess := s.lookup(r.URL.Query().Get("s"))
+	if sess == nil {
+		http.Error(w, "session expired", http.StatusGone)
+		return
+	}
+	var m pluginResult
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<20)).Decode(&m); err != nil {
+		http.Error(w, "bad result", http.StatusBadRequest)
+		return
+	}
+	sess.result(m)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// pluginJS serves a plugin's browser side (plugin.RegisterWeb).
+func (s *site) pluginJS(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, prefix+"plugin/"), ".js")
+	js, ok := plugin.WebSource(name)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	io.WriteString(w, js)
 }
 
 func (s *site) newSession(path string) *session {

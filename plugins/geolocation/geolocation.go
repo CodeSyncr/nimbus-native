@@ -47,7 +47,7 @@ func Watch(ctx context.Context, f func(Position)) error {
 		return err
 	}
 	defer func() {
-		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		defer cancel()
 		_, _ = plugin.CallJSON(c, "geolocation", "stop", nil)
 	}()

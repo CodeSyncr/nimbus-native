@@ -51,6 +51,10 @@
       "result": "Reports active. This run didn't leave the app and come back."
     },
     {
+      "where": "Chromium",
+      "result": "Active while the tab shows."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -79,6 +83,10 @@
       "result": "The same test passes, and a bad address fails at once. Looping, volume and hearing the sound weren't checked. Stopping for a call wasn't tried on either."
     },
     {
+      "where": "Chromium",
+      "result": "Loaded a sound from bytes, played it and reported its position."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -91,6 +99,10 @@
     {
       "where": "iOS simulator",
       "result": "The same test passes, with the permission granted from outside the app. The prompt itself wasn't answered, and hearing the recording wasn't checked."
+    },
+    {
+      "where": "Chromium",
+      "result": "Recorded 1.2 s from a simulated microphone as audio/mp4."
     },
     {
       "where": "Real phones",
@@ -133,6 +145,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Set without error; it shows only for an installed web app."
     },
     {
       "where": "Real phones",
@@ -219,6 +235,10 @@
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
     },
     {
+      "where": "Chromium",
+      "result": "Opened a page in a new tab."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -259,6 +279,10 @@
     {
       "where": "iOS simulator",
       "result": "It builds and the screen shows. It wasn't tapped: this run can't tap the simulator, so PickMany and PickVideo have never run on iOS."
+    },
+    {
+      "where": "Chromium",
+      "result": "Picked a photo through the chooser and scaled it to 64 px."
     },
     {
       "where": "Real phones",
@@ -303,6 +327,10 @@
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
     },
     {
+      "where": "Chromium",
+      "result": "Copied a code and pasted it back."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -331,6 +359,10 @@
       "result": "The example shows the real model and system. Battery reads below zero, because a simulator has none, so changes and low power are untested on iOS."
     },
     {
+      "where": "Chromium",
+      "result": "Reports the browser's platform and memory, and the battery through the Battery API."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -357,6 +389,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Chromium",
+      "result": "Picked a file through the browser's chooser."
     },
     {
       "where": "Real phones",
@@ -399,6 +435,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Asked, then gave the position, and Watch followed it (the position was simulated)."
     },
     {
       "where": "Real phones",
@@ -489,6 +529,10 @@
       "result": "The screen shows. Whether it dims wasn't watched."
     },
     {
+      "where": "Chromium",
+      "result": "Took and released a screen wake lock."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -563,6 +607,10 @@
       "result": "Every field reads correctly, including rupees for India. Other languages and right-to-left weren't tried."
     },
     {
+      "where": "Chromium",
+      "result": "Languages, region, time zone, 24-hour clock, first weekday and separators from Intl; no currency."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -575,6 +623,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Asked, then scheduled a notification while the page was open."
     },
     {
       "where": "Real phones",
@@ -603,6 +655,10 @@
     {
       "where": "iOS simulator",
       "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. It builds, but the mail sheet needs a mail account, so it hasn't been opened."
+    },
+    {
+      "where": "Chromium",
+      "result": "Opened a mailto: link."
     },
     {
       "where": "Real phones",
@@ -651,6 +707,10 @@
       "result": "Fails with plugin.Unavailable, as it should: the simulator has no sensors, so real readings and WatchOrientation are untested on iOS."
     },
     {
+      "where": "Chromium",
+      "result": "With no sensor, it fails with unavailable after a second. Not tried on a phone's browser."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -677,6 +737,10 @@
     {
       "where": "iOS simulator",
       "result": "Shows Wi-Fi and the real address. Going offline wasn't tried, and iOS doesn't report airplane mode."
+    },
+    {
+      "where": "Chromium",
+      "result": "Reports online, and the connection type where the browser says."
     },
     {
       "where": "Real phones",
@@ -751,6 +815,10 @@
     {
       "where": "iOS simulator",
       "result": "The screen shows. It wasn't tapped: this run can't tap the simulator."
+    },
+    {
+      "where": "Chromium",
+      "result": "Printed a page from a hidden frame."
     },
     {
       "where": "Real phones",
@@ -863,6 +931,10 @@
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
     },
     {
+      "where": "Chromium",
+      "result": "Set, read back and deleted a secret in the browser's own storage."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -875,6 +947,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Its system screen hasn't been opened here."
+    },
+    {
+      "where": "Chromium",
+      "result": "Shared text through the browser's sheet."
     },
     {
       "where": "Real phones",
@@ -905,6 +981,10 @@
       "result": "The screen shows. It wasn't tapped: this run can't tap the simulator. It builds, but the simulator can't send texts, so the message sheet hasn't been opened."
     },
     {
+      "where": "Chromium",
+      "result": "Opened an sms: link."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -917,6 +997,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Read a word aloud and returned when it was done."
     },
     {
       "where": "Real phones",
@@ -1009,6 +1093,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. The plugin's calls ran in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Set, read back and deleted a value in the browser's own storage."
     },
     {
       "where": "Real phones",

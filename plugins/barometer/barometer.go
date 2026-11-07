@@ -41,7 +41,7 @@ func Watch(ctx context.Context, hz int, f func(Reading)) error {
 		return err
 	}
 	defer func() {
-		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		defer cancel()
 		_, _ = plugin.CallJSON(c, "barometer", "stop", nil)
 	}()

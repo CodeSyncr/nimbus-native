@@ -1,2 +1,3 @@
 { "description": "Write an email on the system's screen", "handler": "MailComposerPlugin",
-  "android": { "application": ["<provider android:name=\"space.nimbusgo.nativekit.MailFiles\" android:authorities=\"${applicationId}.nimbusmail\" android:exported=\"false\" android:grantUriPermissions=\"true\" />"] } }
+  "android": { "application": ["<provider android:name=\"space.nimbusgo.nativekit.MailFiles\" android:authorities=\"${applicationId}.nimbusmail\" android:exported=\"false\" android:grantUriPermissions=\"true\" />"] },
+  "platforms": { "web": "no attachments" } }

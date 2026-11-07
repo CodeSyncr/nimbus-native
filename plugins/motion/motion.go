@@ -45,7 +45,7 @@ func watch[T any](ctx context.Context, hz int, prefix string, f func(T)) error {
 		return err
 	}
 	defer func() {
-		c, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		c, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 		defer cancel()
 		_, _ = plugin.CallJSON(c, "motion", prefix+"stop", nil)
 	}()

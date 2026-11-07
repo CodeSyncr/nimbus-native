@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Plugins in the browser. On the web, a plugin call goes from the tab's
+  session on the server to the visitor's browser, which answers with its
+  own APIs: clipboard, share, geolocation, device, network, app state, keep
+  awake, browser, localization, speech, badge, printing, mail composer, SMS,
+  file picker, camera (through the file chooser), audio player, audio
+  recorder, motion, local notifications, storage and secure store. App code
+  doesn't change; the call finds its tab through the ctx that `UseQuery`,
+  `UseAction` and effects hand out (`plugin.WithBrowser`,
+  `plugin.InBrowser`). A plugin gives itself a browser side with
+  `plugin.RegisterWeb` and a `web.js` that calls `NN.plugin`; the page loads
+  it the first time it's needed.
+- Effects, queries and actions in a web session get a context that ends when
+  the tab's session closes.
+- Plugins' clean-up calls (stopping a sensor, a watch or speech) reach the
+  same phone or tab as the call they end.
+
 ## 0.0.13 (2026-11-07)
 
 The biggest release of the beta: thirty components, a plugin system with

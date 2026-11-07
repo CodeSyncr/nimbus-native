@@ -13,6 +13,10 @@
 //
 //	Plugins.register("battery") { call in call.resolve(UIDevice.current.batteryLevel) }   // Swift
 //	Plugins.register("battery") { call -> call.resolve(level) }                           // Kotlin
+//
+// In a browser the plugin's JavaScript answers instead (see RegisterWeb). The
+// call finds the browser through its ctx, so on the web pass the ctx that
+// ui.UseQuery, ui.UseAction or an effect gives you.
 package plugin
 
 import (
@@ -104,9 +108,17 @@ func CallJSON(ctx context.Context, name, method string, args any) (json.RawMessa
 		mu.Unlock()
 	}()
 
-	reply, err := callHost(render.Encode(&render.PluginCall{ID: id, Plugin: name, Method: method, Args: string(b)}))
+	call := callHost
+	if b, ok := ctx.Value(browserKey{}).(*browser); ok {
+		call = b.call
+	}
+	reply, err := call(render.Encode(&render.PluginCall{ID: id, Plugin: name, Method: method, Args: string(b)}))
 	if err != nil {
-		return nil, &Error{Plugin: name, Method: method, Code: Unavailable, Message: err.Error()}
+		msg := err.Error()
+		if errors.Is(err, bridge.ErrNotStarted) {
+			msg = "nothing here runs plugins: on the web, pass the ctx from ui.UseQuery, ui.UseAction or an effect"
+		}
+		return nil, &Error{Plugin: name, Method: method, Code: Unavailable, Message: msg}
 	}
 	if m, err := render.Decode(reply); err == nil {
 		if ack, ok := m.(*render.PluginAck); ok && ack.Err != "" {
@@ -150,4 +162,56 @@ func RunBackground(name string) {
 	if OnBackground != nil {
 		go OnBackground(name)
 	}
+}
+
+type browserKey struct{}
+
+type browser struct {
+	call func(req []byte) ([]byte, error)
+}
+
+// WithBrowser returns a context whose plugin calls go to a browser through
+// call, which takes an encoded render.PluginCall and answers with an encoded
+// render.PluginAck; the result comes later through Deliver. The web host
+// gives each tab's contexts one.
+func WithBrowser(ctx context.Context, call func(req []byte) ([]byte, error)) context.Context {
+	return context.WithValue(ctx, browserKey{}, &browser{call})
+}
+
+// InBrowser reports whether plugin calls with ctx run in a browser, for
+// plugins that work differently there.
+func InBrowser(ctx context.Context) bool {
+	_, ok := ctx.Value(browserKey{}).(*browser)
+	return ok
+}
+
+var (
+	webMu sync.Mutex
+	webJS = map[string]string{}
+)
+
+// RegisterWeb gives a plugin its browser side: JavaScript that the page
+// loads the first time the plugin is called, and that registers the
+// plugin's methods with NN.plugin:
+//
+//	NN.plugin("clipboard", {
+//	  set: async ({ text }) => { await navigator.clipboard.writeText(text); },
+//	  get: async () => ({ text: await navigator.clipboard.readText() }),
+//	});
+//
+// A method returns its answer (any JSON value) or throws; NN.fail(code,
+// message) throws with one of the Error codes. Plugins call RegisterWeb from
+// init, with the source embedded.
+func RegisterWeb(name, js string) {
+	webMu.Lock()
+	defer webMu.Unlock()
+	webJS[name] = js
+}
+
+// WebSource is the browser side registered for a plugin.
+func WebSource(name string) (string, bool) {
+	webMu.Lock()
+	defer webMu.Unlock()
+	js, ok := webJS[name]
+	return js, ok
 }

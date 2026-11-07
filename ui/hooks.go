@@ -162,9 +162,9 @@ func (s *hookSlot) stop() {
 	}
 }
 
-func (s *hookSlot) start() {
+func (s *hookSlot) start(parent context.Context) {
 	s.stop()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(parent)
 	s.cancel = cancel
 	defer func() {
 		if r := recover(); r != nil {

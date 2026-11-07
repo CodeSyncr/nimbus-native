@@ -44,7 +44,7 @@ func Listen(ctx context.Context, o Options) (string, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			stop, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			stop, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 			defer cancel()
 			_, _ = plugin.CallJSON(stop, "speechrecognition", "stop", nil)
 			return last, ctx.Err()

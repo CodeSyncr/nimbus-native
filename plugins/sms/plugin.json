@@ -1,1 +1,1 @@
-{ "description": "Write a text message on the system's screen", "handler": "SmsPlugin" }
+{ "description": "Write a text message on the system's screen", "handler": "SmsPlugin", "platforms": { "web": "phones and Macs" } }

@@ -80,7 +80,7 @@ func (rt *runtime) startQuery(e *queryEntry) {
 	if e.cancel != nil {
 		e.cancel() // a newer fetch wins
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(rt.ctx)
 	e.cancel, e.started, e.loading = cancel, true, true
 	rt.touchQuery(e)
 	fetch := e.fetch
@@ -141,7 +141,7 @@ func UseAction[A, R any](c *Ctx, do func(ctx context.Context, arg A) (R, error),
 			}
 			update(func(s state) state { s.running, s.err = true, nil; return s })
 			go func() {
-				res, err := do(context.Background(), arg)
+				res, err := do(rt.ctx, arg)
 				update(func(s state) state {
 					s.running, s.err = false, err
 					if err == nil {

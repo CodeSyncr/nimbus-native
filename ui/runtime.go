@@ -9,6 +9,7 @@
 package ui
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"runtime/debug"
@@ -96,6 +97,11 @@ type runtime struct {
 	values     map[any]any
 	closed     bool
 
+	// ctx is the parent of the contexts hooks hand to app code; a web
+	// session's carries its tab, for plugin calls, and ends when it closes.
+	ctx    context.Context
+	endCtx context.CancelFunc
+
 	// Dev reloads (navstate.go).
 	navFile            string
 	navSaved           *navState
@@ -104,7 +110,8 @@ type runtime struct {
 }
 
 func newRuntime(root Component) *runtime {
-	return &runtime{root: root, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
+	ctx, end := context.WithCancel(context.Background())
+	return &runtime{root: root, ctx: ctx, endCtx: end, wake: make(chan struct{}, 1), byTag: map[uint32]*instance{},
 		lists: map[*instance]bool{}, rechild: map[*instance]bool{}, toggled: map[*instance]bool{}, queries: map[string]*queryEntry{},
 		stores: map[any]*storeState{}}
 }
@@ -381,7 +388,7 @@ func (rt *runtime) commit() {
 	for _, s := range effects {
 		if s.pending {
 			s.pending = false
-			s.start()
+			s.start(rt.ctx)
 		}
 	}
 }

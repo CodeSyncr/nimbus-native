@@ -15,7 +15,7 @@ import (
 
 // Info is the phone.
 type Info struct {
-	Platform     string `json:"platform"`     // "ios" or "android"
+	Platform     string `json:"platform"`     // "ios", "android" or "web"
 	Model        string `json:"model"`        // e.g. "iPhone17,1", "Pixel 9"
 	Manufacturer string `json:"manufacturer"` // e.g. "Apple", "Google"
 	OSVersion    string `json:"osVersion"`    // the system version

@@ -78,3 +78,26 @@ func TestCall(t *testing.T) {
 		t.Fatalf("%d calls left pending", n)
 	}
 }
+
+// A context from WithBrowser sends calls to its browser, not the device.
+func TestCallInBrowser(t *testing.T) {
+	fakeHost(t, func(c *render.PluginCall) *render.PluginResult {
+		t.Errorf("the device got %s.%s", c.Plugin, c.Method)
+		return nil
+	})
+	ctx := WithBrowser(context.Background(), func(req []byte) ([]byte, error) {
+		m, _ := render.Decode(req)
+		c := m.(*render.PluginCall)
+		go Deliver(&render.PluginResult{ID: c.ID, Value: `{"text":"from the tab"}`})
+		return render.Encode(&render.PluginAck{}), nil
+	})
+	if !InBrowser(ctx) || InBrowser(context.Background()) {
+		t.Fatal("InBrowser")
+	}
+	r, err := Call[struct {
+		Text string `json:"text"`
+	}](ctx, "clipboard", "get", nil)
+	if err != nil || r.Text != "from the tab" {
+		t.Fatalf("got %+v, %v", r, err)
+	}
+}

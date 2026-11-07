@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/CodeSyncr/nimbus-native/layout"
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/ui/render"
 )
 
@@ -22,6 +23,9 @@ type SessionOptions struct {
 	Style func(tag uint32, s layout.Style)
 	// Values are what SessionValue returns to components.
 	Values map[any]any
+	// Plugin, when set, runs plugin calls made with the contexts the
+	// session's hooks hand out (see plugin.WithBrowser).
+	Plugin func(call []byte) ([]byte, error)
 }
 
 // NewSession starts a runtime for root. It renders once the host sends a
@@ -32,6 +36,9 @@ func NewSession(root Component, o SessionOptions) *Session {
 	rt.measure = func(*render.MeasureText) render.TextSize { return render.TextSize{} }
 	rt.hostLayout = o.Style
 	rt.values = o.Values
+	if o.Plugin != nil {
+		rt.ctx = plugin.WithBrowser(rt.ctx, o.Plugin)
+	}
 	go rt.loop()
 	return &Session{rt: rt}
 }
@@ -84,6 +91,7 @@ func (s *Session) Close() {
 		if s.rt.rootInst != nil {
 			s.rt.unmount(s.rt.rootInst)
 		}
+		s.rt.endCtx()
 		s.rt.mu.Lock()
 		s.rt.closed = true
 		s.rt.mu.Unlock()

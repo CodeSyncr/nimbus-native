@@ -8,7 +8,8 @@
 //	ok, err := storage.Get(ctx, "theme", &theme)
 //
 // Under `nimbus native dev` the app runs on this machine, so the file lives
-// in the user cache directory instead of on the device.
+// in the user cache directory instead of on the device. On the web the
+// values live in each visitor's browser.
 package storage
 
 import (
@@ -18,6 +19,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/plugins/appinfo"
 )
 
@@ -66,6 +68,16 @@ func load(ctx context.Context) error {
 //nimbus:param key the name
 //nimbus:param dst a pointer to fill
 func Get(ctx context.Context, key string, dst any) (ok bool, err error) {
+	if plugin.InBrowser(ctx) {
+		r, err := plugin.Call[struct {
+			Found bool            `json:"found"`
+			Value json.RawMessage `json:"value"`
+		}](ctx, "storage", "get", map[string]string{"key": key})
+		if err != nil || !r.Found {
+			return false, err
+		}
+		return true, json.Unmarshal(r.Value, dst)
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if err := load(ctx); err != nil {
@@ -87,6 +99,10 @@ func Set(ctx context.Context, key string, value any) error {
 	if err != nil {
 		return err
 	}
+	if plugin.InBrowser(ctx) {
+		_, err := plugin.CallJSON(ctx, "storage", "set", map[string]any{"key": key, "value": json.RawMessage(b)})
+		return err
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if err := load(ctx); err != nil {
@@ -100,6 +116,10 @@ func Set(ctx context.Context, key string, value any) error {
 //
 //nimbus:param key the name
 func Delete(ctx context.Context, key string) error {
+	if plugin.InBrowser(ctx) {
+		_, err := plugin.CallJSON(ctx, "storage", "delete", map[string]string{"key": key})
+		return err
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if err := load(ctx); err != nil {

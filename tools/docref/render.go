@@ -100,7 +100,7 @@ func (p *plug) platforms() string {
 		}
 		return `<span class="nd-plat">` + name + `</span>`
 	}
-	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", plainGo[p.name]) + "</p>\n"
+	return `<p class="nd-plats">` + one("iOS", "ios", p.ios) + one("Android", "android", p.android) + one("the web", "web", p.web) + "</p>\n"
 }
 
 func (p *plug) writeFn(b *strings.Builder, f fn, level, id string) {

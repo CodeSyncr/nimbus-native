@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CodeSyncr/nimbus-native/plugin"
 	"github.com/CodeSyncr/nimbus-native/router"
 	"github.com/CodeSyncr/nimbus-native/ui"
 	"github.com/CodeSyncr/nimbus-native/ui/render"
@@ -219,4 +220,78 @@ func TestLiveSession(t *testing.T) {
 	if r, _ := http.Post(srv.URL+"/_nn/send?s=nope", "application/json", strings.NewReader(`{"t":"press"}`)); r.StatusCode != http.StatusGone {
 		t.Errorf("unknown session: %d", r.StatusCode)
 	}
+}
+
+type pastePage struct{}
+
+func (pastePage) Render(c *ui.Ctx) ui.Component {
+	text, setText := ui.State(c, "waiting")
+	ui.Effect(c, func(ctx context.Context) func() {
+		go func() {
+			r, err := plugin.Call[struct {
+				Text string `json:"text"`
+			}](ctx, "testclip", "get", map[string]int{"n": 1})
+			if err != nil {
+				setText("error " + err.Error())
+				return
+			}
+			setText("pasted " + r.Text)
+		}()
+		return nil
+	}, ui.Once)
+	return ui.Text(text, ui.Style{})
+}
+
+// A plugin call made during a page's first render goes to the page once it
+// connects, and the page's answer comes back to the waiting call.
+func TestPluginInBrowser(t *testing.T) {
+	plugin.RegisterWeb("testclip", `NN.plugin("testclip", {})`)
+	router.Register(router.Table{
+		{Pattern: "/paste", New: func(router.Params) (ui.Component, bool) { return pastePage{}, true }},
+	})
+	srv := httptest.NewServer(Handler(Options{SiteName: "Shop"}))
+	t.Cleanup(srv.Close)
+
+	if r, body := get(t, srv.URL+"/_nn/plugin/testclip.js"); r.StatusCode != 200 || !strings.Contains(body, `NN.plugin("testclip"`) {
+		t.Fatalf("plugin script: %d %s", r.StatusCode, body)
+	}
+	if r, _ := get(t, srv.URL+"/_nn/plugin/nope.js"); r.StatusCode != 404 {
+		t.Fatalf("unknown plugin script: %d", r.StatusCode)
+	}
+
+	_, body := get(t, srv.URL+"/paste")
+	sid := regexp.MustCompile(`data-session="([0-9a-f]+)"`).FindStringSubmatch(body)[1]
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, "GET", srv.URL+"/_nn/events?s="+sid, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	sc := bufio.NewScanner(resp.Body)
+	next := func(substr string) string {
+		t.Helper()
+		for sc.Scan() {
+			if data, ok := strings.CutPrefix(sc.Text(), "data: "); ok && strings.Contains(data, substr) {
+				return data
+			}
+		}
+		t.Fatalf("no event with %q", substr)
+		return ""
+	}
+
+	var call struct{ P pluginCall }
+	if err := json.Unmarshal([]byte(next(`"p":`)), &call); err != nil {
+		t.Fatal(err)
+	}
+	if call.P.Plugin != "testclip" || call.P.Method != "get" || string(call.P.Args) != `{"n":1}` {
+		t.Fatalf("call = %+v", call.P)
+	}
+	b, _ := json.Marshal(map[string]any{"id": call.P.ID, "value": map[string]string{"text": "NOVA-4821"}})
+	if r, err := http.Post(srv.URL+"/_nn/result?s="+sid, "application/json", strings.NewReader(string(b))); err != nil || r.StatusCode != http.StatusNoContent {
+		t.Fatalf("result: %v %v", err, r)
+	}
+	http.Post(srv.URL+"/_nn/send?s="+sid, "application/json", strings.NewReader(`{"t":"viewport","w":400,"h":700,"scale":2}`))
+	next("pasted NOVA-4821")
 }

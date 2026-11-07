@@ -23,6 +23,7 @@ type plug struct {
 	ios     bool
 	android bool
 	builtin bool
+	web     bool              // it has a browser side (web.js), or needs none
 	notes   map[string]string // from plugin.json's "platforms", such as "device only"
 	man     manifest
 	funcs   []fn
@@ -93,6 +94,7 @@ func load(dir, name string) (*plug, error) {
 		}
 	}
 	p.notes = p.man.Platforms
+	p.web = plainGo[name] || exists(filepath.Join(dir, "web.js"))
 
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dir, func(f os.FileInfo) bool {

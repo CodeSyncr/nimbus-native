@@ -2,6 +2,8 @@ package web
 
 import (
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -45,8 +47,60 @@ func newSession(id, path string, s *site) *session {
 		Send:   sess.commit,
 		Style:  func(tag uint32, st layout.Style) { sess.styles[tag] = st }, // on the UI loop, like commit
 		Values: map[any]any{router.NavigatorKey: sess},
+		Plugin: sess.plugin,
 	})
 	return sess
+}
+
+// pluginCall is a plugin call on its way to the page. The ID is a string
+// because JavaScript numbers can't hold every uint64.
+type pluginCall struct {
+	ID     string          `json:"id"`
+	Plugin string          `json:"plugin"`
+	Method string          `json:"method"`
+	Args   json.RawMessage `json:"args"`
+}
+
+// plugin sends a plugin call to the page, which answers through /_nn/result.
+func (s *session) plugin(req []byte) ([]byte, error) {
+	m, err := render.Decode(req)
+	if err != nil {
+		return nil, err
+	}
+	c, ok := m.(*render.PluginCall)
+	if !ok {
+		return nil, fmt.Errorf("web: not a plugin call: %T", m)
+	}
+	args := json.RawMessage(c.Args)
+	if len(args) == 0 {
+		args = json.RawMessage("null")
+	}
+	msg, err := json.Marshal(struct {
+		P pluginCall `json:"p"`
+	}{pluginCall{strconv.FormatUint(c.ID, 10), c.Plugin, c.Method, args}})
+	if err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	s.deliver(msg)
+	s.mu.Unlock()
+	return render.Encode(&render.PluginAck{}), nil
+}
+
+// pluginResult is the page's answer to a pluginCall.
+type pluginResult struct {
+	ID    string          `json:"id"`
+	Value json.RawMessage `json:"value"`
+	Code  string          `json:"code"`
+	Err   string          `json:"err"`
+}
+
+func (s *session) result(r pluginResult) {
+	id, err := strconv.ParseUint(r.ID, 10, 64)
+	if err != nil {
+		return
+	}
+	s.ui.Receive(render.Encode(&render.PluginResult{ID: id, Value: string(r.Value), Code: r.Code, Err: r.Err}))
 }
 
 // webRoot shows the page for the session's path inside the site's layout.

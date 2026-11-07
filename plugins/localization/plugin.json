@@ -1,1 +1,1 @@
-{ "description": "Their language, region, currency and formats", "handler": "LocalizationPlugin" }
+{ "description": "Their language, region, currency and formats", "handler": "LocalizationPlugin", "platforms": { "web": "no currency" } }

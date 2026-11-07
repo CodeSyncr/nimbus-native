@@ -588,12 +588,83 @@
   dark.addEventListener?.("change", viewport);
   addEventListener("popstate", () => send({ t: "navigate", path: location.pathname + location.search }));
 
+  // ---- plugins ----
+  // A plugin's browser side is a script that calls NN.plugin; the page
+  // loads it the first time Go calls the plugin.
+
+  const plugins = {}, loading = {};
+  window.NN = {
+    plugin(name, methods) { plugins[name] = methods; },
+    fail(code, message) { throw Object.assign(new Error(message || code), { nnCode: code }); },
+    // Go's []byte travels as base64.
+    bytes(b64) { return Uint8Array.from(atob(b64 || ""), (c) => c.charCodeAt(0)); },
+    async base64(data) {
+      const b = new Uint8Array(data instanceof Blob ? await data.arrayBuffer() : data);
+      let s = "";
+      for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+      return btoa(s);
+    },
+    // launch hands a link such as mailto: or sms: to the system from a
+    // hidden frame: in the page itself, a scheme with no app is a
+    // navigation, which ends the page's stream.
+    launch(url) {
+      const f = document.createElement("iframe");
+      f.style.display = "none";
+      f.src = url;
+      document.body.appendChild(f);
+      setTimeout(() => f.remove(), 2000);
+    },
+    // pick opens the browser's file chooser; it resolves with the chosen
+    // files, or none when the chooser is closed.
+    pick({ accept = "", multiple = false, capture } = {}) {
+      return new Promise((done) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = accept;
+        input.multiple = multiple;
+        if (capture) input.capture = capture;
+        input.style.display = "none";
+        document.body.appendChild(input);
+        const finish = (files) => { input.remove(); done(files); };
+        input.addEventListener("change", () => finish([...input.files]));
+        input.addEventListener("cancel", () => finish([]));
+        input.click();
+      });
+    },
+  };
+  function loadPlugin(name) {
+    if (plugins[name]) return Promise.resolve(plugins[name]);
+    return loading[name] ||= new Promise((done) => {
+      const s = document.createElement("script");
+      s.src = "/_nn/plugin/" + encodeURIComponent(name) + ".js";
+      s.onload = () => done(plugins[name]);
+      s.onerror = () => { delete loading[name]; done(undefined); };
+      document.head.appendChild(s);
+    });
+  }
+  async function runPlugin(p) {
+    let r;
+    try {
+      const methods = await loadPlugin(p.plugin);
+      const f = methods && methods[p.method];
+      if (!f) NN.fail("unavailable", p.plugin + "." + p.method + " doesn't work in a browser");
+      const v = await f(p.args ?? {});
+      r = { id: p.id, value: v === undefined ? null : v };
+    } catch (e) {
+      const code = e.nnCode || { NotAllowedError: "denied", SecurityError: "denied", AbortError: "cancelled", NotFoundError: "not_found", NotSupportedError: "unavailable" }[e.name] || "failed";
+      r = { id: p.id, code, err: String(e.message || e) };
+    }
+    fetch("/_nn/result?s=" + sid, { method: "POST", body: JSON.stringify(r), headers: { "Content-Type": "application/json" } })
+      .catch(() => {});
+  }
+
   // ---- the stream ----
 
   const es = new EventSource("/_nn/events?s=" + sid);
   es.onopen = viewport;
   es.onmessage = (e) => {
     const m = JSON.parse(e.data);
+    if (m.p) { runPlugin(m.p); return; }
     apply(m.i || []);
     if (m.nav) {
       if (m.nav.push && location.pathname + location.search !== m.nav.path) history.pushState(null, "", m.nav.path);

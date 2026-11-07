@@ -1,1 +1,1 @@
-{ "description": "Read text aloud", "handler": "SpeechPlugin" }
+{ "description": "Read text aloud", "handler": "SpeechPlugin", "platforms": { "web": "after a first tap" } }

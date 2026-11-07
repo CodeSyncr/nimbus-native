@@ -32,7 +32,7 @@ func Say(ctx context.Context, text string, o Options) error {
 	for {
 		select {
 		case <-ctx.Done():
-			stop, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			stop, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
 			defer cancel()
 			_, _ = plugin.CallJSON(stop, "speech", "stop", nil)
 			return ctx.Err()
