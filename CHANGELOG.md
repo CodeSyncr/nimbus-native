@@ -2,16 +2,26 @@
 
 ## Unreleased
 
-- `nimbus native plugin add <module>[@version]` installs third-party Go module
-  plugins, stages their Swift and Kotlin handlers in the project, and applies
-  their declared native dependencies and permissions. Plugin documentation in
-  nimbus-starter covers publishing and using modules.
-- iOS calls the app by its name, not "Runner", where it doesn't use the
-  display name, such as "… wants to use microsoftonline.com to sign in". The
-  bundle, executable and Swift module are still Runner. `nimbus native
-  upgrade` (or `sync`) updates projects made before.
+## 0.0.13 (2026-11-07)
 
-- Canvas draws much more: arcs, ovals, SVG path data (`Painter.Path`),
+The biggest release of the beta: thirty components, a plugin system with
+over seventy plugins, and a drawing layer.
+
+**Screens and look**
+
+- Thirty components drawn in Go from the theme (buttons, inputs, lists,
+  sheets, toasts, menus, tooltips, carousels and more), passed straight in as
+  children; `Render` returns a `ui.Component`.
+- Drags, swipes and pinches on any view; `OnScroll`; `OnSubmit`,
+  `AutoFocus` and `StickToEnd` for inputs and chats.
+- `Style`: blur and Liquid Glass (`BlurGlass`, iOS 26), gradients, shadows,
+  per-corner radius, `Scale` and `Rotate`, letter spacing, line height,
+  tabular digits and shrink to fit. `ui.Rich` for text in runs.
+- Android Back closes an open overlay first; Select works in a browser.
+
+**Canvas**
+
+- `ui.Canvas`, for shapes Go draws: paths and curves, arcs, ovals, SVG path data (`Painter.Path`),
   even-odd fills, clipping, `Save`/`Restore`, translate, rotate and scale,
   layers with opacity, blend modes, shadows, dashes, line caps and joins,
   sweep gradients, gradient strokes, pictures and wrapped text. Each phone
@@ -32,7 +42,54 @@
   any number. Go turns it into each phone's language: AGSL on Android 13+,
   Metal on iOS, WebGL 2 on the web; older Android fills with a fallback
   color.
+
+**Plugins**
+
+- `nimbus native plugin add|remove|list`; plugins are Go packages with Swift
+  and Kotlin handlers, and third-party modules install with
+  `plugin add <module>[@version]`.
+- Device and system: device, battery, network, cellular, keyboard, status
+  bar, navigation bar, splash screen, brightness, keep awake, orientation,
+  app state, badge, screen reader, localization, haptics, hinge and split
+  view.
+- Sensors and place: location, background location, geofencing, motion,
+  barometer, magnetometer, light sensor, pedometer.
+- Media: camera, camera view, file picker, media library, image
+  manipulator, audio, audio player and recorder, video, speech, speech
+  recognition, barcode, screen capture, Live Photos (iOS).
+- Data and sharing: SQLite (`database/sql`), filesystem, share, receiving
+  shares, clipboard, contacts, calendar and calendar events, mail, SMS,
+  printing, intent launcher, browser, web view.
+- Accounts and services: push, Google Maps, Apple Maps, OAuth, sign-in,
+  in-app purchases, tracking consent, app review, biometrics, local
+  notifications, background tasks, Bluetooth, NFC.
+- Graphics: 3D scenes (Metal and Vulkan, glTF models, shadows, an orbit
+  camera), mesh gradients and the platforms' own symbols.
+- `ui.Native` places a plugin's native view inside a screen.
+
+**Tooling**
+
+- The nimbus look for `dev`, `run` and `build`; `-server` builds the app's
+  server address into it.
+- `nimbus native plugin add <module>[@version]` installs third-party Go module
+  plugins, stages their Swift and Kotlin handlers in the project, and applies
+  their declared native dependencies and permissions. Plugin documentation in
+  nimbus-starter covers publishing and using modules.
+- iOS calls the app by its name, not "Runner", where it doesn't use the
+  display name, such as "… wants to use microsoftonline.com to sign in". The
+  bundle, executable and Swift module are still Runner. `nimbus native
+  upgrade` (or `sync`) updates projects made before.
 - The guide's API reference can describe parameters in pairs (`x, y`).
+
+**Fixes**
+
+- `UseQuery` keeps the hooks after it in place.
+- A growing Scroll fills its space instead of growing to its content.
+- `Style.Hidden` hides the native view; Text keeps its padding on iOS and
+  Android.
+- A dev shell left open by another session can't take over.
+- The booted simulator is found by device type, not name.
+- `plugin add` checks every plugin before changing the project.
 
 ## 0.0.12 (2026-10-30)
 
