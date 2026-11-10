@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.0.14 (2026-11-11)
+
 - The camera view in the browser: `cameraview.View` is a live `<video>`,
   mirrored for the front camera, and `Take` returns a JPEG of its frame.
 - Bluetooth in the browser (Chrome and Edge): `Scan` opens the browser's
