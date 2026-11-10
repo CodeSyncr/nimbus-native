@@ -239,6 +239,10 @@
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. Simulators have no Bluetooth, so it has never been run."
     },
     {
+      "where": "Chromium",
+      "result": "Bluetooth turned on and Scan opened the browser's chooser. No device was picked: the test machine couldn't answer the system's Bluetooth prompt, so connecting, reading and writing haven't been run."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -333,6 +337,10 @@
     {
       "where": "iOS simulator",
       "result": "Reports no camera, as it should: the simulator has none, so the live picture and Take are untested on iOS."
+    },
+    {
+      "where": "Chromium",
+      "result": "The live picture shows from a fake camera, Take returns a 640×480 JPEG, and Flip mirrors the front camera. The light wasn't confirmed: the fake camera has none."
     },
     {
       "where": "Real phones",
@@ -951,6 +959,10 @@
     {
       "where": "iOS simulator",
       "result": "The example's screen shows. Its buttons weren't pressed, because this run can't tap the simulator. A real token and a simulated push worked in an earlier test."
+    },
+    {
+      "where": "Chromium",
+      "result": "Subscribed with a VAPID key; push.SendWeb delivered through Google's push service to Watch with the tab open, and as a notification with no tab open. A tap, sent from the service worker, reached Watch as Tapped. Clicking the system's notification itself wasn't tried."
     },
     {
       "where": "Real phones",

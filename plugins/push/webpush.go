@@ -55,8 +55,8 @@ func NewVAPIDKeys() (Keys, error) {
 
 // Notification is what SendWeb shows.
 type Notification struct {
-	Title string            `json:"title"`
-	Body  string            `json:"body"`
+	Title string            `json:"title"`          // its heading
+	Body  string            `json:"body"`           // its text
 	Data  map[string]string `json:"data,omitempty"` // Message.Data on arrival
 	URL   string            `json:"url,omitempty"`  // the page a tap opens, such as "/orders/42"; "/" by default
 	Tag   string            `json:"tag,omitempty"`  // a new one with the same tag replaces the old
