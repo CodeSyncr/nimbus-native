@@ -1,11 +1,12 @@
-// Package push receives notifications from your server: APNs on iOS, and
-// Firebase Cloud Messaging on Android.
+// Package push receives notifications from your server: APNs on iOS,
+// Firebase Cloud Messaging on Android, and Web Push in a browser.
 //
 //	nimbus native plugin add push
 //
 // Android needs your Firebase project's google-services.json, at
 // native/android/app/google-services.json. On iOS, turn on Push Notifications
-// for the app in your Apple developer account.
+// for the app in your Apple developer account. The web needs a VAPID key
+// pair (see NewVAPIDKeys), and your server sends to browsers with SendWeb.
 //
 //	ok, err := push.Request(ctx)
 //	t, err := push.GetToken(ctx)
@@ -15,6 +16,7 @@ package push
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/CodeSyncr/nimbus-native/plugin"
@@ -23,7 +25,7 @@ import (
 // Token is where your server sends to reach this phone.
 type Token struct {
 	Value   string `json:"value"`   // send this to your server
-	Service string `json:"service"` // "apns" or "fcm"
+	Service string `json:"service"` // "apns", "fcm" or "web"
 }
 
 // Message is a notification that arrived while the app was open, or one
@@ -44,8 +46,16 @@ func Request(ctx context.Context) (bool, error) {
 }
 
 // GetToken registers with APNs or Firebase and returns this phone's token.
-// It can change: send it to your server each time the app starts.
+// It can change: send it to your server each time the app starts. In a
+// browser it subscribes with your VAPID public key, and Value is the
+// subscription, for SendWeb.
 func GetToken(ctx context.Context) (Token, error) {
+	if plugin.InBrowser(ctx) {
+		if VAPID.Public == "" {
+			return Token{}, errors.New("push: set NIMBUS_VAPID_PUBLIC and NIMBUS_VAPID_PRIVATE for the web (push.NewVAPIDKeys makes a pair)")
+		}
+		return plugin.Call[Token](ctx, "push", "token", map[string]string{"key": VAPID.Public})
+	}
 	return plugin.Call[Token](ctx, "push", "token", nil)
 }
 

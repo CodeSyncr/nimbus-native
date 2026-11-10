@@ -669,6 +669,10 @@
       });
     },
   };
+  // Push messages the service worker passes on wait here for push.Watch.
+  NN.pushed = [];
+  navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.nnPush) NN.pushed.push(e.data.nnPush); });
+  navigator.serviceWorker?.startMessages();
   // A Native view's browser side: NN.view(kind, make) registers make(el,
   // emit), which fills el and returns update(props). Its plugin's script
   // loads when the first one shows.

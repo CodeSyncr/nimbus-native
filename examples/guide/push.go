@@ -19,7 +19,7 @@ func (Notifications) Render(c *ui.Ctx) ui.Component {
 	}, ui.Once)
 	turnOn := func() {
 		go func() {
-			ctx := context.Background()
+			ctx := c.Context() // in a browser, this reaches their tab
 			if ok, err := push.Request(ctx); err != nil || !ok {
 				setStatus("Notifications are off")
 				return

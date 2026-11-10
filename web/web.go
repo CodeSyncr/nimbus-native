@@ -87,6 +87,9 @@ type site struct {
 //go:embed host.js
 var hostJS []byte
 
+//go:embed sw.js
+var swJS []byte
+
 // hostVersion changes whenever host.js does, so browsers can cache it for
 // good and still pick up a new one.
 var hostVersion = func() string { h := sha256.Sum256(hostJS); return hex.EncodeToString(h[:4]) }()
@@ -99,6 +102,12 @@ func (s *site) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable") // the URL carries its version
 		w.Write(hostJS)
+	case r.URL.Path == prefix+"sw.js":
+		// The push plugin's service worker, over the whole site.
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Service-Worker-Allowed", "/")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Write(swJS)
 	case strings.HasPrefix(r.URL.Path, prefix+"fonts/") && s.o.FontDir != "":
 		name := path.Base(r.URL.Path)
 		if ext := path.Ext(name); ext != ".ttf" && ext != ".otf" {

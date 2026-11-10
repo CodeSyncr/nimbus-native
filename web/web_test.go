@@ -332,3 +332,17 @@ func TestScrollInPage(t *testing.T) {
 		t.Fatalf("scroll view can't scroll in %s", body)
 	}
 }
+
+// The push plugin's worker covers the whole site from under /_nn/.
+func TestServiceWorker(t *testing.T) {
+	srv := httptest.NewServer(Handler(Options{}))
+	t.Cleanup(srv.Close)
+	res, err := http.Get(srv.URL + "/_nn/sw.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 || res.Header.Get("Service-Worker-Allowed") != "/" || !strings.HasPrefix(res.Header.Get("Content-Type"), "text/javascript") {
+		t.Fatalf("%d %v", res.StatusCode, res.Header)
+	}
+}

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Push in the browser, through Web Push: `push.Request`, `GetToken` and
+  `Watch` work in a tab as on phones, with `Service: "web"`. The site's
+  service worker (`/_nn/sw.js`) shows notifications while no tab is open,
+  and a tap opens the notification's page and reaches `Watch` as
+  `Tapped`. Your server sends with `push.SendWeb` (RFC 8291 encryption and
+  VAPID, in plain Go); `push.NewVAPIDKeys` makes the key pair, kept in
+  `NIMBUS_VAPID_PUBLIC`, `NIMBUS_VAPID_PRIVATE` and `NIMBUS_VAPID_SUBJECT`.
+  `ErrGone` says a browser has unsubscribed.
 - Fixed: on the web, scroll views didn't scroll. The browser does the
   layout there, so their `Scroll` op was never sent, and with it went
   `overflow-y: auto`; a page longer than the window was cut off.
