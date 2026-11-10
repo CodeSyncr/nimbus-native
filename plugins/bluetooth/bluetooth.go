@@ -8,8 +8,10 @@
 //	err = bluetooth.Connect(ctx, d.ID)
 //	b, err := bluetooth.Read(ctx, d.ID, service, characteristic)
 //
-// Written against the platform APIs, but not yet run: simulators and
-// emulators have no Bluetooth.
+// Written against the platform APIs, but not yet run on phones: simulators
+// and emulators have no Bluetooth. In a browser (Chrome and Edge), Scan opens
+// the browser's chooser and finds the one device picked, and only the
+// services named in Scan can be read or written.
 package bluetooth
 
 import (
@@ -36,7 +38,7 @@ func Request(ctx context.Context) (bool, error) {
 }
 
 // Scan calls f with each device it finds until ctx ends. services narrows it
-// to those UUIDs. It blocks, so run it from a goroutine in an effect.
+// to those UUIDs; in a browser, name every service you'll use. It blocks, so run it from a goroutine in an effect.
 //
 //nimbus:param f called with each device found
 //nimbus:param services service UUIDs to look for; none means any
@@ -44,7 +46,7 @@ func Scan(ctx context.Context, f func(Device), services ...string) error {
 	if _, err := plugin.CallJSON(ctx, "bluetooth", "scanStart", map[string]any{"services": services}); err != nil {
 		return err
 	}
-	defer call("scanStop", nil)
+	defer call(ctx, "scanStop", nil)
 	seen := map[string]bool{}
 	tick := time.NewTicker(300 * time.Millisecond)
 	defer tick.Stop()
@@ -69,8 +71,8 @@ func Scan(ctx context.Context, f func(Device), services ...string) error {
 	}
 }
 
-func call(method string, args any) {
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func call(ctx context.Context, method string, args any) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 	defer cancel()
 	_, _ = plugin.CallJSON(ctx, "bluetooth", method, args)
 }

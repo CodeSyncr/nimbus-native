@@ -1,3 +1,4 @@
 { "description": "A live camera inside your screen", "handler": "CameraViewPlugin", "boot": true,
   "ios": { "info": { "NSCameraUsageDescription": "This app shows the camera when you ask it to." } },
-  "android": { "permissions": ["android.permission.CAMERA"] } }
+  "android": { "permissions": ["android.permission.CAMERA"] },
+  "platforms": { "web": "a live <video> from the browser's camera; the torch only where the browser offers it" } }

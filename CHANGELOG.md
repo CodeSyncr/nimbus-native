@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The camera view in the browser: `cameraview.View` is a live `<video>`,
+  mirrored for the front camera, and `Take` returns a JPEG of its frame.
+- Bluetooth in the browser (Chrome and Edge): `Scan` opens the browser's
+  device chooser and finds the device picked; name every service you'll
+  read or write in `Scan`. Not yet run against a real device.
 - Push in the browser, through Web Push: `push.Request`, `GetToken` and
   `Watch` work in a tab as on phones, with `Service: "web"`. The site's
   service worker (`/_nn/sw.js`) shows notifications while no tab is open,

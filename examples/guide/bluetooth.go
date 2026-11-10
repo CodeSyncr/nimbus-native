@@ -16,7 +16,7 @@ func (Nearby) Render(c *ui.Ctx) ui.Component {
 	status, setStatus := ui.State(c, "")
 	scan := func() {
 		go func() {
-			ctx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, stop := context.WithTimeout(c.Context(), 10*time.Second)
 			defer stop()
 			if ok, err := bluetooth.Request(ctx); err != nil || !ok {
 				setStatus("Bluetooth is off")

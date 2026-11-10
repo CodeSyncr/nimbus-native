@@ -1,3 +1,4 @@
 { "description": "Talk to Bluetooth LE devices", "handler": "BluetoothPlugin",
   "ios": { "info": { "NSBluetoothAlwaysUsageDescription": "This app connects to nearby Bluetooth devices." } },
-  "android": { "permissions": ["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_FINE_LOCATION"] } }
+  "android": { "permissions": ["android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT", "android.permission.ACCESS_FINE_LOCATION"] },
+  "platforms": { "web": "Chrome and Edge only; Scan opens the browser's chooser, and only services named in Scan can be used" } }
