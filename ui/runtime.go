@@ -665,6 +665,9 @@ func (rt *runtime) props(in *instance, first bool) {
 			rt.hostLayout(in.tag, ls)
 		}
 	}
+	if rt.hostLayout != nil && el.kind == render.KindScroll {
+		rt.scroll(in, 0, 0) // the host sizes the content itself
+	}
 
 	box := render.Box{Tag: in.tag, Background: uint32(s.Background), Radius: s.Radius, BorderWidth: s.BorderWidth,
 		BorderColor: uint32(s.BorderColor), Opacity: s.opacity(), Clip: s.Clip, Label: el.label, TestID: el.testID, Href: el.href, Copy: el.copies,
@@ -790,17 +793,22 @@ func (rt *runtime) emitFrames(in *instance) {
 		rt.op(&f)
 	}
 	if in.el.kind == render.KindScroll {
-		sc := render.Scroll{Tag: in.tag, W: n.ContentW, H: n.ContentH, Horizontal: in.el.horizontal, Report: in.el.list != nil || in.el.onScroll != nil,
-			Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing, StickToEnd: in.el.stickToEnd}
-		if sc != in.sent.scroll {
-			in.sent.scroll = sc
-			rt.op(&sc)
-		}
+		rt.scroll(in, n.ContentW, n.ContentH)
 	}
 	for _, c := range in.children {
 		if h := hostRoot(c); h != nil {
 			rt.emitFrames(h)
 		}
+	}
+}
+
+// scroll sends a scroll view's settings and content size, if they changed.
+func (rt *runtime) scroll(in *instance, w, h float32) {
+	sc := render.Scroll{Tag: in.tag, W: w, H: h, Horizontal: in.el.horizontal, Report: in.el.list != nil || in.el.onScroll != nil,
+		Refreshable: in.el.onRefresh != nil, Refreshing: in.el.onRefresh != nil && in.el.refreshing, StickToEnd: in.el.stickToEnd}
+	if sc != in.sent.scroll {
+		in.sent.scroll = sc
+		rt.op(&sc)
 	}
 }
 

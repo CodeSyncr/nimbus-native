@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Fixed: on the web, scroll views didn't scroll. The browser does the
+  layout there, so their `Scroll` op was never sent, and with it went
+  `overflow-y: auto`; a page longer than the window was cut off.
 - `Button.Copies` and `Pressable(...).Copies(text)`: a tap copies the text,
   then the handler runs. Browsers copy it inside the tap itself, which
   Safari requires (it refuses `clipboard.Set` from a handler); phones use

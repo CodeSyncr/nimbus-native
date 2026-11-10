@@ -313,3 +313,22 @@ func TestCopiesInPage(t *testing.T) {
 		t.Fatalf("no data-copy in %s", body)
 	}
 }
+
+type scrollPage struct{}
+
+func (scrollPage) Render(c *ui.Ctx) ui.Component {
+	return ui.Scroll(ui.Style{Grow: 1}, ui.Text("A long menu", ui.Style{}))
+}
+
+// The browser lays out, so the scroll view's overflow comes from its Scroll
+// op alone; without it, a long page can't scroll.
+func TestScrollInPage(t *testing.T) {
+	router.Register(router.Table{
+		{Pattern: "/menu", New: func(router.Params) (ui.Component, bool) { return scrollPage{}, true }},
+	})
+	srv := httptest.NewServer(Handler(Options{SiteName: "Shop"}))
+	t.Cleanup(srv.Close)
+	if _, body := get(t, srv.URL+"/menu"); !strings.Contains(body, "overflow-y:auto") {
+		t.Fatalf("scroll view can't scroll in %s", body)
+	}
+}
