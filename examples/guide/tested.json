@@ -13,6 +13,10 @@
       "result": "Platform web, the site's host as the ID, and the browser's language."
     },
     {
+      "where": "Safari",
+      "result": "Works, with the site's host as its ID."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -293,6 +297,10 @@
       "result": "Downloaded an .ics file with the event."
     },
     {
+      "where": "Safari",
+      "result": "Saved the event as an .ics file."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -437,6 +445,10 @@
       "result": "Alert, Confirm, Choose and PickDate showed in the page and returned the button or date chosen; Toast showed."
     },
     {
+      "where": "Safari",
+      "result": "Alert, confirm, choose, date and toast all answered."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -537,6 +549,10 @@
       "result": "Calls through For(ctx) reached the page; a computer has no vibration to feel."
     },
     {
+      "where": "Safari",
+      "result": "The call works; a Mac has nothing to vibrate."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -623,6 +639,10 @@
       "result": "Dismiss ran."
     },
     {
+      "where": "Safari",
+      "result": "Dismissed the keyboard."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -653,6 +673,10 @@
     {
       "where": "Chromium",
       "result": "Opened a page in a new tab; CanOpen is true for tel: and false for an app's own scheme."
+    },
+    {
+      "where": "Safari",
+      "result": "Opened a link and reported what it can't open."
     },
     {
       "where": "Real phones",
@@ -861,6 +885,10 @@
       "result": "Available is false on a computer; not tried in Chrome on Android."
     },
     {
+      "where": "Safari",
+      "result": "Reports no NFC, as Safari has none."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -899,6 +927,10 @@
     {
       "where": "Chromium",
       "result": "Unavailable on a computer, as expected."
+    },
+    {
+      "where": "Safari",
+      "result": "Unavailable: Safari can't lock the orientation."
     },
     {
       "where": "Real phones",
@@ -963,6 +995,10 @@
     {
       "where": "Chromium",
       "result": "Subscribed with a VAPID key; push.SendWeb delivered through Google's push service to Watch with the tab open, and as a notification with no tab open. A tap, sent from the service worker, reached Watch as Tapped. Clicking the system's notification itself wasn't tried."
+    },
+    {
+      "where": "Safari",
+      "result": "Has Web Push, and the tap asked for permission. In the automation window the answer was denied, so delivery in Safari hasn't been seen."
     },
     {
       "where": "Real phones",
@@ -1039,6 +1075,10 @@
     {
       "where": "Chromium",
       "result": "Announce reached a live region. Enabled is unavailable: browsers don't say."
+    },
+    {
+      "where": "Safari",
+      "result": "Unavailable: browsers don't say whether a screen reader is on."
     },
     {
       "where": "Real phones",
@@ -1225,6 +1265,10 @@
       "result": "SetColor became the page's theme color."
     },
     {
+      "where": "Safari",
+      "result": "Set the page's theme color."
+    },
+    {
       "where": "Real phones",
       "result": "Not tried yet."
     }
@@ -1285,6 +1329,10 @@
     {
       "where": "Chromium",
       "result": "Answers not-needed."
+    },
+    {
+      "where": "Safari",
+      "result": "Answers not-needed, as on Android."
     },
     {
       "where": "Real phones",
