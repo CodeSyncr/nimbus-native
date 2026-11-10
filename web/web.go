@@ -4,7 +4,7 @@
 // A request for a page runs the app's UI on the server until its data has
 // loaded and answers with plain HTML, with the page's title and meta tags,
 // so search engines and link previews see real content. A small script
-// (host.js, 33 KB, 11 KB gzipped) then takes over that HTML: taps and typing go to the
+// (host.js, 36 KB, 11 KB gzipped) then takes over that HTML: taps and typing go to the
 // page's UI session on the server, and the changes it renders come back as
 // DOM updates. Layout is the browser's own CSS flexbox.
 //
