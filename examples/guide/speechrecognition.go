@@ -15,7 +15,7 @@ func (VoiceSearch) Render(c *ui.Ctx) ui.Component {
 	heard, setHeard := ui.State(c, "")
 	listen := func() {
 		go func() {
-			ctx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, stop := context.WithTimeout(c.Context(), 10*time.Second)
 			defer stop()
 			if ok, err := speechrecognition.Request(ctx); err != nil || !ok {
 				setHeard("The microphone is off")

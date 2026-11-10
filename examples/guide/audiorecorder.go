@@ -17,7 +17,7 @@ func (VoiceMemo) Render(c *ui.Ctx) ui.Component {
 	memo, setMemo := ui.State(c, audiorecorder.Recording{})
 	status, setStatus := ui.State(c, "")
 	stop := ui.Ref(c, func() {})
-	ctx := context.Background()
+	ctx := c.Context()
 	start := func() {
 		go func() {
 			ok, err := audiorecorder.Request(ctx)

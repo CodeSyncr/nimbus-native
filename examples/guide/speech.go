@@ -14,7 +14,7 @@ func (ReadAloud) Render(c *ui.Ctx) ui.Component {
 	say := ui.Ref(c, func() {})
 	stop := ui.Ref(c, func() {})
 	*say = func() {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(c.Context())
 		(*stop)()
 		*stop = cancel
 		go speech.Say(ctx, "Pour slowly in circles for thirty seconds.", speech.Options{Language: "en-IN"})

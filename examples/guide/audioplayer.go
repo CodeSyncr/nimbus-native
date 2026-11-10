@@ -29,7 +29,7 @@ func (Podcast) Render(c *ui.Ctx) ui.Component {
 		}()
 		return func() {
 			if open != nil {
-				go open.Close(context.Background())
+				go open.Close(context.WithoutCancel(ctx))
 			}
 		}
 	}, ui.Once)
@@ -39,7 +39,7 @@ func (Podcast) Render(c *ui.Ctx) ui.Component {
 	if player == nil {
 		return ui.SafeArea(ui.Style{Padding: ui.All(24)}, ui.Text("Loading…", ui.Style{}))
 	}
-	bg := context.Background()
+	bg := c.Context()
 	done := 0.0
 	if s.Duration > 0 {
 		done = s.Position / s.Duration

@@ -13,7 +13,7 @@ type DarkHero struct{}
 func (DarkHero) Render(c *ui.Ctx) ui.Component {
 	ui.Effect(c, func(ctx context.Context) func() {
 		go statusbar.SetStyle(ctx, statusbar.LightContent)
-		return func() { go statusbar.SetStyle(context.Background(), statusbar.Auto) }
+		return func() { go statusbar.SetStyle(context.WithoutCancel(ctx), statusbar.Auto) }
 	}, ui.Once)
 	return ui.View(ui.Style{Grow: 1, Padding: ui.All(64), Background: ui.Hex("#10201f")},
 		ui.Text("Roastery", ui.Style{FontSize: 28, Color: ui.Hex("#ffffff")}))

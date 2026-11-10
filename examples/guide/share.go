@@ -1,8 +1,6 @@
 package guide
 
 import (
-	"context"
-
 	"github.com/CodeSyncr/nimbus-native/plugins/share"
 	"github.com/CodeSyncr/nimbus-native/ui"
 )
@@ -11,7 +9,7 @@ import (
 type SplitBill struct{}
 
 func (SplitBill) Render(c *ui.Ctx) ui.Component {
-	ctx := context.Background()
+	ctx := c.Context()
 	text := func() { go share.Share(ctx, share.Options{Text: "You owe me ₹580 for lunch"}) }
 	file := func() {
 		receipt := share.File{Name: "receipt.txt", Type: "text/plain", Data: []byte("Table 7, ₹1,160")}

@@ -1,8 +1,6 @@
 package guide
 
 import (
-	"context"
-
 	"github.com/CodeSyncr/nimbus-native/plugins/audio"
 	"github.com/CodeSyncr/nimbus-native/ui"
 )
@@ -15,7 +13,7 @@ func (AskOnce) Render(c *ui.Ctx) ui.Component {
 	status, setStatus := ui.State(c, "Tap and speak")
 	listen := func() {
 		go func() {
-			ctx := context.Background()
+			ctx := c.Context()
 			if ok, err := audio.RequestMicrophone(ctx); err != nil || !ok {
 				setStatus("The microphone is off")
 				return
